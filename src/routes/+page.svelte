@@ -171,6 +171,7 @@
 <style>
   :global(html),
   :global(body) {
+    height: 100%;
     min-height: 100%;
     margin: 0;
   }
@@ -181,21 +182,25 @@
     font-family:
       Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
       sans-serif;
+    overflow: hidden;
   }
 
   .page-shell {
     box-sizing: border-box;
     display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
     gap: 18px;
-    min-height: 100vh;
-    padding: 24px;
-    place-items: center;
+    height: 100dvh;
+    min-height: 0;
+    padding: 18px;
+    align-items: stretch;
   }
 
   .game-panel {
-    width: min(920px, 100%);
-    min-height: 360px;
-    aspect-ratio: 3 / 2;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
     overflow: hidden;
     border: 1px solid #2c3d68;
     border-radius: 16px;
@@ -206,5 +211,29 @@
   .arena-viewport {
     width: 100%;
     height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  @media (max-width: 860px) {
+    :global(body) {
+      overflow: auto;
+    }
+
+    .page-shell {
+      grid-template-columns: 1fr;
+      grid-template-rows: minmax(360px, 55dvh) auto;
+      height: auto;
+      min-height: 100dvh;
+      overflow: visible;
+      padding: 16px;
+    }
+
+    .game-panel {
+      width: 100%;
+      height: auto;
+      min-height: 360px;
+      aspect-ratio: 3 / 2;
+    }
   }
 </style>

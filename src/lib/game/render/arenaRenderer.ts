@@ -5,8 +5,11 @@ import type { DiagnosticFrame } from '../sim/diagnostics';
 import type { ArenaDefinition } from '../physics/arena';
 import type { GameState } from '../sim/gameState';
 import { createDiagnosticRenderer } from '../debug/diagnosticRenderer';
+import {
+  createArenaCameraController,
+  type ArenaCameraFraming
+} from './arenaCameraController';
 
-const RENDER_PADDING = 2;
 const EMPTY_DIAGNOSTIC_FRAME: DiagnosticFrame = { tick: 0, records: [] };
 
 export interface ArenaRenderer {
@@ -17,6 +20,8 @@ export interface ArenaRenderer {
     arenaDiagnosticsEnabled?: boolean
   ): void;
   setArena(arena: ArenaDefinition): void;
+  setCameraFraming(framing: ArenaCameraFraming): void;
+  fitArena(): void;
   dispose(): void;
 }
 
@@ -71,10 +76,8 @@ export function createArenaRenderer(
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   container.appendChild(renderer.domElement);
 
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
-  camera.position.set(0, 30, 0);
-  camera.up.set(0, 0, -1);
-  camera.lookAt(0, 0, 0);
+  const cameraController = createArenaCameraController(initialArena);
+  const camera = cameraController.camera;
 
   const diagnosticRenderer = createDiagnosticRenderer(scene);
   const arenaGroup = new THREE.Group();
@@ -123,20 +126,9 @@ export function createArenaRenderer(
   const resize = (): void => {
     const width = Math.max(container.clientWidth, 1);
     const height = Math.max(container.clientHeight, 1);
-    const aspect = width / height;
-    const arenaHalfHeight = (arena.bounds.maxY - arena.bounds.minY) / 2;
-    const arenaHalfWidth = (arena.bounds.maxX - arena.bounds.minX) / 2;
-    const halfHeight = Math.max(
-      arenaHalfHeight + RENDER_PADDING,
-      (arenaHalfWidth + RENDER_PADDING) / aspect
-    );
 
     renderer.setSize(width, height, false);
-    camera.left = -halfHeight * aspect;
-    camera.right = halfHeight * aspect;
-    camera.top = halfHeight;
-    camera.bottom = -halfHeight;
-    camera.updateProjectionMatrix();
+    cameraController.setViewport(width, height);
   };
 
   rebuildArenaObjects();
@@ -197,8 +189,17 @@ export function createArenaRenderer(
       signature = nextSignature;
       arenaDiagnosticRecords = createArenaDiagnosticRecords(arena);
       composedFrame = undefined;
+      cameraController.setArena(arena);
       rebuildArenaObjects();
       resize();
+    },
+
+    setCameraFraming(framing: ArenaCameraFraming): void {
+      cameraController.setFraming(framing);
+    },
+
+    fitArena(): void {
+      cameraController.fitArena();
     },
 
     dispose(): void {

@@ -217,7 +217,15 @@
     box-sizing: border-box;
     display: grid;
     gap: 18px;
-    width: min(920px, 100%);
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     padding: 18px 20px;
     border: 1px solid #2c3d68;
     border-radius: 16px;
@@ -384,5 +392,15 @@
     gap: 8px;
     color: #d5def8;
     font-size: 0.82rem;
+  }
+
+  @media (max-width: 860px) {
+    .workbench {
+      width: 100%;
+      height: auto;
+      max-height: none;
+      overflow: visible;
+      scrollbar-gutter: auto;
+    }
   }
 </style>
