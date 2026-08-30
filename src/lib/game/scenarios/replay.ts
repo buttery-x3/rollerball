@@ -173,6 +173,14 @@ function tuningSnapshot(tuning: TuningRegistry): {
   };
 }
 
+function snapshotInput<TInput>(input: TInput): TInput {
+  if (input === null || typeof input !== 'object') {
+    return input;
+  }
+
+  return structuredClone(input);
+}
+
 export function createReplayRecorder<TState extends GameState, TInput>(
   options: CreateReplayRecorderOptions<TState>
 ): ReplayRecorder<TState, TInput> {
@@ -218,7 +226,7 @@ export function createReplayRecorder<TState extends GameState, TInput>(
       }
 
       if (input !== undefined) {
-        inputs.push({ tick, input });
+        inputs.push({ tick, input: snapshotInput(input) });
       }
 
       if (checkpointIntervalTicks > 0 && tick % checkpointIntervalTicks === 0) {

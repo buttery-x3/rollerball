@@ -96,6 +96,81 @@ describe('deterministic replay', () => {
     expect(stableStateHash(replay.run.state)).toBe(record.finalStateHash);
   });
 
+  it('snapshots reused mutable input objects at each recording tick', () => {
+    interface MutableInput {
+      direction: { x: number; y: number };
+      strength: number;
+    }
+
+    interface MutableReplayState extends GameState {
+      receivedInputs: Array<{
+        direction: { x: number; y: number };
+        strength: number;
+      }>;
+    }
+
+    const sharedInput: MutableInput = {
+      direction: { x: 1, y: 0 },
+      strength: 0.25
+    };
+    const scenario: ScenarioDefinition<MutableReplayState, MutableInput> = {
+      id: 'mutable-replay-inputs',
+      name: 'Mutable replay inputs',
+      createInitialState: () => ({ tick: 0, receivedInputs: [] }),
+      scriptedInputs: [
+        { tick: 1, input: sharedInput },
+        { tick: 2, input: sharedInput }
+      ]
+    };
+    const step: ScenarioStep<MutableReplayState, MutableInput> = (
+      state,
+      _fixedStepSeconds,
+      _context,
+      input
+    ) => {
+      state.tick += 1;
+      if (input !== undefined) {
+        state.receivedInputs.push({
+          direction: { ...input.direction },
+          strength: input.strength
+        });
+      }
+    };
+
+    let recorder: ReplayRecorder<MutableReplayState, MutableInput> | undefined;
+    const run = createScenarioRun({
+      definition: scenario,
+      step,
+      onStep: (state, tick, input) => {
+        recorder?.recordStep(tick, input, state);
+        if (tick === 1) {
+          sharedInput.direction = { x: 2, y: 3 };
+          sharedInput.strength = 0.5;
+        }
+      }
+    });
+    recorder = createReplayRecorder<MutableReplayState, MutableInput>({
+      scenarioId: scenario.id,
+      initialState: run.state,
+      tuning: run.tuning,
+      checkpointIntervalTicks: 1
+    });
+
+    run.runtime.pause();
+    run.runtime.stepOnce();
+    run.runtime.stepOnce();
+    const record = recorder.finish(run.state);
+    const replay = replayScenario({ scenario, step, replay: record });
+
+    expect(record.inputs).toEqual([
+      { tick: 1, input: { direction: { x: 1, y: 0 }, strength: 0.25 } },
+      { tick: 2, input: { direction: { x: 2, y: 3 }, strength: 0.5 } }
+    ]);
+    expect(record.inputs[0].input).not.toBe(sharedInput);
+    expect(replay.run.state).toEqual(run.state);
+    expect(replay.finalStateHash).toBe(record.finalStateHash);
+  });
+
   it('captures the initial state and optional per-tick checkpoints', () => {
     const { record } = createRecordedReplay();
 
