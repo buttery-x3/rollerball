@@ -1,0 +1,80 @@
+import type { TuningReader } from '../config/tuning';
+
+export interface DiagnosticPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface DiagnosticVector {
+  readonly x: number;
+  readonly y: number;
+}
+
+export type DiagnosticPrimitive =
+  | {
+      readonly type: 'line';
+      readonly start: DiagnosticPoint;
+      readonly end: DiagnosticPoint;
+      readonly color?: string;
+    }
+  | {
+      readonly type: 'vector';
+      readonly origin: DiagnosticPoint;
+      readonly direction: DiagnosticVector;
+      readonly color?: string;
+    }
+  | {
+      readonly type: 'circle';
+      readonly center: DiagnosticPoint;
+      readonly radius: number;
+      readonly color?: string;
+    }
+  | {
+      readonly type: 'region';
+      readonly center: DiagnosticPoint;
+      readonly width: number;
+      readonly height: number;
+      readonly color?: string;
+    }
+  | {
+      readonly type: 'label';
+      readonly position: DiagnosticPoint;
+      readonly text: string;
+      readonly color?: string;
+    };
+
+export interface DiagnosticRecord {
+  readonly layer: string;
+  readonly source: string;
+  readonly primitive: DiagnosticPrimitive;
+  readonly entityId?: string;
+}
+
+export interface DiagnosticFrame {
+  readonly tick: number;
+  readonly records: readonly DiagnosticRecord[];
+}
+
+export interface DiagnosticLayerDefinition {
+  readonly key: string;
+  readonly label: string;
+  readonly enabledByDefault?: boolean;
+}
+
+export interface DiagnosticLayerState extends DiagnosticLayerDefinition {
+  readonly enabled: boolean;
+}
+
+export const RUNTIME_DIAGNOSTIC_LAYER = 'runtime';
+
+export interface DiagnosticSink {
+  beginTick(tick: number): void;
+  isLayerEnabled(layer: string): boolean;
+  publish(record: DiagnosticRecord): void;
+  endTick(): void;
+}
+
+export interface SimulationStepContext {
+  readonly diagnostics?: DiagnosticSink;
+  readonly tuning?: TuningReader;
+}

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { createDiagnosticRenderer } from '../debug/diagnosticRenderer';
+import type { DiagnosticFrame } from '../sim/diagnostics';
 import type { GameState } from '../sim/gameState';
 
 const REFERENCE_ARENA = {
@@ -6,9 +8,10 @@ const REFERENCE_ARENA = {
   length: 30,
   padding: 2
 };
+const EMPTY_DIAGNOSTIC_FRAME: DiagnosticFrame = { tick: 0, records: [] };
 
 export interface ArenaRenderer {
-  render(state: GameState, alpha: number): void;
+  render(state: GameState, alpha: number, diagnostics?: DiagnosticFrame): void;
   dispose(): void;
 }
 
@@ -33,6 +36,8 @@ export function createArenaRenderer(container: HTMLElement): ArenaRenderer {
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
+
+  const diagnosticRenderer = createDiagnosticRenderer(scene);
 
   const halfWidth = REFERENCE_ARENA.width / 2;
   const halfLength = REFERENCE_ARENA.length / 2;
@@ -81,13 +86,19 @@ export function createArenaRenderer(container: HTMLElement): ArenaRenderer {
   resize();
 
   return {
-    render(_state: GameState, _alpha: number): void {
+    render(
+      _state: GameState,
+      _alpha: number,
+      diagnostics: DiagnosticFrame = EMPTY_DIAGNOSTIC_FRAME
+    ): void {
+      diagnosticRenderer.render(diagnostics);
       renderer.render(scene, camera);
     },
 
     dispose(): void {
       resizeObserver?.disconnect();
       window.removeEventListener('resize', resize);
+      diagnosticRenderer.dispose();
       groundGeometry.dispose();
       groundMaterial.dispose();
       boundaryGeometry.dispose();

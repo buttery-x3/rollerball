@@ -1,26 +1,69 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Workbench from '$lib/game/debug/Workbench.svelte';
+  import { createDiagnosticStore } from '$lib/game/debug/diagnosticStore';
+  import { createTuningRegistry } from '$lib/game/config/tuning';
   import { createArenaRenderer } from '$lib/game/render/arenaRenderer';
   import { createBrowserGameLoop } from '$lib/game/runtime/browserGameLoop';
-  import { createFixedStepRuntime } from '$lib/game/runtime/fixedStepRuntime';
+  import {
+    createFixedStepRuntime,
+    type FixedStepFrame,
+    type FixedStepRuntime
+  } from '$lib/game/runtime/fixedStepRuntime';
   import { createGameState } from '$lib/game/sim/gameState';
   import { stepGame } from '$lib/game/sim/stepGame';
+  import type { GameState } from '$lib/game/sim/gameState';
+  import type { ArenaRenderer } from '$lib/game/render/arenaRenderer';
 
   let canvasHost: HTMLDivElement;
+  const state = createGameState();
+  const tuning = createTuningRegistry();
+  const diagnostics = createDiagnosticStore();
+  const runtime: FixedStepRuntime<GameState> = createFixedStepRuntime({
+    state,
+    step: stepGame,
+    tuning,
+    diagnostics
+  });
+
+  let renderer: ArenaRenderer | undefined;
+  let tick = state.tick;
+  let paused = runtime.isPaused;
+
+  function renderFrame(frame: FixedStepFrame<GameState>): void {
+    tick = frame.state.tick;
+    renderer?.render(frame.state, frame.alpha, diagnostics.getFrame());
+  }
+
+  function pauseSimulation(): void {
+    runtime.pause();
+    paused = runtime.isPaused;
+  }
+
+  function resumeSimulation(): void {
+    runtime.resume();
+    paused = runtime.isPaused;
+  }
+
+  function stepSimulationOnce(): void {
+    if (!runtime.isPaused) {
+      runtime.pause();
+    }
+
+    renderFrame(runtime.stepOnce());
+    paused = runtime.isPaused;
+  }
 
   onMount(() => {
-    const renderer = createArenaRenderer(canvasHost);
-    const state = createGameState();
-    const runtime = createFixedStepRuntime({ state, step: stepGame });
-    const loop = createBrowserGameLoop(runtime, (frame) => {
-      renderer.render(frame.state, frame.alpha);
-    });
+    renderer = createArenaRenderer(canvasHost);
+    const loop = createBrowserGameLoop(runtime, renderFrame);
 
     loop.start();
 
     return () => {
       loop.stop();
-      renderer.dispose();
+      renderer?.dispose();
+      renderer = undefined;
     };
   });
 </script>
@@ -34,6 +77,15 @@
   <section class="game-panel" aria-label="Rollerball arena">
     <div class="arena-viewport" bind:this={canvasHost}></div>
   </section>
+  <Workbench
+    {diagnostics}
+    {paused}
+    {tick}
+    {tuning}
+    onPause={pauseSimulation}
+    onResume={resumeSimulation}
+    onStepOnce={stepSimulationOnce}
+  />
 </main>
 
 <style>
@@ -54,6 +106,7 @@
   .page-shell {
     box-sizing: border-box;
     display: grid;
+    gap: 18px;
     min-height: 100vh;
     padding: 24px;
     place-items: center;

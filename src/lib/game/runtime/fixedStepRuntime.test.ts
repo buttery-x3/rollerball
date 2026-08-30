@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createTuningRegistry } from '../config/tuning';
 import { createGameState } from '../sim/gameState';
 import { stepGame } from '../sim/stepGame';
 import {
@@ -61,5 +62,52 @@ describe('fixed-step runtime', () => {
     expect(frame.alpha).toBeLessThanOrEqual(1);
     expect(normalFrame.alpha).toBeGreaterThanOrEqual(0);
     expect(normalFrame.alpha).toBeLessThanOrEqual(1);
+  });
+
+  it('pauses simulation and advances exactly one tick when manually stepped', () => {
+    const state = createGameState();
+    const runtime = createFixedStepRuntime({ state, step: stepGame });
+
+    runtime.pause();
+
+    expect(runtime.isPaused).toBe(true);
+    expect(runtime.advance(DEFAULT_FIXED_STEP_SECONDS * 10).simulationSteps).toBe(0);
+    expect(state.tick).toBe(0);
+
+    const steppedFrame = runtime.stepOnce();
+
+    expect(steppedFrame.simulationSteps).toBe(1);
+    expect(state.tick).toBe(1);
+    expect(runtime.advance(DEFAULT_FIXED_STEP_SECONDS).simulationSteps).toBe(0);
+
+    runtime.resume();
+
+    expect(runtime.isPaused).toBe(false);
+    expect(runtime.advance(DEFAULT_FIXED_STEP_SECONDS).simulationSteps).toBe(1);
+    expect(state.tick).toBe(2);
+  });
+
+  it('reads the live maximum catch-up limit from central tuning', () => {
+    const state = createGameState();
+    const tuning = createTuningRegistry();
+    const runtime = createFixedStepRuntime({ state, step: stepGame, tuning });
+
+    tuning.setOverride('runtime.maxCatchUpSteps', 2);
+
+    const frame = runtime.advance(DEFAULT_FIXED_STEP_SECONDS * 10);
+
+    expect(frame.simulationSteps).toBe(2);
+    expect(state.tick).toBe(2);
+  });
+
+  it('requires a paused runtime for manual stepping', () => {
+    const runtime = createFixedStepRuntime({
+      state: createGameState(),
+      step: stepGame
+    });
+
+    expect(() => runtime.stepOnce()).toThrow(
+      'The fixed-step runtime must be paused before stepping manually.'
+    );
   });
 });
