@@ -1,32 +1,51 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Workbench from '$lib/game/debug/Workbench.svelte';
-  import { createDiagnosticStore } from '$lib/game/debug/diagnosticStore';
-  import { createTuningRegistry } from '$lib/game/config/tuning';
   import { createArenaRenderer } from '$lib/game/render/arenaRenderer';
-  import { createBrowserGameLoop } from '$lib/game/runtime/browserGameLoop';
   import {
-    createFixedStepRuntime,
-    type FixedStepFrame,
-    type FixedStepRuntime
+    createBrowserGameLoop,
+    type BrowserGameLoop
+  } from '$lib/game/runtime/browserGameLoop';
+  import type {
+    FixedStepFrame,
+    FixedStepStepContext
   } from '$lib/game/runtime/fixedStepRuntime';
-  import { createGameState } from '$lib/game/sim/gameState';
+  import { DEFAULT_SCENARIOS, getScenario } from '$lib/game/scenarios/defaultScenarios';
+  import {
+    createScenarioRun,
+    type ScenarioRun
+  } from '$lib/game/scenarios/scenario';
   import { stepGame } from '$lib/game/sim/stepGame';
   import type { GameState } from '$lib/game/sim/gameState';
   import type { ArenaRenderer } from '$lib/game/render/arenaRenderer';
 
   let canvasHost: HTMLDivElement;
-  const state = createGameState();
-  const tuning = createTuningRegistry();
-  const diagnostics = createDiagnosticStore();
-  const runtime: FixedStepRuntime<GameState> = createFixedStepRuntime({
-    state,
-    step: stepGame,
-    tuning,
-    diagnostics
-  });
+  const scenarioStep = (
+    state: GameState,
+    fixedStepSeconds: number,
+    context: FixedStepStepContext,
+    _input: unknown | undefined
+  ): void => {
+    stepGame(state, fixedStepSeconds, context);
+  };
+
+  function createRun(id: string): ScenarioRun<GameState, unknown> {
+    return createScenarioRun({
+      definition: getScenario(id),
+      step: scenarioStep
+    });
+  }
+
+  let activeRun = createRun(DEFAULT_SCENARIOS[0].id);
+  let state = activeRun.state;
+  let tuning = activeRun.tuning;
+  let diagnostics = activeRun.diagnostics;
+  let runtime = activeRun.runtime;
+  let activeScenarioId = activeRun.definition.id;
+  let scenarioError: string | undefined;
 
   let renderer: ArenaRenderer | undefined;
+  let loop: BrowserGameLoop | undefined;
   let tick = state.tick;
   let paused = runtime.isPaused;
 
@@ -54,14 +73,53 @@
     paused = runtime.isPaused;
   }
 
+  function loadScenario(id: string): void {
+    const wasPaused = runtime.isPaused;
+    let nextRun: ScenarioRun<GameState, unknown>;
+
+    try {
+      nextRun = createRun(id);
+    } catch (error) {
+      scenarioError = error instanceof Error ? error.message : String(error);
+      return;
+    }
+
+    if (wasPaused) {
+      nextRun.runtime.pause();
+    }
+
+    loop?.stop();
+    activeRun = nextRun;
+    state = activeRun.state;
+    tuning = activeRun.tuning;
+    diagnostics = activeRun.diagnostics;
+    runtime = activeRun.runtime;
+    activeScenarioId = activeRun.definition.id;
+    scenarioError = undefined;
+    tick = state.tick;
+    paused = runtime.isPaused;
+
+    renderFrame(runtime.advance(0));
+
+    if (loop) {
+      loop = createBrowserGameLoop(runtime, renderFrame);
+      loop.start();
+    }
+  }
+
+  function resetScenario(): void {
+    loadScenario(activeScenarioId);
+  }
+
   onMount(() => {
     renderer = createArenaRenderer(canvasHost);
-    const loop = createBrowserGameLoop(runtime, renderFrame);
+    loop = createBrowserGameLoop(runtime, renderFrame);
 
     loop.start();
 
     return () => {
-      loop.stop();
+      loop?.stop();
+      loop = undefined;
       renderer?.dispose();
       renderer = undefined;
     };
@@ -82,9 +140,14 @@
     {paused}
     {tick}
     {tuning}
+    {activeScenarioId}
+    {scenarioError}
+    scenarios={DEFAULT_SCENARIOS}
     onPause={pauseSimulation}
     onResume={resumeSimulation}
     onStepOnce={stepSimulationOnce}
+    onLoadScenario={loadScenario}
+    onResetScenario={resetScenario}
   />
 </main>
 

@@ -7,18 +7,30 @@
   import type {
     DiagnosticLayerState
   } from '$lib/game/sim/diagnostics';
+  import type { GameState } from '$lib/game/sim/gameState';
+  import type { ScenarioDefinition } from '$lib/game/scenarios/scenario';
   import type { DiagnosticStore } from './diagnosticStore';
 
   export let diagnostics: DiagnosticStore;
   export let onPause: () => void;
   export let onResume: () => void;
   export let onStepOnce: () => void;
+  export let onLoadScenario: (id: string) => void;
+  export let onResetScenario: () => void;
   export let paused: boolean;
+  export let activeScenarioId: string;
+  export let scenarioError: string | undefined;
+  export let scenarios: readonly ScenarioDefinition<GameState, unknown>[];
   export let tick: number;
   export let tuning: TuningRegistry;
 
   let tuningEntries: readonly NumericTuningEntry[] = tuning.list();
   let layerEntries: readonly DiagnosticLayerState[] = diagnostics.listLayers();
+  let unsubscribeTuning: (() => void) | undefined;
+  let unsubscribeDiagnostics: (() => void) | undefined;
+  let subscribedTuning: TuningRegistry | undefined;
+  let subscribedDiagnostics: DiagnosticStore | undefined;
+  let mounted = false;
 
   const refreshTuning = (): void => {
     tuningEntries = tuning.list();
@@ -28,17 +40,40 @@
     layerEntries = diagnostics.listLayers();
   };
 
-  onMount(() => {
+  function bindStores(): void {
+    if (!mounted || (subscribedTuning === tuning && subscribedDiagnostics === diagnostics)) {
+      return;
+    }
+
+    unsubscribeTuning?.();
+    unsubscribeDiagnostics?.();
+
+    subscribedTuning = tuning;
+    subscribedDiagnostics = diagnostics;
     refreshTuning();
     refreshLayers();
-    const unsubscribeTuning = tuning.subscribe(refreshTuning);
-    const unsubscribeDiagnostics = diagnostics.subscribe(refreshLayers);
+    unsubscribeTuning = tuning.subscribe(refreshTuning);
+    unsubscribeDiagnostics = diagnostics.subscribe(refreshLayers);
+  }
+
+  onMount(() => {
+    mounted = true;
+    bindStores();
 
     return () => {
-      unsubscribeTuning();
-      unsubscribeDiagnostics();
+      mounted = false;
+      unsubscribeTuning?.();
+      unsubscribeDiagnostics?.();
+      unsubscribeTuning = undefined;
+      unsubscribeDiagnostics = undefined;
+      subscribedTuning = undefined;
+      subscribedDiagnostics = undefined;
     };
   });
+
+  $: if (mounted && (subscribedTuning !== tuning || subscribedDiagnostics !== diagnostics)) {
+    bindStores();
+  }
 
   function updateTuning(key: string, event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
@@ -66,6 +101,11 @@
     const input = event.currentTarget as HTMLInputElement;
     diagnostics.setLayerEnabled(key, input.checked);
   }
+
+  function loadScenario(event: Event): void {
+    const input = event.currentTarget as HTMLSelectElement;
+    onLoadScenario(input.value);
+  }
 </script>
 
 <aside class="workbench" aria-label="Development workbench">
@@ -86,6 +126,24 @@
     <button type="button" onclick={onStepOnce} disabled={!paused}>Step one tick</button>
     <span class="tick">Tick {tick}</span>
   </div>
+
+  <section class="workbench-section" aria-labelledby="scenario-heading">
+    <div class="section-heading">
+      <h2 id="scenario-heading">Scenario</h2>
+      <button type="button" class="subtle-button" onclick={onResetScenario}>Reset</button>
+    </div>
+    <div class="scenario-controls">
+      <label for="scenario-select">Loaded scenario</label>
+      <select id="scenario-select" value={activeScenarioId} onchange={loadScenario}>
+        {#each scenarios as scenario (scenario.id)}
+          <option value={scenario.id}>{scenario.name}</option>
+        {/each}
+      </select>
+    </div>
+    {#if scenarioError}
+      <p class="scenario-error" role="alert">{scenarioError}</p>
+    {/if}
+  </section>
 
   <section class="workbench-section" aria-labelledby="tuning-heading">
     <div class="section-heading">
@@ -275,6 +333,34 @@
 
   .tuning-controls {
     gap: 8px;
+  }
+
+  .scenario-controls {
+    display: grid;
+    gap: 6px;
+  }
+
+  .scenario-controls label {
+    color: #a5b3d6;
+    font-size: 0.78rem;
+  }
+
+  .scenario-controls select {
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid #394e7a;
+    border-radius: 5px;
+    padding: 7px;
+    background: #0b1020;
+    color: #e7ecff;
+    font: inherit;
+    font-size: 0.8rem;
+  }
+
+  .scenario-error {
+    margin: 0;
+    color: #eb6f92;
+    font-size: 0.78rem;
   }
 
   .tuning-controls input[type='range'] {
