@@ -30,6 +30,22 @@ export interface TuningRegistry extends TuningReader {
 export const RUNTIME_MAX_CATCH_UP_STEPS_KEY = 'runtime.maxCatchUpSteps';
 export const DEFAULT_RUNTIME_MAX_CATCH_UP_STEPS = 5;
 
+export const ARENA_WIDTH_KEY = 'arena.width';
+export const ARENA_LENGTH_KEY = 'arena.length';
+export const ARENA_GOAL_WIDTH_KEY = 'arena.goalWidth';
+export const ARENA_CROSSBAR_HEIGHT_KEY = 'arena.crossbarHeight';
+export const ARENA_CREASE_WIDTH_KEY = 'arena.creaseWidth';
+export const ARENA_CREASE_DEPTH_KEY = 'arena.creaseDepth';
+export const PLAYER_RADIUS_KEY = 'player.radius';
+
+export const DEFAULT_ARENA_WIDTH = 18;
+export const DEFAULT_ARENA_LENGTH = 30;
+export const DEFAULT_ARENA_GOAL_WIDTH = 8;
+export const DEFAULT_ARENA_CROSSBAR_HEIGHT = 3;
+export const DEFAULT_ARENA_CREASE_WIDTH = 10;
+export const DEFAULT_ARENA_CREASE_DEPTH = 4;
+export const DEFAULT_PLAYER_RADIUS = 0.75;
+
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   {
     key: RUNTIME_MAX_CATCH_UP_STEPS_KEY,
@@ -39,6 +55,69 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     min: 1,
     max: 12,
     step: 1
+  },
+  {
+    key: ARENA_WIDTH_KEY,
+    domain: 'arena',
+    label: 'Arena width',
+    defaultValue: DEFAULT_ARENA_WIDTH,
+    min: 12,
+    max: 40,
+    step: 0.5
+  },
+  {
+    key: ARENA_LENGTH_KEY,
+    domain: 'arena',
+    label: 'Arena length',
+    defaultValue: DEFAULT_ARENA_LENGTH,
+    min: 16,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: ARENA_GOAL_WIDTH_KEY,
+    domain: 'arena',
+    label: 'Goal width',
+    defaultValue: DEFAULT_ARENA_GOAL_WIDTH,
+    min: 2,
+    max: 12,
+    step: 0.5
+  },
+  {
+    key: ARENA_CROSSBAR_HEIGHT_KEY,
+    domain: 'arena',
+    label: 'Crossbar height',
+    defaultValue: DEFAULT_ARENA_CROSSBAR_HEIGHT,
+    min: 1,
+    max: 8,
+    step: 0.25
+  },
+  {
+    key: ARENA_CREASE_WIDTH_KEY,
+    domain: 'arena',
+    label: 'Keeper crease width',
+    defaultValue: DEFAULT_ARENA_CREASE_WIDTH,
+    min: 2,
+    max: 12,
+    step: 0.5
+  },
+  {
+    key: ARENA_CREASE_DEPTH_KEY,
+    domain: 'arena',
+    label: 'Keeper crease depth',
+    defaultValue: DEFAULT_ARENA_CREASE_DEPTH,
+    min: 1,
+    max: 12,
+    step: 0.5
+  },
+  {
+    key: PLAYER_RADIUS_KEY,
+    domain: 'contact',
+    label: 'Player radius',
+    defaultValue: DEFAULT_PLAYER_RADIUS,
+    min: 0.25,
+    max: 2,
+    step: 0.05
   }
 ];
 

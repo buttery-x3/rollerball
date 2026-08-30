@@ -1,4 +1,5 @@
 import type { TuningReader } from '../config/tuning';
+import type { ArenaDefinition } from '../physics/arena';
 
 export interface DiagnosticPoint {
   readonly x: number;
@@ -66,6 +67,7 @@ export interface DiagnosticLayerState extends DiagnosticLayerDefinition {
 }
 
 export const RUNTIME_DIAGNOSTIC_LAYER = 'runtime';
+export const ARENA_DIAGNOSTIC_LAYER = 'arena';
 
 export interface DiagnosticSink {
   beginTick(tick: number): void;
@@ -77,4 +79,5 @@ export interface DiagnosticSink {
 export interface SimulationStepContext {
   readonly diagnostics?: DiagnosticSink;
   readonly tuning?: TuningReader;
+  readonly arena?: ArenaDefinition;
 }

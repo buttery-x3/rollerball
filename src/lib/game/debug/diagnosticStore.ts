@@ -5,9 +5,12 @@ import type {
   DiagnosticRecord,
   DiagnosticSink
 } from '../sim/diagnostics';
-import { RUNTIME_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
+import {
+  ARENA_DIAGNOSTIC_LAYER,
+  RUNTIME_DIAGNOSTIC_LAYER
+} from '../sim/diagnostics';
 
-export { RUNTIME_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
+export { ARENA_DIAGNOSTIC_LAYER, RUNTIME_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
 
 export interface DiagnosticStore extends DiagnosticSink {
   getFrame(): DiagnosticFrame;
@@ -21,6 +24,11 @@ export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
   {
     key: RUNTIME_DIAGNOSTIC_LAYER,
     label: 'Runtime',
+    enabledByDefault: true
+  },
+  {
+    key: ARENA_DIAGNOSTIC_LAYER,
+    label: 'Arena geometry',
     enabledByDefault: true
   }
 ];

@@ -5,6 +5,7 @@ import {
 } from '../config/tuning';
 import type { GameState } from '../sim/gameState';
 import type { DiagnosticSink } from '../sim/diagnostics';
+import type { ArenaDefinition } from '../physics/arena';
 
 export const DEFAULT_FIXED_STEP_SECONDS = 1 / 60;
 export { DEFAULT_RUNTIME_MAX_CATCH_UP_STEPS as DEFAULT_MAX_CATCH_UP_STEPS } from '../config/tuning';
@@ -30,11 +31,13 @@ export interface FixedStepRuntimeOptions<TState extends GameState> {
   maxCatchUpSteps?: number;
   tuning?: TuningReader;
   diagnostics?: DiagnosticSink;
+  getArena?: () => ArenaDefinition;
 }
 
 export interface FixedStepStepContext {
   readonly diagnostics?: DiagnosticSink;
   readonly tuning?: TuningReader;
+  readonly arena?: ArenaDefinition;
 }
 
 export function createFixedStepRuntime<TState extends GameState>(
@@ -71,7 +74,8 @@ export function createFixedStepRuntime<TState extends GameState>(
     try {
       options.step(options.state, fixedStepSeconds, {
         diagnostics: options.diagnostics,
-        tuning: options.tuning
+        tuning: options.tuning,
+        arena: options.getArena?.()
       });
     } finally {
       options.diagnostics?.endTick();

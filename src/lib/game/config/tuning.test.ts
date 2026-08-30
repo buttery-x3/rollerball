@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   createTuningRegistry,
+  DEFAULT_TUNING_DEFINITIONS,
+  ARENA_WIDTH_KEY,
+  PLAYER_RADIUS_KEY,
   RUNTIME_MAX_CATCH_UP_STEPS_KEY
 } from './tuning';
 
@@ -54,7 +57,21 @@ describe('central tuning registry', () => {
     });
 
     expect(registry.getNumber('movement.maxSpeed')).toBe(8);
-    expect(registry.list()).toHaveLength(2);
+    expect(registry.list()).toHaveLength(DEFAULT_TUNING_DEFINITIONS.length + 1);
+  });
+
+  it('registers arena dimensions and the shared player radius centrally', () => {
+    const registry = createTuningRegistry();
+
+    expect(registry.getNumber(ARENA_WIDTH_KEY)).toBe(18);
+    expect(registry.get(PLAYER_RADIUS_KEY)).toMatchObject({
+      domain: 'contact',
+      label: 'Player radius',
+      defaultValue: 0.75,
+      min: 0.25,
+      max: 2,
+      step: 0.05
+    });
   });
 
   it('rejects invalid values and duplicate keys', () => {

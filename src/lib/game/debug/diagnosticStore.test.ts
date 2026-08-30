@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createDiagnosticStore, RUNTIME_DIAGNOSTIC_LAYER } from './diagnosticStore';
+import {
+  ARENA_DIAGNOSTIC_LAYER,
+  createDiagnosticStore,
+  RUNTIME_DIAGNOSTIC_LAYER
+} from './diagnosticStore';
 import { createFixedStepRuntime, DEFAULT_FIXED_STEP_SECONDS } from '../runtime/fixedStepRuntime';
+import { createArenaDefinition } from '../physics/arena';
+import { createTuningRegistry } from '../config/tuning';
 import { createGameState } from '../sim/gameState';
 import { stepGame } from '../sim/stepGame';
 
@@ -18,16 +24,31 @@ describe('structured diagnostic store', () => {
     const frame = diagnostics.getFrame();
 
     expect(frame.tick).toBe(1);
-    expect(frame.records.map((record) => record.primitive.type)).toEqual([
-      'line',
-      'vector',
-      'circle',
-      'region',
-      'label'
-    ]);
+    expect(frame.records.map((record) => record.primitive.type)).toEqual(['label']);
     expect(frame.records.every((record) => record.layer === RUNTIME_DIAGNOSTIC_LAYER)).toBe(
       true
     );
+  });
+
+  it('publishes the shared arena geometry through its own debug layer', () => {
+    const diagnostics = createDiagnosticStore();
+    const arena = createArenaDefinition(createTuningRegistry());
+    const runtime = createFixedStepRuntime({
+      state: createGameState(),
+      step: stepGame,
+      diagnostics,
+      getArena: () => arena
+    });
+
+    runtime.advance(DEFAULT_FIXED_STEP_SECONDS);
+
+    const arenaRecords = diagnostics
+      .getFrame()
+      .records.filter((record) => record.layer === ARENA_DIAGNOSTIC_LAYER);
+
+    expect(arenaRecords).toHaveLength(10);
+    expect(arenaRecords.filter((record) => record.primitive.type === 'region')).toHaveLength(2);
+    expect(arenaRecords.filter((record) => record.primitive.type === 'label')).toHaveLength(2);
   });
 
   it('filters disabled layers while still advancing the diagnostic frame', () => {
@@ -54,13 +75,13 @@ describe('structured diagnostic store', () => {
     });
 
     runtime.advance(DEFAULT_FIXED_STEP_SECONDS);
-    expect(diagnostics.getFrame().records).toHaveLength(5);
+    expect(diagnostics.getFrame().records).toHaveLength(1);
 
     diagnostics.setLayerEnabled(RUNTIME_DIAGNOSTIC_LAYER, false);
     expect(diagnostics.getFrame().records).toHaveLength(0);
 
     diagnostics.setLayerEnabled(RUNTIME_DIAGNOSTIC_LAYER, true);
-    expect(diagnostics.getFrame().records).toHaveLength(5);
+    expect(diagnostics.getFrame().records).toHaveLength(1);
   });
 
   it('notifies workbench subscribers for frames and layer changes', () => {

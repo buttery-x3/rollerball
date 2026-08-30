@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Workbench from '$lib/game/debug/Workbench.svelte';
+  import { createArenaDefinition } from '$lib/game/physics/arena';
   import { createArenaRenderer } from '$lib/game/render/arenaRenderer';
   import {
     createBrowserGameLoop,
@@ -16,6 +17,7 @@
     type ScenarioRun
   } from '$lib/game/scenarios/scenario';
   import { stepGame } from '$lib/game/sim/stepGame';
+  import { ARENA_DIAGNOSTIC_LAYER } from '$lib/game/sim/diagnostics';
   import type { GameState } from '$lib/game/sim/gameState';
   import type { ArenaRenderer } from '$lib/game/render/arenaRenderer';
 
@@ -32,7 +34,8 @@
   function createRun(id: string): ScenarioRun<GameState, unknown> {
     return createScenarioRun({
       definition: getScenario(id),
-      step: scenarioStep
+      step: scenarioStep,
+      getArena: (currentTuning) => createArenaDefinition(currentTuning)
     });
   }
 
@@ -51,7 +54,16 @@
 
   function renderFrame(frame: FixedStepFrame<GameState>): void {
     tick = frame.state.tick;
-    renderer?.render(frame.state, frame.alpha, diagnostics.getFrame());
+    const arena = activeRun.getArena?.();
+    if (arena) {
+      renderer?.setArena(arena);
+    }
+    renderer?.render(
+      frame.state,
+      frame.alpha,
+      diagnostics.getFrame(),
+      diagnostics.isLayerEnabled(ARENA_DIAGNOSTIC_LAYER)
+    );
   }
 
   function pauseSimulation(): void {
@@ -112,7 +124,12 @@
   }
 
   onMount(() => {
-    renderer = createArenaRenderer(canvasHost);
+    const arena = activeRun.getArena?.();
+    if (!arena) {
+      throw new Error('The active scenario must provide an arena definition.');
+    }
+
+    renderer = createArenaRenderer(canvasHost, arena);
     loop = createBrowserGameLoop(runtime, renderFrame);
 
     loop.start();

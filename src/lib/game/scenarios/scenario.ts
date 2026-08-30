@@ -7,6 +7,7 @@ import {
 } from '../runtime/fixedStepRuntime';
 import type { DiagnosticLayerDefinition } from '../sim/diagnostics';
 import type { GameState } from '../sim/gameState';
+import type { ArenaDefinition } from '../physics/arena';
 import {
   createTuningRegistry,
   type NumericTuningDefinition,
@@ -60,6 +61,7 @@ export interface ScenarioRunOptions<TState extends GameState, TInput> {
   readonly maxCatchUpSteps?: number;
   readonly tuningDefinitions?: readonly NumericTuningDefinition[];
   readonly diagnosticDefinitions?: readonly DiagnosticLayerDefinition[];
+  readonly getArena?: (tuning: TuningRegistry) => ArenaDefinition;
   readonly inputFrames?: readonly ScenarioInputFrame<TInput>[];
   readonly tuningOverrides?: readonly ScenarioTuningOverride[];
   readonly onStep?: (state: TState, tick: number, input: TInput | undefined) => void;
@@ -71,6 +73,7 @@ export interface ScenarioRun<TState extends GameState, TInput> {
   readonly runtime: FixedStepRuntime<TState>;
   readonly tuning: TuningRegistry;
   readonly diagnostics: DiagnosticStore;
+  readonly getArena?: () => ArenaDefinition;
   readonly inputFrames: readonly ScenarioInputFrame<TInput>[];
 }
 
@@ -217,6 +220,9 @@ export function createScenarioRun<TState extends GameState, TInput>(
   );
   applyDiagnosticLayerOverrides(diagnostics, options.definition.diagnosticLayerOverrides ?? []);
 
+  const arenaFactory = options.getArena;
+  const getArena = arenaFactory ? () => arenaFactory(tuning) : undefined;
+
   const runtime = createFixedStepRuntime({
     state,
     step: (stepState, fixedStepSeconds, context) => {
@@ -229,7 +235,8 @@ export function createScenarioRun<TState extends GameState, TInput>(
     fixedStepSeconds: options.fixedStepSeconds ?? DEFAULT_FIXED_STEP_SECONDS,
     maxCatchUpSteps: options.maxCatchUpSteps,
     tuning,
-    diagnostics
+    diagnostics,
+    getArena
   });
 
   return {
@@ -238,6 +245,7 @@ export function createScenarioRun<TState extends GameState, TInput>(
     runtime,
     tuning,
     diagnostics,
+    getArena,
     inputFrames
   };
 }
