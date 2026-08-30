@@ -104,6 +104,22 @@ describe('control router', () => {
     });
   });
 
+  it('keeps peak magnitude while using the latest valid capture direction', () => {
+    const router = createControlRouter({ tuning: createTuningRegistry(), initialPlayerId: 'p1' });
+
+    router.consumeTick(snapshot({ rightStick: { x: 0.8, y: 0 } }), 'possessed');
+    router.consumeTick(snapshot({ rightStick: { x: 0, y: 0.4 } }), 'possessed');
+    const captured = router.consumeTick(
+      snapshot({ rightStick: { x: 0, y: 0.2 } }),
+      'possessed'
+    );
+
+    expect(captured.routedIntent?.intent.rightStickThrow).toEqual({
+      direction: { x: 0, y: 1 },
+      magnitude: 0.8
+    });
+  });
+
   it('changes assignment without replacing player runtime state', () => {
     const router = createControlRouter({
       tuning: createTuningRegistry(),

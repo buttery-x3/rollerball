@@ -57,6 +57,7 @@ export interface ControlRouter {
   ): ControlStepResult;
   assignPlayer(playerId: PlayerId, reason?: ControlAssignmentReason): void;
   clearAssignment(): void;
+  resetInput(): void;
   reset(): void;
 }
 
@@ -155,6 +156,10 @@ export function createControlRouter(options: ControlRouterOptions): ControlRoute
 
     clearAssignment(): void {
       currentAssignment = undefined;
+    },
+
+    resetInput(): void {
+      inputProcessor.reset();
     },
 
     reset(): void {

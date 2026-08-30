@@ -79,13 +79,13 @@ export function createInputProcessor(tuning: TuningReader): InputProcessor {
   let phase: RightStickCaptureState['phase'] = 'neutral';
   let ticksCaptured = 0;
   let peakMagnitude = 0;
-  let peakDirection = ZERO;
+  let latestDirection = ZERO;
 
   const resetCapture = (): void => {
     phase = 'neutral';
     ticksCaptured = 0;
     peakMagnitude = 0;
-    peakDirection = ZERO;
+    latestDirection = ZERO;
   };
 
   const currentCapture = (windowTicks: number): RightStickCaptureState =>
@@ -94,7 +94,7 @@ export function createInputProcessor(tuning: TuningReader): InputProcessor {
       ticksCaptured,
       phase === 'capturing' ? Math.max(0, windowTicks - ticksCaptured) : 0,
       peakMagnitude,
-      peakDirection
+      latestDirection
     );
 
   const recordStickSample = (stick: { readonly x: number; readonly y: number }): void => {
@@ -103,13 +103,12 @@ export function createInputProcessor(tuning: TuningReader): InputProcessor {
       return;
     }
 
-    if (
-      magnitude > peakMagnitude + EPSILON ||
-      Math.abs(magnitude - peakMagnitude) <= EPSILON
-    ) {
-      peakMagnitude = Math.min(1, magnitude);
-      peakDirection = { x: stick.x / magnitude, y: stick.y / magnitude };
+    const capturedMagnitude = Math.min(1, magnitude);
+    if (capturedMagnitude > peakMagnitude) {
+      peakMagnitude = capturedMagnitude;
     }
+
+    latestDirection = { x: stick.x / magnitude, y: stick.y / magnitude };
   };
 
   const emitPulse = (): RightStickThrowPulse | undefined => {
@@ -120,7 +119,7 @@ export function createInputProcessor(tuning: TuningReader): InputProcessor {
 
     phase = 'awaitingNeutral';
     return {
-      direction: cloneVector(peakDirection),
+      direction: cloneVector(latestDirection),
       magnitude: peakMagnitude
     };
   };
@@ -148,7 +147,7 @@ export function createInputProcessor(tuning: TuningReader): InputProcessor {
       phase = 'capturing';
       ticksCaptured = 1;
       peakMagnitude = 0;
-      peakDirection = ZERO;
+      latestDirection = ZERO;
       recordStickSample(stick);
 
       if (windowTicks === 1) {

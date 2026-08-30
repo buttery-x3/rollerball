@@ -152,7 +152,7 @@
 
     if (hadBrowserInput) {
       browserInput = createBrowserInputSource(tuning, {
-        onReset: () => activeControl.reset()
+        onReset: () => activeControl.resetInput()
       });
     }
 
@@ -177,7 +177,7 @@
     }
 
     browserInput = createBrowserInputSource(tuning, {
-      onReset: () => activeControl.reset()
+      onReset: () => activeControl.resetInput()
     });
     renderer = createArenaRenderer(canvasHost, arena);
     loop = createBrowserGameLoop(runtime, renderFrame, {
