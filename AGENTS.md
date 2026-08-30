@@ -137,6 +137,5 @@ From the repository root after `npm install`:
 - `npm run check` — Svelte and TypeScript validation.
 - `npm run test` — deterministic headless simulation/runtime tests.
 - `npm run build` — production application build.
-- `npm run dev` — local browser smoke test for the arena reference.
 
 The initial implementation contains `src/lib/game/runtime`, `src/lib/game/sim` and `src/lib/game/render`. Create other ownership regions only when their issue introduces real responsibilities.

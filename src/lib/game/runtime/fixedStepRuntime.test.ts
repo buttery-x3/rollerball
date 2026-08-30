@@ -43,7 +43,7 @@ describe('fixed-step runtime', () => {
     expect(runSchedule(atOneTwentyHz)).toBe(60);
   });
 
-  it('bounds catch-up work for a stalled render frame', () => {
+  it('bounds catch-up work and discards excess debt after a stalled render frame', () => {
     const state = createGameState();
     const runtime = createFixedStepRuntime({
       state,
@@ -51,11 +51,15 @@ describe('fixed-step runtime', () => {
       maxCatchUpSteps: 4
     });
 
-    const frame = runtime.advance(10);
+    const frame = runtime.advance(60 * 60);
+    const normalFrame = runtime.advance(DEFAULT_FIXED_STEP_SECONDS);
 
     expect(frame.simulationSteps).toBe(4);
-    expect(state.tick).toBe(4);
+    expect(normalFrame.simulationSteps).toBe(1);
+    expect(state.tick).toBe(5);
     expect(frame.alpha).toBeGreaterThanOrEqual(0);
     expect(frame.alpha).toBeLessThanOrEqual(1);
+    expect(normalFrame.alpha).toBeGreaterThanOrEqual(0);
+    expect(normalFrame.alpha).toBeLessThanOrEqual(1);
   });
 });

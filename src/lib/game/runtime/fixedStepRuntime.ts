@@ -36,6 +36,7 @@ export function createFixedStepRuntime<TState extends GameState>(
 
   let accumulator = 0;
   const stepEpsilon = fixedStepSeconds * 1e-9;
+  const maxCatchUpSeconds = fixedStepSeconds * maxCatchUpSteps;
 
   return {
     advance(frameDeltaSeconds: number): FixedStepFrame<TState> {
@@ -43,7 +44,7 @@ export function createFixedStepRuntime<TState extends GameState>(
         throw new RangeError('The render-frame delta must be a finite non-negative duration.');
       }
 
-      accumulator += frameDeltaSeconds;
+      accumulator = Math.min(accumulator + frameDeltaSeconds, maxCatchUpSeconds);
 
       let simulationSteps = 0;
       while (
