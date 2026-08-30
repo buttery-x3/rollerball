@@ -48,6 +48,7 @@ export interface DiagnosticRecord {
   readonly layer: string;
   readonly source: string;
   readonly primitive: DiagnosticPrimitive;
+  readonly data?: Readonly<Record<string, unknown>>;
   readonly entityId?: string;
 }
 
@@ -68,6 +69,7 @@ export interface DiagnosticLayerState extends DiagnosticLayerDefinition {
 
 export const RUNTIME_DIAGNOSTIC_LAYER = 'runtime';
 export const ARENA_DIAGNOSTIC_LAYER = 'arena';
+export const CONTROL_DIAGNOSTIC_LAYER = 'control';
 
 export interface DiagnosticSink {
   beginTick(tick: number): void;

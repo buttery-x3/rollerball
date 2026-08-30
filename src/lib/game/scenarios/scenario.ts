@@ -63,6 +63,10 @@ export interface ScenarioRunOptions<TState extends GameState, TInput> {
   readonly diagnosticDefinitions?: readonly DiagnosticLayerDefinition[];
   readonly getArena?: (tuning: TuningRegistry) => ArenaDefinition;
   readonly inputFrames?: readonly ScenarioInputFrame<TInput>[];
+  readonly inputProvider?: (
+    tick: number,
+    context: FixedStepStepContext
+  ) => TInput | undefined;
   readonly tuningOverrides?: readonly ScenarioTuningOverride[];
   readonly onStep?: (state: TState, tick: number, input: TInput | undefined) => void;
 }
@@ -70,7 +74,7 @@ export interface ScenarioRunOptions<TState extends GameState, TInput> {
 export interface ScenarioRun<TState extends GameState, TInput> {
   readonly definition: ScenarioDefinition<TState, TInput>;
   readonly state: TState;
-  readonly runtime: FixedStepRuntime<TState>;
+  readonly runtime: FixedStepRuntime<TState, TInput>;
   readonly tuning: TuningRegistry;
   readonly diagnostics: DiagnosticStore;
   readonly getArena?: () => ArenaDefinition;
@@ -222,12 +226,14 @@ export function createScenarioRun<TState extends GameState, TInput>(
 
   const arenaFactory = options.getArena;
   const getArena = arenaFactory ? () => arenaFactory(tuning) : undefined;
+  const inputProvider =
+    options.inputProvider ?? ((tick: number): TInput | undefined => inputByTick.get(tick));
 
-  const runtime = createFixedStepRuntime({
+  const runtime = createFixedStepRuntime<TState, TInput>({
     state,
-    step: (stepState, fixedStepSeconds, context) => {
+    getInput: inputProvider,
+    step: (stepState, fixedStepSeconds, context, input) => {
       const tick = stepState.tick + 1;
-      const input = inputByTick.get(tick);
       options.step(stepState, fixedStepSeconds, context, input);
       options.onStep?.(stepState, tick, input);
       runAssertions(options.definition, stepState, tick);

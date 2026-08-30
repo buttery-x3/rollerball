@@ -30,6 +30,18 @@ export interface TuningRegistry extends TuningReader {
 export const RUNTIME_MAX_CATCH_UP_STEPS_KEY = 'runtime.maxCatchUpSteps';
 export const DEFAULT_RUNTIME_MAX_CATCH_UP_STEPS = 5;
 
+export const CONTROLS_LEFT_STICK_DEADZONE_KEY = 'controls.leftStickDeadzone';
+export const CONTROLS_RIGHT_STICK_DEADZONE_KEY = 'controls.rightStickDeadzone';
+export const CONTROLS_RIGHT_STICK_CAPTURE_WINDOW_TICKS_KEY =
+  'controls.rightStickCaptureWindowTicks';
+export const CONTROLS_RIGHT_STICK_NEUTRAL_THRESHOLD_KEY =
+  'controls.rightStickNeutralThreshold';
+
+export const DEFAULT_CONTROLS_LEFT_STICK_DEADZONE = 0.15;
+export const DEFAULT_CONTROLS_RIGHT_STICK_DEADZONE = 0.2;
+export const DEFAULT_CONTROLS_RIGHT_STICK_CAPTURE_WINDOW_TICKS = 3;
+export const DEFAULT_CONTROLS_RIGHT_STICK_NEUTRAL_THRESHOLD = 0.1;
+
 export const ARENA_WIDTH_KEY = 'arena.width';
 export const ARENA_LENGTH_KEY = 'arena.length';
 export const ARENA_GOAL_WIDTH_KEY = 'arena.goalWidth';
@@ -55,6 +67,42 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     min: 1,
     max: 12,
     step: 1
+  },
+  {
+    key: CONTROLS_LEFT_STICK_DEADZONE_KEY,
+    domain: 'controls',
+    label: 'Left-stick deadzone',
+    defaultValue: DEFAULT_CONTROLS_LEFT_STICK_DEADZONE,
+    min: 0,
+    max: 0.5,
+    step: 0.01
+  },
+  {
+    key: CONTROLS_RIGHT_STICK_DEADZONE_KEY,
+    domain: 'controls',
+    label: 'Right-stick deadzone',
+    defaultValue: DEFAULT_CONTROLS_RIGHT_STICK_DEADZONE,
+    min: 0,
+    max: 0.5,
+    step: 0.01
+  },
+  {
+    key: CONTROLS_RIGHT_STICK_CAPTURE_WINDOW_TICKS_KEY,
+    domain: 'controls',
+    label: 'Right-stick capture window',
+    defaultValue: DEFAULT_CONTROLS_RIGHT_STICK_CAPTURE_WINDOW_TICKS,
+    min: 1,
+    max: 8,
+    step: 1
+  },
+  {
+    key: CONTROLS_RIGHT_STICK_NEUTRAL_THRESHOLD_KEY,
+    domain: 'controls',
+    label: 'Right-stick neutral threshold',
+    defaultValue: DEFAULT_CONTROLS_RIGHT_STICK_NEUTRAL_THRESHOLD,
+    min: 0,
+    max: 0.5,
+    step: 0.01
   },
   {
     key: ARENA_WIDTH_KEY,

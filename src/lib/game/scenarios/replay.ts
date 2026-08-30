@@ -262,7 +262,10 @@ export function createReplayRecorder<TState extends GameState, TInput>(
 }
 
 export interface ReplayScenarioOptions<TState extends GameState, TInput>
-  extends Omit<ScenarioRunOptions<TState, TInput>, 'definition' | 'inputFrames' | 'tuningOverrides'> {
+  extends Omit<
+    ScenarioRunOptions<TState, TInput>,
+    'definition' | 'inputFrames' | 'inputProvider' | 'tuningOverrides'
+  > {
   readonly scenario: ScenarioDefinition<TState, TInput>;
   readonly replay: ReplayRecord<TInput>;
   readonly step: ScenarioStep<TState, TInput>;

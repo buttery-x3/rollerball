@@ -6,9 +6,14 @@ export interface BrowserGameLoop {
   stop(): void;
 }
 
-export function createBrowserGameLoop<TState extends GameState>(
-  runtime: FixedStepRuntime<TState>,
-  render: (frame: FixedStepFrame<TState>) => void
+export interface BrowserGameLoopOptions {
+  readonly beforeAdvance?: () => void;
+}
+
+export function createBrowserGameLoop<TState extends GameState, TInput = unknown>(
+  runtime: FixedStepRuntime<TState, TInput>,
+  render: (frame: FixedStepFrame<TState>) => void,
+  options: BrowserGameLoopOptions = {}
 ): BrowserGameLoop {
   let animationFrame: number | null = null;
   let previousTimestamp: number | null = null;
@@ -25,6 +30,7 @@ export function createBrowserGameLoop<TState extends GameState>(
         : Math.max(0, (timestamp - previousTimestamp) / 1000);
 
     previousTimestamp = timestamp;
+    options.beforeAdvance?.();
     render(runtime.advance(frameDeltaSeconds));
     animationFrame = requestAnimationFrame(frame);
   };

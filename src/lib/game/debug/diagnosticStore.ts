@@ -7,10 +7,15 @@ import type {
 } from '../sim/diagnostics';
 import {
   ARENA_DIAGNOSTIC_LAYER,
+  CONTROL_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER
 } from '../sim/diagnostics';
 
-export { ARENA_DIAGNOSTIC_LAYER, RUNTIME_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
+export {
+  ARENA_DIAGNOSTIC_LAYER,
+  CONTROL_DIAGNOSTIC_LAYER,
+  RUNTIME_DIAGNOSTIC_LAYER
+} from '../sim/diagnostics';
 
 export interface DiagnosticStore extends DiagnosticSink {
   getFrame(): DiagnosticFrame;
@@ -29,6 +34,11 @@ export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
   {
     key: ARENA_DIAGNOSTIC_LAYER,
     label: 'Arena geometry',
+    enabledByDefault: true
+  },
+  {
+    key: CONTROL_DIAGNOSTIC_LAYER,
+    label: 'Control input',
     enabledByDefault: true
   }
 ];

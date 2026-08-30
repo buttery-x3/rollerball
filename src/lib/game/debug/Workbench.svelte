@@ -5,8 +5,11 @@
     TuningRegistry
   } from '$lib/game/config/tuning';
   import type {
-    DiagnosticLayerState
+    DiagnosticFrame,
+    DiagnosticLayerState,
+    DiagnosticRecord
   } from '$lib/game/sim/diagnostics';
+  import { CONTROL_DIAGNOSTIC_LAYER } from '$lib/game/sim/diagnostics';
   import type { GameState } from '$lib/game/sim/gameState';
   import type { ScenarioDefinition } from '$lib/game/scenarios/scenario';
   import type { DiagnosticStore } from './diagnosticStore';
@@ -26,6 +29,7 @@
 
   let tuningEntries: readonly NumericTuningEntry[] = tuning.list();
   let layerEntries: readonly DiagnosticLayerState[] = diagnostics.listLayers();
+  let diagnosticFrame: DiagnosticFrame = diagnostics.getFrame();
   let unsubscribeTuning: (() => void) | undefined;
   let unsubscribeDiagnostics: (() => void) | undefined;
   let subscribedTuning: TuningRegistry | undefined;
@@ -38,6 +42,7 @@
 
   const refreshLayers = (): void => {
     layerEntries = diagnostics.listLayers();
+    diagnosticFrame = diagnostics.getFrame();
   };
 
   function bindStores(): void {
@@ -106,6 +111,21 @@
     const input = event.currentTarget as HTMLSelectElement;
     onLoadScenario(input.value);
   }
+
+  function latestControlRecord(frame: DiagnosticFrame): DiagnosticRecord | undefined {
+    return [...frame.records]
+      .reverse()
+      .find(
+        (record) =>
+          record.layer === CONTROL_DIAGNOSTIC_LAYER && record.entityId === 'control-state'
+      );
+  }
+
+  function formatDiagnosticData(record: DiagnosticRecord | undefined): string {
+    return record?.data ? JSON.stringify(record.data, null, 2) : 'No control input sampled yet.';
+  }
+
+  $: controlRecord = latestControlRecord(diagnosticFrame);
 </script>
 
 <aside class="workbench" aria-label="Development workbench">
@@ -209,6 +229,14 @@
         <span>{layer.label}</span>
       </label>
     {/each}
+  </section>
+
+  <section class="workbench-section" aria-labelledby="control-heading">
+    <div class="section-heading">
+      <h2 id="control-heading">Control state</h2>
+      <span class="tick">Tick {diagnosticFrame.tick}</span>
+    </div>
+    <pre class="diagnostic-output">{formatDiagnosticData(controlRecord)}</pre>
   </section>
 </aside>
 
@@ -392,6 +420,21 @@
     gap: 8px;
     color: #d5def8;
     font-size: 0.82rem;
+  }
+
+  .diagnostic-output {
+    box-sizing: border-box;
+    max-height: 300px;
+    margin: 0;
+    overflow: auto;
+    border: 1px solid #263b66;
+    border-radius: 6px;
+    padding: 8px;
+    background: #0b1020;
+    color: #c8d3f5;
+    font: 0.68rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   @media (max-width: 860px) {

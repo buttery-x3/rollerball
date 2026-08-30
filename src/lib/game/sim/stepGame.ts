@@ -9,7 +9,8 @@ import { createArenaDiagnosticRecords } from './arenaDiagnostics';
 export function stepGame(
   state: GameState,
   fixedStepSeconds: number,
-  context: SimulationStepContext = {}
+  context: SimulationStepContext = {},
+  _input?: unknown
 ): void {
   if (!Number.isFinite(fixedStepSeconds) || fixedStepSeconds <= 0) {
     throw new RangeError('The simulation step must be a finite positive duration.');

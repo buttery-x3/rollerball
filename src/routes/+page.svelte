@@ -4,6 +4,13 @@
   import { createArenaDefinition } from '$lib/game/physics/arena';
   import { createArenaRenderer } from '$lib/game/render/arenaRenderer';
   import {
+    createBrowserInputSource,
+    createNeutralInputSnapshot,
+    type BrowserInputSource
+  } from '$lib/game/control/browserInput';
+  import { createControlRouter, type ControlRouter } from '$lib/game/control/controlRouter';
+  import { publishControlDiagnostics } from '$lib/game/control/diagnostics';
+  import {
     createBrowserGameLoop,
     type BrowserGameLoop
   } from '$lib/game/runtime/browserGameLoop';
@@ -26,20 +33,47 @@
     state: GameState,
     fixedStepSeconds: number,
     context: FixedStepStepContext,
-    _input: unknown | undefined
+    input: unknown | undefined
   ): void => {
-    stepGame(state, fixedStepSeconds, context);
+    stepGame(state, fixedStepSeconds, context, input);
   };
 
-  function createRun(id: string): ScenarioRun<GameState, unknown> {
-    return createScenarioRun({
-      definition: getScenario(id),
-      step: scenarioStep,
-      getArena: (currentTuning) => createArenaDefinition(currentTuning)
-    });
+  interface ControlScenarioRun {
+    readonly run: ScenarioRun<GameState, unknown>;
+    readonly control: ControlRouter;
   }
 
-  let activeRun = createRun(DEFAULT_SCENARIOS[0].id);
+  let browserInput: BrowserInputSource | undefined;
+
+  function createRun(id: string): ControlScenarioRun {
+    let control: ControlRouter | undefined;
+    const run = createScenarioRun({
+      definition: getScenario(id),
+      step: scenarioStep,
+      inputProvider: (tick, context) => {
+        const result = control?.consumeTick(
+          browserInput?.getSnapshot() ?? createNeutralInputSnapshot()
+        );
+        if (result) {
+          publishControlDiagnostics(tick, result, context.diagnostics);
+        }
+
+        return result;
+      },
+      getArena: (currentTuning) => createArenaDefinition(currentTuning)
+    });
+
+    control = createControlRouter({
+      tuning: run.tuning,
+      initialPlayerId: 'player-1'
+    });
+
+    return { run, control };
+  }
+
+  let activeSession = createRun(DEFAULT_SCENARIOS[0].id);
+  let activeRun = activeSession.run;
+  let activeControl = activeSession.control;
   let state = activeRun.state;
   let tuning = activeRun.tuning;
   let diagnostics = activeRun.diagnostics;
@@ -81,27 +115,32 @@
       runtime.pause();
     }
 
+    browserInput?.poll();
     renderFrame(runtime.stepOnce());
     paused = runtime.isPaused;
   }
 
   function loadScenario(id: string): void {
     const wasPaused = runtime.isPaused;
-    let nextRun: ScenarioRun<GameState, unknown>;
+    let nextSession: ControlScenarioRun;
 
     try {
-      nextRun = createRun(id);
+      nextSession = createRun(id);
     } catch (error) {
       scenarioError = error instanceof Error ? error.message : String(error);
       return;
     }
 
     if (wasPaused) {
-      nextRun.runtime.pause();
+      nextSession.run.runtime.pause();
     }
 
+    const hadBrowserInput = browserInput !== undefined;
+    browserInput?.dispose();
     loop?.stop();
-    activeRun = nextRun;
+    activeSession = nextSession;
+    activeRun = activeSession.run;
+    activeControl = activeSession.control;
     state = activeRun.state;
     tuning = activeRun.tuning;
     diagnostics = activeRun.diagnostics;
@@ -111,10 +150,18 @@
     tick = state.tick;
     paused = runtime.isPaused;
 
+    if (hadBrowserInput) {
+      browserInput = createBrowserInputSource(tuning, {
+        onReset: () => activeControl.reset()
+      });
+    }
+
     renderFrame(runtime.advance(0));
 
     if (loop) {
-      loop = createBrowserGameLoop(runtime, renderFrame);
+      loop = createBrowserGameLoop(runtime, renderFrame, {
+        beforeAdvance: () => browserInput?.poll()
+      });
       loop.start();
     }
   }
@@ -129,14 +176,21 @@
       throw new Error('The active scenario must provide an arena definition.');
     }
 
+    browserInput = createBrowserInputSource(tuning, {
+      onReset: () => activeControl.reset()
+    });
     renderer = createArenaRenderer(canvasHost, arena);
-    loop = createBrowserGameLoop(runtime, renderFrame);
+    loop = createBrowserGameLoop(runtime, renderFrame, {
+      beforeAdvance: () => browserInput?.poll()
+    });
 
     loop.start();
 
     return () => {
       loop?.stop();
       loop = undefined;
+      browserInput?.dispose();
+      browserInput = undefined;
       renderer?.dispose();
       renderer = undefined;
     };

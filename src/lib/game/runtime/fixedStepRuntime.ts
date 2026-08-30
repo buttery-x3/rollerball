@@ -16,7 +16,7 @@ export interface FixedStepFrame<TState extends GameState> {
   readonly simulationSteps: number;
 }
 
-export interface FixedStepRuntime<TState extends GameState> {
+export interface FixedStepRuntime<TState extends GameState, TInput = unknown> {
   readonly isPaused: boolean;
   advance(frameDeltaSeconds: number): FixedStepFrame<TState>;
   pause(): void;
@@ -24,9 +24,15 @@ export interface FixedStepRuntime<TState extends GameState> {
   stepOnce(): FixedStepFrame<TState>;
 }
 
-export interface FixedStepRuntimeOptions<TState extends GameState> {
+export interface FixedStepRuntimeOptions<TState extends GameState, TInput = unknown> {
   state: TState;
-  step: (state: TState, fixedStepSeconds: number, context: FixedStepStepContext) => void;
+  step: (
+    state: TState,
+    fixedStepSeconds: number,
+    context: FixedStepStepContext,
+    input: TInput | undefined
+  ) => void;
+  getInput?: (tick: number, context: FixedStepStepContext) => TInput | undefined;
   fixedStepSeconds?: number;
   maxCatchUpSteps?: number;
   tuning?: TuningReader;
@@ -40,9 +46,9 @@ export interface FixedStepStepContext {
   readonly arena?: ArenaDefinition;
 }
 
-export function createFixedStepRuntime<TState extends GameState>(
-  options: FixedStepRuntimeOptions<TState>
-): FixedStepRuntime<TState> {
+export function createFixedStepRuntime<TState extends GameState, TInput = unknown>(
+  options: FixedStepRuntimeOptions<TState, TInput>
+): FixedStepRuntime<TState, TInput> {
   const fixedStepSeconds = options.fixedStepSeconds ?? DEFAULT_FIXED_STEP_SECONDS;
 
   if (!Number.isFinite(fixedStepSeconds) || fixedStepSeconds <= 0) {
@@ -72,11 +78,13 @@ export function createFixedStepRuntime<TState extends GameState>(
   const runStep = (): void => {
     options.diagnostics?.beginTick(options.state.tick + 1);
     try {
-      options.step(options.state, fixedStepSeconds, {
+      const context: FixedStepStepContext = {
         diagnostics: options.diagnostics,
         tuning: options.tuning,
         arena: options.getArena?.()
-      });
+      };
+      const input = options.getInput?.(options.state.tick + 1, context);
+      options.step(options.state, fixedStepSeconds, context, input);
     } finally {
       options.diagnostics?.endTick();
     }
