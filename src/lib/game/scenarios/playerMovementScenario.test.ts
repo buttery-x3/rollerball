@@ -18,8 +18,11 @@ import {
   movementAccelerationScenario,
   movementArenaBoundaryScenario,
   movementMaximumSpeedTurnScenario,
-  movementReversalScenario
+  movementReversalScenario,
+  movementFreePlayScenario,
+  MOVEMENT_FREE_PLAY_SCENARIO_ID
 } from './playerMovementScenario';
+import { DEFAULT_SCENARIOS } from './defaultScenarios';
 import {
   MOVEMENT_ACCELERATION_KEY,
   MOVEMENT_MAX_SPEED_KEY,
@@ -50,6 +53,21 @@ function player(state: GameState) {
 }
 
 describe('field-player movement scenarios', () => {
+  it('provides a registered playable free-play scenario without scripted inputs', () => {
+    const initialState = movementFreePlayScenario.createInitialState();
+
+    expect(initialState.players).toHaveLength(1);
+    expect(initialState.players[0].definition).toMatchObject({
+      id: 'player-1',
+      teamId: 'human',
+      role: 'field'
+    });
+    expect(movementFreePlayScenario.scriptedInputs).toBeUndefined();
+    expect(DEFAULT_SCENARIOS.map((scenario) => scenario.id)).toContain(
+      MOVEMENT_FREE_PLAY_SCENARIO_ID
+    );
+  });
+
   it('covers acceleration, coast and stop through the shared scenario harness', () => {
     const speeds: number[] = [];
     const run = runScenario({

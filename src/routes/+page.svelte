@@ -24,7 +24,7 @@
     DEFAULT_SCENARIOS,
     getScenario
   } from '$lib/game/scenarios/defaultScenarios';
-  import { MOVEMENT_ACCELERATION_SCENARIO_ID } from '$lib/game/scenarios/playerMovementScenario';
+  import { MOVEMENT_FREE_PLAY_SCENARIO_ID } from '$lib/game/scenarios/playerMovementScenario';
   import {
     createScenarioRun,
     type ScenarioRun
@@ -84,7 +84,7 @@
     return { run, control };
   }
 
-  let activeSession = createRun(MOVEMENT_ACCELERATION_SCENARIO_ID);
+  let activeSession = createRun(MOVEMENT_FREE_PLAY_SCENARIO_ID);
   let activeRun = activeSession.run;
   let activeControl = activeSession.control;
   let state = activeRun.state;

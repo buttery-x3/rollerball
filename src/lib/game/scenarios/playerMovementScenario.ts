@@ -113,6 +113,25 @@ export const MOVEMENT_ACCELERATION_SCENARIO_ID = 'movement-acceleration-coast-st
 export const MOVEMENT_REVERSAL_SCENARIO_ID = 'movement-hard-reversal';
 export const MOVEMENT_TURN_SCENARIO_ID = 'movement-maximum-speed-turn';
 export const MOVEMENT_BOUNDARY_SCENARIO_ID = 'movement-arena-boundary';
+export const MOVEMENT_FREE_PLAY_SCENARIO_ID = 'movement-free-play';
+
+export const movementFreePlayScenario: ScenarioDefinition<
+  GameState,
+  RoutedPlayerIntent
+> = {
+  id: MOVEMENT_FREE_PLAY_SCENARIO_ID,
+  name: 'Field movement · free play',
+  createInitialState: createPlayableGameState,
+  diagnosticLayerOverrides: [
+    { key: PLAYER_MOVEMENT_DIAGNOSTIC_LAYER, enabled: true }
+  ],
+  assertions: [
+    {
+      id: 'finite-normalized-player-state',
+      check: finitePlayerStateAssertion
+    }
+  ]
+};
 
 export const movementAccelerationScenario = movementScenario(
   MOVEMENT_ACCELERATION_SCENARIO_ID,
@@ -159,6 +178,7 @@ export const PLAYER_MOVEMENT_SCENARIOS: readonly ScenarioDefinition<
   GameState,
   RoutedPlayerIntent
 >[] = [
+  movementFreePlayScenario,
   movementAccelerationScenario,
   movementReversalScenario,
   movementMaximumSpeedTurnScenario,
