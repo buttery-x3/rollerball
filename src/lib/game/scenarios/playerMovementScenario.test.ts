@@ -74,7 +74,7 @@ describe('field-player movement scenarios', () => {
       definition: movementAccelerationScenario,
       step: stepGame,
       getArena: (tuning) => createArenaDefinition(tuning),
-      ticks: 90,
+      ticks: 180,
       onStep: (state) => {
         const currentPlayer = player(state);
         speeds.push(Math.hypot(currentPlayer.velocity.x, currentPlayer.velocity.y));
@@ -82,7 +82,7 @@ describe('field-player movement scenarios', () => {
     });
 
     expect(speeds[0]).toBeGreaterThan(0);
-    expect(speeds[29]).toBeCloseTo(8, 8);
+    expect(speeds[29]).toBeCloseTo(11, 8);
     expect(speeds[30]).toBeGreaterThan(0);
     expect(speeds.at(-1)).toBe(0);
     expect(player(run.state).position.y).toBeGreaterThan(0);
@@ -94,6 +94,7 @@ describe('field-player movement scenarios', () => {
       definition: movementReversalScenario,
       step: stepGame,
       getArena: (tuning) => createArenaDefinition(tuning),
+      tuningOverrides: [{ key: MOVEMENT_REVERSAL_RESPONSE_KEY, value: 18 }],
       ticks: 120,
       onStep: (state, tick) => {
         speedsByTick.set(tick, player(state).velocity.y);
@@ -131,11 +132,12 @@ describe('field-player movement scenarios', () => {
       }
     });
 
+    const maxSpeed = run.tuning.getNumber(MOVEMENT_MAX_SPEED_KEY);
     const turnStart = observations[60];
     expect(turnStart.facingX).toBeGreaterThan(0);
     expect(turnStart.velocityY).toBeGreaterThan(0);
-    expect(turnStart.facingX).toBeGreaterThan(Math.abs(turnStart.velocityX) / 8);
-    expect(Math.max(...observations.map(({ speed }) => speed))).toBeLessThanOrEqual(8);
+    expect(turnStart.facingX).toBeGreaterThan(Math.abs(turnStart.velocityX) / maxSpeed);
+    expect(Math.max(...observations.map(({ speed }) => speed))).toBeLessThanOrEqual(maxSpeed);
     expect(player(run.state).velocity.x).toBeGreaterThan(0);
   });
 
@@ -143,7 +145,7 @@ describe('field-player movement scenarios', () => {
     const run = runMovementScenario(movementArenaBoundaryScenario, 1);
     const currentPlayer = player(run.state);
 
-    expect(currentPlayer.position).toEqual({ x: 8.25, y: 0 });
+    expect(currentPlayer.position).toEqual({ x: 8.4, y: 0 });
     expect(currentPlayer.velocity.x).toBe(0);
 
     const records = run.diagnostics?.getFrame().records ?? [];
@@ -152,7 +154,7 @@ describe('field-player movement scenarios', () => {
         record.layer === PLAYER_MOVEMENT_DIAGNOSTIC_LAYER &&
         record.entityId === 'player-1-collision'
     );
-    expect(collisionRecord?.data).toMatchObject({ contacts: ['right'], radius: 0.75 });
+    expect(collisionRecord?.data).toMatchObject({ contacts: ['right'], radius: 0.6 });
   });
 
   it('produces identical results across render schedules and replay', () => {
@@ -215,8 +217,8 @@ describe('field-player movement scenarios', () => {
 
     expect(run.tuning.get(MOVEMENT_MAX_SPEED_KEY)).toMatchObject({
       domain: 'movement',
-      defaultValue: 8,
-      effectiveValue: 8
+      defaultValue: 11,
+      effectiveValue: 11
     });
     expect(run.tuning.get(MOVEMENT_ACCELERATION_KEY).domain).toBe('movement');
     expect(run.tuning.get(MOVEMENT_TURNING_RESPONSE_KEY).domain).toBe('movement');

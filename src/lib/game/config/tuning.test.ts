@@ -3,6 +3,11 @@ import {
   createTuningRegistry,
   DEFAULT_TUNING_DEFINITIONS,
   ARENA_WIDTH_KEY,
+  MOVEMENT_ACCELERATION_KEY,
+  MOVEMENT_BRAKING_KEY,
+  MOVEMENT_FACING_RESPONSE_KEY,
+  MOVEMENT_MAX_SPEED_KEY,
+  MOVEMENT_REVERSAL_RESPONSE_KEY,
   MOVEMENT_TURNING_RESPONSE_KEY,
   PLAYER_RADIUS_KEY,
   RUNTIME_MAX_CATCH_UP_STEPS_KEY
@@ -57,7 +62,7 @@ describe('central tuning registry', () => {
       step: 0.1
     });
 
-    expect(registry.getNumber('movement.maxSpeed')).toBe(8);
+    expect(registry.getNumber(MOVEMENT_MAX_SPEED_KEY)).toBe(11);
     expect(registry.list()).toHaveLength(DEFAULT_TUNING_DEFINITIONS.length + 1);
   });
 
@@ -68,10 +73,32 @@ describe('central tuning registry', () => {
     expect(registry.get(PLAYER_RADIUS_KEY)).toMatchObject({
       domain: 'contact',
       label: 'Player radius',
-      defaultValue: 0.75,
+      defaultValue: 0.6,
       min: 0.25,
       max: 2,
       step: 0.05
+    });
+  });
+
+  it('registers the current canonical field-movement defaults', () => {
+    const registry = createTuningRegistry();
+
+    expect({
+      radius: registry.getNumber(PLAYER_RADIUS_KEY),
+      maxSpeed: registry.getNumber(MOVEMENT_MAX_SPEED_KEY),
+      acceleration: registry.getNumber(MOVEMENT_ACCELERATION_KEY),
+      turningResponse: registry.getNumber(MOVEMENT_TURNING_RESPONSE_KEY),
+      braking: registry.getNumber(MOVEMENT_BRAKING_KEY),
+      facingResponse: registry.getNumber(MOVEMENT_FACING_RESPONSE_KEY),
+      reversalResponse: registry.getNumber(MOVEMENT_REVERSAL_RESPONSE_KEY)
+    }).toEqual({
+      radius: 0.6,
+      maxSpeed: 11,
+      acceleration: 60,
+      turningResponse: 8,
+      braking: 5,
+      facingResponse: 2,
+      reversalResponse: 5
     });
   });
 
@@ -81,11 +108,11 @@ describe('central tuning registry', () => {
     expect(registry.get(MOVEMENT_TURNING_RESPONSE_KEY)).toMatchObject({
       domain: 'movement',
       label: 'Movement turning response',
-      defaultValue: 12,
+      defaultValue: 8,
       min: 0,
       max: 60,
       step: 0.5,
-      effectiveValue: 12
+      effectiveValue: 8
     });
   });
 

@@ -55,7 +55,7 @@ describe('field-player movement', () => {
     expect(coast.velocity.y).toBeGreaterThan(0);
     expect(player.position.y).toBeGreaterThan(coastPosition);
 
-    for (let tick = 0; tick < 30; tick += 1) {
+    for (let tick = 0; tick < 132; tick += 1) {
       integrateFieldPlayer(
         player,
         undefined,
@@ -189,7 +189,7 @@ describe('field-player movement', () => {
     const { tuning, arena } = createMovementContext();
     tuning.setOverride(MOVEMENT_MAX_SPEED_KEY, 4);
     const player = createFieldPlayerState({
-      position: { x: 8.2, y: 0 },
+      position: { x: 8.35, y: 0 },
       velocity: { x: 8, y: 0 }
     });
 
@@ -202,7 +202,7 @@ describe('field-player movement', () => {
     );
 
     expect(result.contacts).toEqual(['right']);
-    expect(player.position.x).toBe(8.25);
+    expect(player.position.x).toBe(8.4);
     expect(player.velocity.x).toBe(0);
     expect(isCircleWithinBounds(player.position, tuning.getNumber('player.radius'), arena.bounds)).toBe(
       true

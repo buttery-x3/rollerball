@@ -1,4 +1,4 @@
-import { PLAYER_RADIUS_KEY } from '../config/tuning';
+import { DEFAULT_PLAYER_RADIUS, PLAYER_RADIUS_KEY } from '../config/tuning';
 import {
   constrainCircleToBounds,
   type CircleBoundaryContact,
@@ -31,7 +31,7 @@ export const arenaConstraintScenario: ScenarioDefinition<
     tick: 0,
     players: [],
     position: { x: 0, y: 0 },
-    radius: 0.75,
+    radius: DEFAULT_PLAYER_RADIUS,
     contacts: [],
     observations: []
   }),

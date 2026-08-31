@@ -162,7 +162,7 @@ export const movementMaximumSpeedTurnScenario = movementScenario(
 
 function createBoundaryState(): GameState {
   return createPlayableGameState({
-    position: { x: 8.2, y: 0 },
+    position: { x: 8.35, y: 0 },
     velocity: { x: 8, y: 0 }
   });
 }
