@@ -9,7 +9,11 @@
     DiagnosticLayerState,
     DiagnosticRecord
   } from '$lib/game/sim/diagnostics';
-  import { CONTROL_DIAGNOSTIC_LAYER } from '$lib/game/sim/diagnostics';
+  import {
+    CONTROL_DIAGNOSTIC_LAYER,
+    PLAYER_MOVEMENT_DIAGNOSTIC_LAYER
+  } from '$lib/game/sim/diagnostics';
+  import type { RoutedPlayerIntent } from '$lib/game/control/types';
   import type { GameState } from '$lib/game/sim/gameState';
   import type { ScenarioDefinition } from '$lib/game/scenarios/scenario';
   import type { DiagnosticStore } from './diagnosticStore';
@@ -23,7 +27,7 @@
   export let paused: boolean;
   export let activeScenarioId: string;
   export let scenarioError: string | undefined;
-  export let scenarios: readonly ScenarioDefinition<GameState, unknown>[];
+  export let scenarios: readonly ScenarioDefinition<GameState, RoutedPlayerIntent>[];
   export let tick: number;
   export let tuning: TuningRegistry;
 
@@ -121,11 +125,22 @@
       );
   }
 
+  function latestPlayerRecord(frame: DiagnosticFrame): DiagnosticRecord | undefined {
+    return [...frame.records]
+      .reverse()
+      .find(
+        (record) =>
+          record.layer === PLAYER_MOVEMENT_DIAGNOSTIC_LAYER &&
+          record.entityId?.endsWith('-state')
+      );
+  }
+
   function formatDiagnosticData(record: DiagnosticRecord | undefined): string {
-    return record?.data ? JSON.stringify(record.data, null, 2) : 'No control input sampled yet.';
+    return record?.data ? JSON.stringify(record.data, null, 2) : 'No diagnostic data sampled yet.';
   }
 
   $: controlRecord = latestControlRecord(diagnosticFrame);
+  $: playerRecord = latestPlayerRecord(diagnosticFrame);
 </script>
 
 <aside class="workbench" aria-label="Development workbench">
@@ -237,6 +252,14 @@
       <span class="tick">Tick {diagnosticFrame.tick}</span>
     </div>
     <pre class="diagnostic-output">{formatDiagnosticData(controlRecord)}</pre>
+  </section>
+
+  <section class="workbench-section" aria-labelledby="player-heading">
+    <div class="section-heading">
+      <h2 id="player-heading">Player movement</h2>
+      <span class="tick">Tick {diagnosticFrame.tick}</span>
+    </div>
+    <pre class="diagnostic-output">{formatDiagnosticData(playerRecord)}</pre>
   </section>
 </aside>
 

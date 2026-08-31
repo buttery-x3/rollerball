@@ -22,7 +22,7 @@ describe('deterministic scenarios', () => {
 
     expect(run.state.tick).toBe(3);
     expect(run.runtime.isPaused).toBe(true);
-    expect(run.diagnostics.getFrame().tick).toBe(3);
+    expect(run.diagnostics?.getFrame().tick).toBe(3);
   });
 
   it('uses a fresh state and runtime when the same scenario is loaded again', () => {
@@ -34,9 +34,24 @@ describe('deterministic scenarios', () => {
     const resetRun = createScenarioRun({ definition: scenario, step: stepGame });
 
     expect(resetRun.definition).toBe(scenario);
-    expect(resetRun.state).toEqual({ tick: 0 });
+    expect(resetRun.state).toEqual({ tick: 0, players: [] });
     expect(resetRun.runtime.isPaused).toBe(false);
     expect(firstRun.state.tick).toBe(1);
+  });
+
+  it('can run the normal runtime without allocating diagnostics', () => {
+    const scenario = getScenario(DETERMINISTIC_TICK_SCENARIO_ID);
+    const run = createScenarioRun({
+      definition: scenario,
+      step: stepGame,
+      diagnosticsEnabled: false
+    });
+
+    run.runtime.pause();
+    run.runtime.stepOnce();
+
+    expect(run.diagnostics).toBeUndefined();
+    expect(run.state.tick).toBe(1);
   });
 
   it('delivers scripted inputs only on their recorded simulation ticks', () => {
@@ -47,7 +62,7 @@ describe('deterministic scenarios', () => {
     const scenario: ScenarioDefinition<InputState, number> = {
       id: 'scripted-inputs',
       name: 'Scripted inputs',
-      createInitialState: () => ({ tick: 0, receivedInputs: [] }),
+      createInitialState: () => ({ tick: 0, players: [], receivedInputs: [] }),
       scriptedInputs: [
         { tick: 1, input: 10 },
         { tick: 3, input: 30 }
@@ -62,7 +77,7 @@ describe('deterministic scenarios', () => {
 
     const run = runScenario({ definition: scenario, step, ticks: 3 });
 
-    expect(run.state).toEqual({ tick: 3, receivedInputs: [10, 30] });
+    expect(run.state).toEqual({ tick: 3, players: [], receivedInputs: [10, 30] });
   });
 
   it('applies scenario tuning overrides through the central registry', () => {
@@ -73,7 +88,7 @@ describe('deterministic scenarios', () => {
     const scenario: ScenarioDefinition<TuningState, never> = {
       id: 'scenario-tuning',
       name: 'Scenario tuning',
-      createInitialState: () => ({ tick: 0, observedCatchUpSteps: 0 }),
+      createInitialState: () => ({ tick: 0, players: [], observedCatchUpSteps: 0 }),
       tuningOverrides: [{ key: RUNTIME_MAX_CATCH_UP_STEPS_KEY, value: 8 }]
     };
     const step: ScenarioStep<TuningState, never> = (state, _fixedStepSeconds, context) => {

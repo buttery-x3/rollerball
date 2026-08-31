@@ -21,6 +21,7 @@ export const controlInputConsumptionScenario: ScenarioDefinition<
   name: 'Control input consumption',
   createInitialState: () => ({
     tick: 0,
+    players: [],
     pressedTicks: [],
     releasedTicks: [],
     pulses: [],

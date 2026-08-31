@@ -37,7 +37,7 @@ describe('control diagnostics', () => {
       getInput: (tick, context) => {
         const result = router.consumeTick(inputSnapshot(), 'possessed');
         publishControlDiagnostics(tick, result, context.diagnostics);
-        return result;
+        return result.routedIntent;
       },
       step: (stepState, fixedStepSeconds, context) => {
         stepGame(stepState, fixedStepSeconds, context);
@@ -82,7 +82,7 @@ describe('control diagnostics', () => {
       getInput: (tick, context) => {
         const result = router.consumeTick(inputSnapshot());
         publishControlDiagnostics(tick, result, context.diagnostics);
-        return result;
+        return result.routedIntent;
       },
       step: stepGame
     });

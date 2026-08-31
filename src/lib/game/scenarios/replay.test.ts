@@ -23,7 +23,7 @@ interface ReplayState extends GameState {
 const replayScenarioDefinition: ScenarioDefinition<ReplayState, number> = {
   id: 'replay-inputs',
   name: 'Replay inputs',
-  createInitialState: () => ({ tick: 0, receivedInputs: [], lastInput: 0 }),
+  createInitialState: () => ({ tick: 0, players: [], receivedInputs: [], lastInput: 0 }),
   scriptedInputs: [
     { tick: 1, input: 2 },
     { tick: 2, input: 5 },
@@ -116,7 +116,7 @@ describe('deterministic replay', () => {
     const scenario: ScenarioDefinition<MutableReplayState, MutableInput> = {
       id: 'mutable-replay-inputs',
       name: 'Mutable replay inputs',
-      createInitialState: () => ({ tick: 0, receivedInputs: [] }),
+      createInitialState: () => ({ tick: 0, players: [], receivedInputs: [] }),
       scriptedInputs: [
         { tick: 1, input: sharedInput },
         { tick: 2, input: sharedInput }
@@ -176,7 +176,7 @@ describe('deterministic replay', () => {
 
     expect(record.initialTick).toBe(0);
     expect(record.initialStateHash).toBe(
-      stableStateHash({ tick: 0, receivedInputs: [], lastInput: 0 })
+      stableStateHash({ tick: 0, players: [], receivedInputs: [], lastInput: 0 })
     );
     expect(record.checkpoints).toHaveLength(4);
     expect(record.checkpoints.map((checkpoint) => checkpoint.tick)).toEqual([1, 2, 3, 4]);
@@ -205,7 +205,7 @@ describe('deterministic replay', () => {
         replayScenarioDefinition.id,
         1,
         record.checkpoints[0].stateHash,
-        stableStateHash({ tick: 1, receivedInputs: [2], lastInput: 3 })
+        stableStateHash({ tick: 1, players: [], receivedInputs: [2], lastInput: 3 })
       )
     );
   });
@@ -217,6 +217,11 @@ describe('deterministic replay', () => {
       ticks: 4
     });
 
-    expect(run.state).toEqual({ tick: 4, receivedInputs: [2, 5, 9], lastInput: 9 });
+    expect(run.state).toEqual({
+      tick: 4,
+      players: [],
+      receivedInputs: [2, 5, 9],
+      lastInput: 9
+    });
   });
 });

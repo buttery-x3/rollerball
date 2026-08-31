@@ -29,6 +29,7 @@ export const arenaConstraintScenario: ScenarioDefinition<
   name: 'Arena circle constraint',
   createInitialState: () => ({
     tick: 0,
+    players: [],
     position: { x: 0, y: 0 },
     radius: 0.75,
     contacts: [],

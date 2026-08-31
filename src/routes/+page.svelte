@@ -3,12 +3,14 @@
   import Workbench from '$lib/game/debug/Workbench.svelte';
   import { createArenaDefinition } from '$lib/game/physics/arena';
   import { createArenaRenderer } from '$lib/game/render/arenaRenderer';
+  import { PLAYER_RADIUS_KEY } from '$lib/game/config/tuning';
   import {
     createBrowserInputSource,
     createNeutralInputSnapshot,
     type BrowserInputSource
   } from '$lib/game/control/browserInput';
   import { createControlRouter, type ControlRouter } from '$lib/game/control/controlRouter';
+  import type { RoutedPlayerIntent } from '$lib/game/control/types';
   import { publishControlDiagnostics } from '$lib/game/control/diagnostics';
   import {
     createBrowserGameLoop,
@@ -18,7 +20,11 @@
     FixedStepFrame,
     FixedStepStepContext
   } from '$lib/game/runtime/fixedStepRuntime';
-  import { DEFAULT_SCENARIOS, getScenario } from '$lib/game/scenarios/defaultScenarios';
+  import {
+    DEFAULT_SCENARIOS,
+    getScenario
+  } from '$lib/game/scenarios/defaultScenarios';
+  import { MOVEMENT_ACCELERATION_SCENARIO_ID } from '$lib/game/scenarios/playerMovementScenario';
   import {
     createScenarioRun,
     type ScenarioRun
@@ -29,17 +35,19 @@
   import type { ArenaRenderer } from '$lib/game/render/arenaRenderer';
 
   let canvasHost: HTMLDivElement;
+  const developmentMode = import.meta.env.DEV;
+
   const scenarioStep = (
     state: GameState,
     fixedStepSeconds: number,
     context: FixedStepStepContext,
-    input: unknown | undefined
+    input: RoutedPlayerIntent | undefined
   ): void => {
     stepGame(state, fixedStepSeconds, context, input);
   };
 
   interface ControlScenarioRun {
-    readonly run: ScenarioRun<GameState, unknown>;
+    readonly run: ScenarioRun<GameState, RoutedPlayerIntent>;
     readonly control: ControlRouter;
   }
 
@@ -58,9 +66,10 @@
           publishControlDiagnostics(tick, result, context.diagnostics);
         }
 
-        return result;
+        return result?.routedIntent;
       },
-      getArena: (currentTuning) => createArenaDefinition(currentTuning)
+      getArena: (currentTuning) => createArenaDefinition(currentTuning),
+      diagnosticsEnabled: developmentMode
     });
 
     control = createControlRouter({
@@ -71,7 +80,7 @@
     return { run, control };
   }
 
-  let activeSession = createRun(DEFAULT_SCENARIOS[0].id);
+  let activeSession = createRun(MOVEMENT_ACCELERATION_SCENARIO_ID);
   let activeRun = activeSession.run;
   let activeControl = activeSession.control;
   let state = activeRun.state;
@@ -95,8 +104,9 @@
     renderer?.render(
       frame.state,
       frame.alpha,
-      diagnostics.getFrame(),
-      diagnostics.isLayerEnabled(ARENA_DIAGNOSTIC_LAYER)
+      diagnostics?.getFrame(),
+      diagnostics?.isLayerEnabled(ARENA_DIAGNOSTIC_LAYER) ?? false,
+      tuning.getNumber(PLAYER_RADIUS_KEY)
     );
   }
 
@@ -206,20 +216,22 @@
   <section class="game-panel" aria-label="Rollerball arena">
     <div class="arena-viewport" bind:this={canvasHost}></div>
   </section>
-  <Workbench
-    {diagnostics}
-    {paused}
-    {tick}
-    {tuning}
-    {activeScenarioId}
-    {scenarioError}
-    scenarios={DEFAULT_SCENARIOS}
-    onPause={pauseSimulation}
-    onResume={resumeSimulation}
-    onStepOnce={stepSimulationOnce}
-    onLoadScenario={loadScenario}
-    onResetScenario={resetScenario}
-  />
+  {#if developmentMode && diagnostics}
+    <Workbench
+      {diagnostics}
+      {paused}
+      {tick}
+      {tuning}
+      {activeScenarioId}
+      {scenarioError}
+      scenarios={DEFAULT_SCENARIOS}
+      onPause={pauseSimulation}
+      onResume={resumeSimulation}
+      onStepOnce={stepSimulationOnce}
+      onLoadScenario={loadScenario}
+      onResetScenario={resetScenario}
+    />
+  {/if}
 </main>
 
 <style>

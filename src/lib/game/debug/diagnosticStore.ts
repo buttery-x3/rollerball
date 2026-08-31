@@ -8,12 +8,14 @@ import type {
 import {
   ARENA_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
+  PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER
 } from '../sim/diagnostics';
 
 export {
   ARENA_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
+  PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER
 } from '../sim/diagnostics';
 
@@ -39,6 +41,11 @@ export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
   {
     key: CONTROL_DIAGNOSTIC_LAYER,
     label: 'Control input',
+    enabledByDefault: true
+  },
+  {
+    key: PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+    label: 'Player movement',
     enabledByDefault: true
   }
 ];

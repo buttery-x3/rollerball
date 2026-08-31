@@ -50,6 +50,12 @@ export const ARENA_CREASE_WIDTH_KEY = 'arena.creaseWidth';
 export const ARENA_CREASE_DEPTH_KEY = 'arena.creaseDepth';
 export const PLAYER_RADIUS_KEY = 'player.radius';
 
+export const MOVEMENT_MAX_SPEED_KEY = 'movement.maxSpeed';
+export const MOVEMENT_ACCELERATION_KEY = 'movement.acceleration';
+export const MOVEMENT_BRAKING_KEY = 'movement.braking';
+export const MOVEMENT_FACING_RESPONSE_KEY = 'movement.facingResponse';
+export const MOVEMENT_REVERSAL_RESPONSE_KEY = 'movement.reversalResponse';
+
 export const DEFAULT_ARENA_WIDTH = 18;
 export const DEFAULT_ARENA_LENGTH = 30;
 export const DEFAULT_ARENA_GOAL_WIDTH = 8;
@@ -57,6 +63,12 @@ export const DEFAULT_ARENA_CROSSBAR_HEIGHT = 3;
 export const DEFAULT_ARENA_CREASE_WIDTH = 10;
 export const DEFAULT_ARENA_CREASE_DEPTH = 4;
 export const DEFAULT_PLAYER_RADIUS = 0.75;
+
+export const DEFAULT_MOVEMENT_MAX_SPEED = 8;
+export const DEFAULT_MOVEMENT_ACCELERATION = 24;
+export const DEFAULT_MOVEMENT_BRAKING = 30;
+export const DEFAULT_MOVEMENT_FACING_RESPONSE = 24;
+export const DEFAULT_MOVEMENT_REVERSAL_RESPONSE = 18;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   {
@@ -166,6 +178,51 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     min: 0.25,
     max: 2,
     step: 0.05
+  },
+  {
+    key: MOVEMENT_MAX_SPEED_KEY,
+    domain: 'movement',
+    label: 'Maximum movement speed',
+    defaultValue: DEFAULT_MOVEMENT_MAX_SPEED,
+    min: 0,
+    max: 20,
+    step: 0.1
+  },
+  {
+    key: MOVEMENT_ACCELERATION_KEY,
+    domain: 'movement',
+    label: 'Movement acceleration',
+    defaultValue: DEFAULT_MOVEMENT_ACCELERATION,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: MOVEMENT_BRAKING_KEY,
+    domain: 'movement',
+    label: 'Movement braking',
+    defaultValue: DEFAULT_MOVEMENT_BRAKING,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: MOVEMENT_FACING_RESPONSE_KEY,
+    domain: 'movement',
+    label: 'Facing turn response',
+    defaultValue: DEFAULT_MOVEMENT_FACING_RESPONSE,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: MOVEMENT_REVERSAL_RESPONSE_KEY,
+    domain: 'movement',
+    label: 'Hard reversal response',
+    defaultValue: DEFAULT_MOVEMENT_REVERSAL_RESPONSE,
+    min: 0,
+    max: 60,
+    step: 0.5
   }
 ];
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DEFAULT_PLAYER_RADIUS } from '../config/tuning';
 import { createArenaDiagnosticRecords } from '../sim/arenaDiagnostics';
 import { ARENA_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
 import type { DiagnosticFrame } from '../sim/diagnostics';
@@ -17,7 +18,8 @@ export interface ArenaRenderer {
     state: GameState,
     alpha: number,
     diagnostics?: DiagnosticFrame,
-    arenaDiagnosticsEnabled?: boolean
+    arenaDiagnosticsEnabled?: boolean,
+    playerRadius?: number
   ): void;
   setArena(arena: ArenaDefinition): void;
   setCameraFraming(framing: ArenaCameraFraming): void;
@@ -47,6 +49,38 @@ function createLine(
 ): THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial> {
   const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
   return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color }));
+}
+
+interface PlayerPresentation {
+  readonly root: THREE.Group;
+  readonly radius: number;
+}
+
+function playerColor(teamId: string): string {
+  return teamId === 'human' ? '#f6c177' : '#eb6f92';
+}
+
+function createPlayerPresentation(
+  radius: number,
+  color: string
+): PlayerPresentation {
+  const safeRadius = Math.max(0, radius);
+  const root = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(safeRadius, safeRadius, 0.24, 32),
+    new THREE.MeshBasicMaterial({ color })
+  );
+  body.position.y = 0.12;
+  root.add(body);
+
+  const heading = createLine(
+    new THREE.Vector3(0, 0.27, 0),
+    new THREE.Vector3(safeRadius * 1.35, 0.27, 0),
+    '#e7ecff'
+  );
+  root.add(heading);
+
+  return { root, radius: safeRadius };
 }
 
 function disposeObject(object: THREE.Object3D): void {
@@ -83,10 +117,14 @@ export function createArenaRenderer(
   const arenaGroup = new THREE.Group();
   arenaGroup.name = 'arena-presentation';
   scene.add(arenaGroup);
+  const playerGroup = new THREE.Group();
+  playerGroup.name = 'players-presentation';
+  scene.add(playerGroup);
 
   let arena = initialArena;
   let signature = arenaSignature(arena);
   let arenaObjects: THREE.Object3D[] = [];
+  let playerObjects = new Map<string, PlayerPresentation>();
   let arenaDiagnosticRecords = createArenaDiagnosticRecords(arena);
   let composedFrame: DiagnosticFrame | undefined;
   let composedSourceFrame: DiagnosticFrame | undefined;
@@ -98,6 +136,52 @@ export function createArenaRenderer(
       disposeObject(object);
     }
     arenaObjects = [];
+  };
+
+  const clearPlayerObjects = (): void => {
+    for (const presentation of playerObjects.values()) {
+      playerGroup.remove(presentation.root);
+      disposeObject(presentation.root);
+    }
+    playerObjects = new Map();
+  };
+
+  const syncPlayers = (state: GameState, radius: number): void => {
+    const activePlayerIds = new Set<string>();
+    const safeRadius = Math.max(0, radius);
+
+    for (const player of state.players) {
+      const playerId = player.definition.id;
+      activePlayerIds.add(playerId);
+      let presentation = playerObjects.get(playerId);
+
+      if (!presentation || presentation.radius !== safeRadius) {
+        if (presentation) {
+          playerGroup.remove(presentation.root);
+          disposeObject(presentation.root);
+        }
+
+        presentation = createPlayerPresentation(
+          safeRadius,
+          playerColor(player.definition.teamId)
+        );
+        playerObjects.set(playerId, presentation);
+        playerGroup.add(presentation.root);
+      }
+
+      presentation.root.position.set(player.position.x, 0, -player.position.y);
+      presentation.root.rotation.y = Math.atan2(player.facing.y, player.facing.x);
+    }
+
+    for (const [playerId, presentation] of playerObjects) {
+      if (activePlayerIds.has(playerId)) {
+        continue;
+      }
+
+      playerGroup.remove(presentation.root);
+      disposeObject(presentation.root);
+      playerObjects.delete(playerId);
+    }
   };
 
   const rebuildArenaObjects = (): void => {
@@ -170,11 +254,13 @@ export function createArenaRenderer(
 
   return {
     render(
-      _state: GameState,
+      state: GameState,
       _alpha: number,
       diagnostics: DiagnosticFrame = EMPTY_DIAGNOSTIC_FRAME,
-      arenaDiagnosticsEnabled = true
+      arenaDiagnosticsEnabled = true,
+      playerRadius = DEFAULT_PLAYER_RADIUS
     ): void {
+      syncPlayers(state, playerRadius);
       diagnosticRenderer.render(composeDiagnostics(diagnostics, arenaDiagnosticsEnabled));
       renderer.render(scene, camera);
     },
@@ -207,7 +293,9 @@ export function createArenaRenderer(
       window.removeEventListener('resize', resize);
       diagnosticRenderer.dispose();
       clearArenaObjects();
+      clearPlayerObjects();
       scene.remove(arenaGroup);
+      scene.remove(playerGroup);
       renderer.dispose();
       renderer.domElement.remove();
     }

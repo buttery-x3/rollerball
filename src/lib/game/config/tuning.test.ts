@@ -47,7 +47,7 @@ describe('central tuning registry', () => {
     const registry = createTuningRegistry();
 
     registry.register({
-      key: 'movement.maxSpeed',
+      key: 'test.futureValue',
       domain: 'movement',
       label: 'Max speed',
       defaultValue: 8,

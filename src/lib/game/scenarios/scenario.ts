@@ -61,6 +61,7 @@ export interface ScenarioRunOptions<TState extends GameState, TInput> {
   readonly maxCatchUpSteps?: number;
   readonly tuningDefinitions?: readonly NumericTuningDefinition[];
   readonly diagnosticDefinitions?: readonly DiagnosticLayerDefinition[];
+  readonly diagnosticsEnabled?: boolean;
   readonly getArena?: (tuning: TuningRegistry) => ArenaDefinition;
   readonly inputFrames?: readonly ScenarioInputFrame<TInput>[];
   readonly inputProvider?: (
@@ -76,7 +77,7 @@ export interface ScenarioRun<TState extends GameState, TInput> {
   readonly state: TState;
   readonly runtime: FixedStepRuntime<TState, TInput>;
   readonly tuning: TuningRegistry;
-  readonly diagnostics: DiagnosticStore;
+  readonly diagnostics: DiagnosticStore | undefined;
   readonly getArena?: () => ArenaDefinition;
   readonly inputFrames: readonly ScenarioInputFrame<TInput>[];
 }
@@ -183,9 +184,13 @@ function applyTuningOverrides(
 }
 
 function applyDiagnosticLayerOverrides(
-  diagnostics: DiagnosticStore,
+  diagnostics: DiagnosticStore | undefined,
   overrides: readonly ScenarioDiagnosticLayerOverride[]
 ): void {
+  if (!diagnostics) {
+    return;
+  }
+
   for (const override of overrides) {
     diagnostics.setLayerEnabled(override.key, override.enabled);
   }
@@ -216,7 +221,10 @@ export function createScenarioRun<TState extends GameState, TInput>(
   const inputFrames = options.inputFrames ?? options.definition.scriptedInputs ?? [];
   const inputByTick = validateInputFrames(inputFrames, state.tick);
   const tuning = createTuningRegistry(options.tuningDefinitions);
-  const diagnostics = createDiagnosticStore(options.diagnosticDefinitions);
+  const diagnostics =
+    options.diagnosticsEnabled === false
+      ? undefined
+      : createDiagnosticStore(options.diagnosticDefinitions);
 
   applyTuningOverrides(
     tuning,
