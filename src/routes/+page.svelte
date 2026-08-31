@@ -54,20 +54,24 @@
   let browserInput: BrowserInputSource | undefined;
 
   function createRun(id: string): ControlScenarioRun {
+    const definition = getScenario(id);
     let control: ControlRouter | undefined;
     const run = createScenarioRun({
-      definition: getScenario(id),
+      definition,
       step: scenarioStep,
-      inputProvider: (tick, context) => {
-        const result = control?.consumeTick(
-          browserInput?.getSnapshot() ?? createNeutralInputSnapshot()
-        );
-        if (result) {
-          publishControlDiagnostics(tick, result, context.diagnostics);
-        }
+      inputProvider:
+        definition.scriptedInputs === undefined
+          ? (tick, context) => {
+              const result = control?.consumeTick(
+                browserInput?.getSnapshot() ?? createNeutralInputSnapshot()
+              );
+              if (result) {
+                publishControlDiagnostics(tick, result, context.diagnostics);
+              }
 
-        return result?.routedIntent;
-      },
+              return result?.routedIntent;
+            }
+          : undefined,
       getArena: (currentTuning) => createArenaDefinition(currentTuning),
       diagnosticsEnabled: developmentMode
     });

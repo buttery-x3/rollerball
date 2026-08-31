@@ -3,6 +3,7 @@ import {
   createTuningRegistry,
   DEFAULT_TUNING_DEFINITIONS,
   ARENA_WIDTH_KEY,
+  MOVEMENT_TURNING_RESPONSE_KEY,
   PLAYER_RADIUS_KEY,
   RUNTIME_MAX_CATCH_UP_STEPS_KEY
 } from './tuning';
@@ -71,6 +72,20 @@ describe('central tuning registry', () => {
       min: 0.25,
       max: 2,
       step: 0.05
+    });
+  });
+
+  it('registers the independent movement turning response', () => {
+    const registry = createTuningRegistry();
+
+    expect(registry.get(MOVEMENT_TURNING_RESPONSE_KEY)).toMatchObject({
+      domain: 'movement',
+      label: 'Movement turning response',
+      defaultValue: 12,
+      min: 0,
+      max: 60,
+      step: 0.5,
+      effectiveValue: 12
     });
   });
 

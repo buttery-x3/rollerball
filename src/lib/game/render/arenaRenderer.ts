@@ -83,20 +83,30 @@ function createPlayerPresentation(
   return { root, radius: safeRadius };
 }
 
-function disposeObject(object: THREE.Object3D): void {
-  const renderable = object as THREE.Object3D & {
-    geometry?: THREE.BufferGeometry;
-    material?: THREE.Material | THREE.Material[];
+export function disposeObject(object: THREE.Object3D): void {
+  const disposeMaterial = (material: THREE.Material): void => {
+    const texturedMaterial = material as THREE.Material & {
+      map?: THREE.Texture | null;
+    };
+    texturedMaterial.map?.dispose();
+    material.dispose();
   };
 
-  renderable.geometry?.dispose();
-  if (Array.isArray(renderable.material)) {
-    for (const material of renderable.material) {
-      material.dispose();
+  object.traverse((child) => {
+    const renderable = child as THREE.Object3D & {
+      geometry?: THREE.BufferGeometry;
+      material?: THREE.Material | THREE.Material[];
+    };
+
+    renderable.geometry?.dispose();
+    if (Array.isArray(renderable.material)) {
+      for (const material of renderable.material) {
+        disposeMaterial(material);
+      }
+    } else if (renderable.material) {
+      disposeMaterial(renderable.material);
     }
-  } else {
-    renderable.material?.dispose();
-  }
+  });
 }
 
 export function createArenaRenderer(

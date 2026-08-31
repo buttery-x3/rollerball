@@ -64,6 +64,7 @@ export interface ScenarioRunOptions<TState extends GameState, TInput> {
   readonly diagnosticsEnabled?: boolean;
   readonly getArena?: (tuning: TuningRegistry) => ArenaDefinition;
   readonly inputFrames?: readonly ScenarioInputFrame<TInput>[];
+  /** Used for an explicitly interactive run when no scripted input source is supplied. */
   readonly inputProvider?: (
     tick: number,
     context: FixedStepStepContext
@@ -234,8 +235,11 @@ export function createScenarioRun<TState extends GameState, TInput>(
 
   const arenaFactory = options.getArena;
   const getArena = arenaFactory ? () => arenaFactory(tuning) : undefined;
-  const inputProvider =
-    options.inputProvider ?? ((tick: number): TInput | undefined => inputByTick.get(tick));
+  const hasScriptedInputSource =
+    options.inputFrames !== undefined || options.definition.scriptedInputs !== undefined;
+  const inputProvider = hasScriptedInputSource
+    ? (tick: number): TInput | undefined => inputByTick.get(tick)
+    : options.inputProvider ?? ((tick: number): TInput | undefined => inputByTick.get(tick));
 
   const runtime = createFixedStepRuntime<TState, TInput>({
     state,

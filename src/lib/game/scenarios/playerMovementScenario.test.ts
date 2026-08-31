@@ -20,7 +20,12 @@ import {
   movementMaximumSpeedTurnScenario,
   movementReversalScenario
 } from './playerMovementScenario';
-import { MOVEMENT_MAX_SPEED_KEY } from '../config/tuning';
+import {
+  MOVEMENT_ACCELERATION_KEY,
+  MOVEMENT_MAX_SPEED_KEY,
+  MOVEMENT_REVERSAL_RESPONSE_KEY,
+  MOVEMENT_TURNING_RESPONSE_KEY
+} from '../config/tuning';
 import type { GameState } from '../sim/gameState';
 
 function runMovementScenario(
@@ -195,5 +200,8 @@ describe('field-player movement scenarios', () => {
       defaultValue: 8,
       effectiveValue: 8
     });
+    expect(run.tuning.get(MOVEMENT_ACCELERATION_KEY).domain).toBe('movement');
+    expect(run.tuning.get(MOVEMENT_TURNING_RESPONSE_KEY).domain).toBe('movement');
+    expect(run.tuning.get(MOVEMENT_REVERSAL_RESPONSE_KEY).domain).toBe('movement');
   });
 });

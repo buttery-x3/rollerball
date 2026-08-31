@@ -52,6 +52,7 @@ export const PLAYER_RADIUS_KEY = 'player.radius';
 
 export const MOVEMENT_MAX_SPEED_KEY = 'movement.maxSpeed';
 export const MOVEMENT_ACCELERATION_KEY = 'movement.acceleration';
+export const MOVEMENT_TURNING_RESPONSE_KEY = 'movement.turningResponse';
 export const MOVEMENT_BRAKING_KEY = 'movement.braking';
 export const MOVEMENT_FACING_RESPONSE_KEY = 'movement.facingResponse';
 export const MOVEMENT_REVERSAL_RESPONSE_KEY = 'movement.reversalResponse';
@@ -66,6 +67,7 @@ export const DEFAULT_PLAYER_RADIUS = 0.75;
 
 export const DEFAULT_MOVEMENT_MAX_SPEED = 8;
 export const DEFAULT_MOVEMENT_ACCELERATION = 24;
+export const DEFAULT_MOVEMENT_TURNING_RESPONSE = 12;
 export const DEFAULT_MOVEMENT_BRAKING = 30;
 export const DEFAULT_MOVEMENT_FACING_RESPONSE = 24;
 export const DEFAULT_MOVEMENT_REVERSAL_RESPONSE = 18;
@@ -193,6 +195,15 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     domain: 'movement',
     label: 'Movement acceleration',
     defaultValue: DEFAULT_MOVEMENT_ACCELERATION,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: MOVEMENT_TURNING_RESPONSE_KEY,
+    domain: 'movement',
+    label: 'Movement turning response',
+    defaultValue: DEFAULT_MOVEMENT_TURNING_RESPONSE,
     min: 0,
     max: 60,
     step: 0.5

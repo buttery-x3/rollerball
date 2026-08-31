@@ -80,6 +80,42 @@ describe('deterministic scenarios', () => {
     expect(run.state).toEqual({ tick: 3, players: [], receivedInputs: [10, 30] });
   });
 
+  it('does not let an interactive input provider override scripted scenario inputs', () => {
+    interface InputState extends GameState {
+      readonly receivedInputs: number[];
+    }
+
+    const scenario: ScenarioDefinition<InputState, number> = {
+      id: 'interactive-scripted-inputs',
+      name: 'Interactive scripted inputs',
+      createInitialState: () => ({ tick: 0, players: [], receivedInputs: [] }),
+      scriptedInputs: [
+        { tick: 1, input: 10 },
+        { tick: 3, input: 30 }
+      ]
+    };
+    const providerTicks: number[] = [];
+    const step: ScenarioStep<InputState, number> = (state, _fixedStepSeconds, _context, input) => {
+      state.tick += 1;
+      if (input !== undefined) {
+        state.receivedInputs.push(input);
+      }
+    };
+
+    const run = runScenario({
+      definition: scenario,
+      step,
+      inputProvider: (tick) => {
+        providerTicks.push(tick);
+        return 99;
+      },
+      ticks: 3
+    });
+
+    expect(run.state.receivedInputs).toEqual([10, 30]);
+    expect(providerTicks).toEqual([]);
+  });
+
   it('applies scenario tuning overrides through the central registry', () => {
     interface TuningState extends GameState {
       observedCatchUpSteps: number;

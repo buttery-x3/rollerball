@@ -5,6 +5,7 @@ import {
   MOVEMENT_FACING_RESPONSE_KEY,
   MOVEMENT_MAX_SPEED_KEY,
   MOVEMENT_REVERSAL_RESPONSE_KEY,
+  MOVEMENT_TURNING_RESPONSE_KEY,
   PLAYER_RADIUS_KEY,
   type TuningReader
 } from '../config/tuning';
@@ -33,6 +34,7 @@ export interface PlayerMovementObservation {
 interface MovementTuning {
   readonly maxSpeed: number;
   readonly acceleration: number;
+  readonly turningResponse: number;
   readonly braking: number;
   readonly facingResponse: number;
   readonly reversalResponse: number;
@@ -148,6 +150,7 @@ function readMovementTuning(tuning: TuningReader): MovementTuning {
   const values = {
     maxSpeed: tuning.getNumber(MOVEMENT_MAX_SPEED_KEY),
     acceleration: tuning.getNumber(MOVEMENT_ACCELERATION_KEY),
+    turningResponse: tuning.getNumber(MOVEMENT_TURNING_RESPONSE_KEY),
     braking: tuning.getNumber(MOVEMENT_BRAKING_KEY),
     facingResponse: tuning.getNumber(MOVEMENT_FACING_RESPONSE_KEY),
     reversalResponse: tuning.getNumber(MOVEMENT_REVERSAL_RESPONSE_KEY),
@@ -156,12 +159,43 @@ function readMovementTuning(tuning: TuningReader): MovementTuning {
 
   assertNonNegative(values.maxSpeed, 'Movement maximum speed');
   assertNonNegative(values.acceleration, 'Movement acceleration');
+  assertNonNegative(values.turningResponse, 'Movement turning response');
   assertNonNegative(values.braking, 'Movement braking');
   assertNonNegative(values.facingResponse, 'Movement facing response');
   assertNonNegative(values.reversalResponse, 'Movement reversal response');
   assertNonNegative(values.radius, 'Player radius');
 
   return values;
+}
+
+function selectVelocityResponse(
+  currentVelocity: Vec2,
+  currentSpeed: number,
+  movementMagnitude: number,
+  movementDirection: Vec2 | undefined,
+  tuning: MovementTuning
+): number {
+  if (movementMagnitude <= EPSILON) {
+    return tuning.braking;
+  }
+
+  if (!movementDirection || currentSpeed <= EPSILON) {
+    return tuning.acceleration;
+  }
+
+  const currentDirection = scaleVector(currentVelocity, 1 / currentSpeed);
+  const alignment =
+    currentDirection.x * movementDirection.x + currentDirection.y * movementDirection.y;
+
+  if (alignment < 0) {
+    return tuning.reversalResponse;
+  }
+
+  if (alignment < 1 - EPSILON) {
+    return tuning.turningResponse;
+  }
+
+  return tuning.acceleration;
 }
 
 function removeOutwardVelocity(
@@ -206,14 +240,13 @@ export function integrateFieldPlayer(
   const currentVelocity = cloneVector(player.velocity);
   const currentSpeed = vectorLength(currentVelocity);
 
-  let response = movementMagnitude <= EPSILON ? movementTuning.braking : movementTuning.acceleration;
-  if (
-    movementDirection &&
-    currentSpeed > EPSILON &&
-    currentVelocity.x * movementDirection.x + currentVelocity.y * movementDirection.y < 0
-  ) {
-    response = movementTuning.reversalResponse;
-  }
+  const response = selectVelocityResponse(
+    currentVelocity,
+    currentSpeed,
+    movementMagnitude,
+    movementDirection,
+    movementTuning
+  );
 
   let velocity = approachVector(
     currentVelocity,

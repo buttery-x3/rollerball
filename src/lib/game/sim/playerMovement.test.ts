@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MOVEMENT_ACCELERATION_KEY,
+  MOVEMENT_REVERSAL_RESPONSE_KEY,
   MOVEMENT_MAX_SPEED_KEY,
+  MOVEMENT_TURNING_RESPONSE_KEY,
   createTuningRegistry
 } from '../config/tuning';
 import { createArenaDefinition } from '../physics/arena';
@@ -104,6 +107,82 @@ describe('field-player movement', () => {
       arena
     );
     expect(neutral.facing).toEqual(facingBeforeNeutral);
+  });
+
+  it('tunes acceleration, turning, and reversal responses independently', () => {
+    const accelerationTuning = createTuningRegistry();
+    accelerationTuning.setOverride(MOVEMENT_ACCELERATION_KEY, 6);
+    const accelerationPlayer = createFieldPlayerState();
+
+    integrateFieldPlayer(
+      accelerationPlayer,
+      createRoutedMovementIntent({ x: 0, y: 1 }).intent,
+      FIXED_STEP_SECONDS,
+      accelerationTuning,
+      createArenaDefinition(accelerationTuning)
+    );
+    expect(accelerationPlayer.velocity.y).toBeCloseTo(0.1, 10);
+
+    const slowTurningTuning = createTuningRegistry();
+    slowTurningTuning.setOverride(MOVEMENT_ACCELERATION_KEY, 60);
+    slowTurningTuning.setOverride(MOVEMENT_TURNING_RESPONSE_KEY, 6);
+    slowTurningTuning.setOverride(MOVEMENT_REVERSAL_RESPONSE_KEY, 6);
+    const slowTurningPlayer = createFieldPlayerState({ velocity: { x: 0, y: 8 } });
+
+    integrateFieldPlayer(
+      slowTurningPlayer,
+      createRoutedMovementIntent({ x: 1, y: 0 }).intent,
+      FIXED_STEP_SECONDS,
+      slowTurningTuning,
+      createArenaDefinition(slowTurningTuning)
+    );
+
+    const fastTurningTuning = createTuningRegistry();
+    fastTurningTuning.setOverride(MOVEMENT_ACCELERATION_KEY, 6);
+    fastTurningTuning.setOverride(MOVEMENT_TURNING_RESPONSE_KEY, 60);
+    fastTurningTuning.setOverride(MOVEMENT_REVERSAL_RESPONSE_KEY, 6);
+    const fastTurningPlayer = createFieldPlayerState({ velocity: { x: 0, y: 8 } });
+
+    integrateFieldPlayer(
+      fastTurningPlayer,
+      createRoutedMovementIntent({ x: 1, y: 0 }).intent,
+      FIXED_STEP_SECONDS,
+      fastTurningTuning,
+      createArenaDefinition(fastTurningTuning)
+    );
+
+    expect(fastTurningPlayer.velocity.x).toBeGreaterThan(slowTurningPlayer.velocity.x);
+
+    const slowReversalTuning = createTuningRegistry();
+    slowReversalTuning.setOverride(MOVEMENT_ACCELERATION_KEY, 60);
+    slowReversalTuning.setOverride(MOVEMENT_TURNING_RESPONSE_KEY, 60);
+    slowReversalTuning.setOverride(MOVEMENT_REVERSAL_RESPONSE_KEY, 6);
+    const slowReversalPlayer = createFieldPlayerState({ velocity: { x: 0, y: 8 } });
+
+    integrateFieldPlayer(
+      slowReversalPlayer,
+      createRoutedMovementIntent({ x: 0, y: -1 }).intent,
+      FIXED_STEP_SECONDS,
+      slowReversalTuning,
+      createArenaDefinition(slowReversalTuning)
+    );
+
+    const fastReversalTuning = createTuningRegistry();
+    fastReversalTuning.setOverride(MOVEMENT_ACCELERATION_KEY, 6);
+    fastReversalTuning.setOverride(MOVEMENT_TURNING_RESPONSE_KEY, 6);
+    fastReversalTuning.setOverride(MOVEMENT_REVERSAL_RESPONSE_KEY, 30);
+    const fastReversalPlayer = createFieldPlayerState({ velocity: { x: 0, y: 8 } });
+
+    integrateFieldPlayer(
+      fastReversalPlayer,
+      createRoutedMovementIntent({ x: 0, y: -1 }).intent,
+      FIXED_STEP_SECONDS,
+      fastReversalTuning,
+      createArenaDefinition(fastReversalTuning)
+    );
+
+    expect(fastReversalPlayer.velocity.y).toBeLessThan(slowReversalPlayer.velocity.y);
+    expect(fastReversalPlayer.velocity.y).toBeGreaterThan(0);
   });
 
   it('applies live maximum-speed tuning and constrains the circle at the boundary', () => {
