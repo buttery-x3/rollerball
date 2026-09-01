@@ -31,6 +31,37 @@ import {
   RUNTIME_MAX_CATCH_UP_STEPS_KEY
 } from './tuning';
 
+const THROW_TUNING_RELATIONSHIPS = [
+  {
+    minimumKey: CONTROLS_THROW_MIN_STRENGTH_KEY,
+    maximumKey: CONTROLS_THROW_MAX_STRENGTH_KEY,
+    invalidOverrideKey: CONTROLS_THROW_MAX_STRENGTH_KEY,
+    invalidOverrideValue: 0,
+    validOverrideValue: 0.5
+  },
+  {
+    minimumKey: BALL_LOW_THROW_MIN_SPEED_KEY,
+    maximumKey: BALL_LOW_THROW_MAX_SPEED_KEY,
+    invalidOverrideKey: BALL_LOW_THROW_MAX_SPEED_KEY,
+    invalidOverrideValue: 0,
+    validOverrideValue: 16
+  },
+  {
+    minimumKey: BALL_HIGH_THROW_MIN_PLANAR_SPEED_KEY,
+    maximumKey: BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY,
+    invalidOverrideKey: BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY,
+    invalidOverrideValue: 0,
+    validOverrideValue: 10
+  },
+  {
+    minimumKey: BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY,
+    maximumKey: BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY,
+    invalidOverrideKey: BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY,
+    invalidOverrideValue: 0,
+    validOverrideValue: 16
+  }
+] as const;
+
 describe('central tuning registry', () => {
   it('exposes defaults as effective values with workbench metadata', () => {
     const registry = createTuningRegistry();
@@ -184,6 +215,45 @@ describe('central tuning registry', () => {
       highMaxVerticalSpeed: 22,
       lockoutTicks: 6
     });
+  });
+
+  it('rejects invalid throw tuning relationships atomically', () => {
+    for (const relationship of THROW_TUNING_RELATIONSHIPS) {
+      const registry = createTuningRegistry();
+      const before = {
+        minimum: registry.getNumber(relationship.minimumKey),
+        maximum: registry.getNumber(relationship.maximumKey)
+      };
+      let notifications = 0;
+      const unsubscribe = registry.subscribe(() => {
+        notifications += 1;
+      });
+
+      expect(() =>
+        registry.setOverride(
+          relationship.invalidOverrideKey,
+          relationship.invalidOverrideValue
+        )
+      ).toThrow(
+        `Tuning relationship invalid: '${relationship.minimumKey}' must be less than or equal to '${relationship.maximumKey}'.`
+      );
+
+      expect(registry.getNumber(relationship.minimumKey)).toBe(before.minimum);
+      expect(registry.getNumber(relationship.maximumKey)).toBe(before.maximum);
+      expect(registry.get(relationship.invalidOverrideKey).overrideValue).toBeUndefined();
+      expect(notifications).toBe(0);
+
+      registry.setOverride(
+        relationship.invalidOverrideKey,
+        relationship.validOverrideValue
+      );
+      unsubscribe();
+
+      expect(registry.getNumber(relationship.invalidOverrideKey)).toBe(
+        relationship.validOverrideValue
+      );
+      expect(notifications).toBe(1);
+    }
   });
 
   it('rejects invalid values and duplicate keys', () => {

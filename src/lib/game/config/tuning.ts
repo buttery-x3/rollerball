@@ -482,6 +482,66 @@ function assertValidValue(definition: NumericTuningDefinition, value: number): v
   }
 }
 
+function assertValidThrowTuningRelationships(
+  getEffectiveValue: (key: string) => number | undefined
+): void {
+  const minimumStrength = getEffectiveValue(CONTROLS_THROW_MIN_STRENGTH_KEY);
+  const maximumStrength = getEffectiveValue(CONTROLS_THROW_MAX_STRENGTH_KEY);
+  if (
+    minimumStrength !== undefined &&
+    maximumStrength !== undefined &&
+    minimumStrength > maximumStrength
+  ) {
+    throw new RangeError(
+      `Tuning relationship invalid: '${CONTROLS_THROW_MIN_STRENGTH_KEY}' must be less than or equal to '${CONTROLS_THROW_MAX_STRENGTH_KEY}'.`
+    );
+  }
+
+  const minimumLowSpeed = getEffectiveValue(BALL_LOW_THROW_MIN_SPEED_KEY);
+  const maximumLowSpeed = getEffectiveValue(BALL_LOW_THROW_MAX_SPEED_KEY);
+  if (
+    minimumLowSpeed !== undefined &&
+    maximumLowSpeed !== undefined &&
+    minimumLowSpeed > maximumLowSpeed
+  ) {
+    throw new RangeError(
+      `Tuning relationship invalid: '${BALL_LOW_THROW_MIN_SPEED_KEY}' must be less than or equal to '${BALL_LOW_THROW_MAX_SPEED_KEY}'.`
+    );
+  }
+
+  const minimumHighPlanarSpeed = getEffectiveValue(
+    BALL_HIGH_THROW_MIN_PLANAR_SPEED_KEY
+  );
+  const maximumHighPlanarSpeed = getEffectiveValue(
+    BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY
+  );
+  if (
+    minimumHighPlanarSpeed !== undefined &&
+    maximumHighPlanarSpeed !== undefined &&
+    minimumHighPlanarSpeed > maximumHighPlanarSpeed
+  ) {
+    throw new RangeError(
+      `Tuning relationship invalid: '${BALL_HIGH_THROW_MIN_PLANAR_SPEED_KEY}' must be less than or equal to '${BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY}'.`
+    );
+  }
+
+  const minimumHighVerticalSpeed = getEffectiveValue(
+    BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY
+  );
+  const maximumHighVerticalSpeed = getEffectiveValue(
+    BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY
+  );
+  if (
+    minimumHighVerticalSpeed !== undefined &&
+    maximumHighVerticalSpeed !== undefined &&
+    minimumHighVerticalSpeed > maximumHighVerticalSpeed
+  ) {
+    throw new RangeError(
+      `Tuning relationship invalid: '${BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY}' must be less than or equal to '${BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY}'.`
+    );
+  }
+}
+
 export function createTuningRegistry(
   definitions: readonly NumericTuningDefinition[] = DEFAULT_TUNING_DEFINITIONS
 ): TuningRegistry {
@@ -513,6 +573,11 @@ export function createTuningRegistry(
       overrideValue,
       effectiveValue: overrideValue ?? definition.defaultValue
     };
+  };
+
+  const getEffectiveValue = (key: string): number | undefined => {
+    const definition = registered.get(key);
+    return definition ? overrides.get(key) ?? definition.defaultValue : undefined;
   };
 
   for (const definition of definitions) {
@@ -554,6 +619,9 @@ export function createTuningRegistry(
         return;
       }
 
+      assertValidThrowTuningRelationships((candidateKey) =>
+        candidateKey === key ? value : getEffectiveValue(candidateKey)
+      );
       overrides.set(key, value);
       notify();
     },
