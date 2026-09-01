@@ -10,6 +10,7 @@
     DiagnosticRecord
   } from '$lib/game/sim/diagnostics';
   import {
+    BALL_DIAGNOSTIC_LAYER,
     CONTROL_DIAGNOSTIC_LAYER,
     PLAYER_MOVEMENT_DIAGNOSTIC_LAYER
   } from '$lib/game/sim/diagnostics';
@@ -135,12 +136,22 @@
       );
   }
 
+  function latestBallRecord(frame: DiagnosticFrame): DiagnosticRecord | undefined {
+    return [...frame.records]
+      .reverse()
+      .find(
+        (record) =>
+          record.layer === BALL_DIAGNOSTIC_LAYER && record.entityId === 'ball-state'
+      );
+  }
+
   function formatDiagnosticData(record: DiagnosticRecord | undefined): string {
     return record?.data ? JSON.stringify(record.data, null, 2) : 'No diagnostic data sampled yet.';
   }
 
   $: controlRecord = latestControlRecord(diagnosticFrame);
   $: playerRecord = latestPlayerRecord(diagnosticFrame);
+  $: ballRecord = latestBallRecord(diagnosticFrame);
 </script>
 
 <aside class="workbench" aria-label="Development workbench">
@@ -260,6 +271,14 @@
       <span class="tick">Tick {diagnosticFrame.tick}</span>
     </div>
     <pre class="diagnostic-output">{formatDiagnosticData(playerRecord)}</pre>
+  </section>
+
+  <section class="workbench-section" aria-labelledby="ball-heading">
+    <div class="section-heading">
+      <h2 id="ball-heading">Ball trajectory</h2>
+      <span class="tick">Tick {diagnosticFrame.tick}</span>
+    </div>
+    <pre class="diagnostic-output">{formatDiagnosticData(ballRecord)}</pre>
   </section>
 </aside>
 

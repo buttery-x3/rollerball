@@ -3,7 +3,10 @@
   import Workbench from '$lib/game/debug/Workbench.svelte';
   import { createArenaDefinition } from '$lib/game/physics/arena';
   import { createArenaRenderer } from '$lib/game/render/arenaRenderer';
-  import { PLAYER_RADIUS_KEY } from '$lib/game/config/tuning';
+  import {
+    BALL_RADIUS_KEY,
+    PLAYER_RADIUS_KEY
+  } from '$lib/game/config/tuning';
   import {
     createBrowserInputSource,
     createNeutralInputSnapshot,
@@ -110,7 +113,8 @@
       frame.alpha,
       diagnostics?.getFrame(),
       diagnostics?.isLayerEnabled(ARENA_DIAGNOSTIC_LAYER) ?? false,
-      tuning.getNumber(PLAYER_RADIUS_KEY)
+      tuning.getNumber(PLAYER_RADIUS_KEY),
+      tuning.getNumber(BALL_RADIUS_KEY)
     );
   }
 

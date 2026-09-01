@@ -57,6 +57,15 @@ export const MOVEMENT_BRAKING_KEY = 'movement.braking';
 export const MOVEMENT_FACING_RESPONSE_KEY = 'movement.facingResponse';
 export const MOVEMENT_REVERSAL_RESPONSE_KEY = 'movement.reversalResponse';
 
+export const BALL_RADIUS_KEY = 'ball.radius';
+export const BALL_PLANAR_DAMPING_KEY = 'ball.planarDamping';
+export const BALL_GRAVITY_KEY = 'ball.gravity';
+export const BALL_WALL_RESTITUTION_KEY = 'ball.wallRestitution';
+export const BALL_GROUND_RESTITUTION_KEY = 'ball.groundRestitution';
+export const BALL_GROUND_DAMPING_KEY = 'ball.groundDamping';
+export const BALL_GROUND_SETTLE_SPEED_KEY = 'ball.groundSettleSpeed';
+export const BALL_PREDICTION_HORIZON_STEPS_KEY = 'ball.predictionHorizonSteps';
+
 export const DEFAULT_ARENA_WIDTH = 18;
 export const DEFAULT_ARENA_LENGTH = 30;
 export const DEFAULT_ARENA_GOAL_WIDTH = 8;
@@ -71,6 +80,15 @@ export const DEFAULT_MOVEMENT_TURNING_RESPONSE = 8;
 export const DEFAULT_MOVEMENT_BRAKING = 5;
 export const DEFAULT_MOVEMENT_FACING_RESPONSE = 2;
 export const DEFAULT_MOVEMENT_REVERSAL_RESPONSE = 5;
+
+export const DEFAULT_BALL_RADIUS = 0.35;
+export const DEFAULT_BALL_PLANAR_DAMPING = 0.25;
+export const DEFAULT_BALL_GRAVITY = 28;
+export const DEFAULT_BALL_WALL_RESTITUTION = 0.85;
+export const DEFAULT_BALL_GROUND_RESTITUTION = 0.45;
+export const DEFAULT_BALL_GROUND_DAMPING = 0.25;
+export const DEFAULT_BALL_GROUND_SETTLE_SPEED = 0.5;
+export const DEFAULT_BALL_PREDICTION_HORIZON_STEPS = 150;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   {
@@ -234,6 +252,78 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     min: 0,
     max: 60,
     step: 0.5
+  },
+  {
+    key: BALL_RADIUS_KEY,
+    domain: 'ball',
+    label: 'Ball radius',
+    defaultValue: DEFAULT_BALL_RADIUS,
+    min: 0.05,
+    max: 1,
+    step: 0.05
+  },
+  {
+    key: BALL_PLANAR_DAMPING_KEY,
+    domain: 'ball',
+    label: 'Ball planar damping',
+    defaultValue: DEFAULT_BALL_PLANAR_DAMPING,
+    min: 0,
+    max: 10,
+    step: 0.05
+  },
+  {
+    key: BALL_GRAVITY_KEY,
+    domain: 'ball',
+    label: 'Ball gravity',
+    defaultValue: DEFAULT_BALL_GRAVITY,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: BALL_WALL_RESTITUTION_KEY,
+    domain: 'ball',
+    label: 'Ball wall restitution',
+    defaultValue: DEFAULT_BALL_WALL_RESTITUTION,
+    min: 0,
+    max: 1,
+    step: 0.05
+  },
+  {
+    key: BALL_GROUND_RESTITUTION_KEY,
+    domain: 'ball',
+    label: 'Ball ground restitution',
+    defaultValue: DEFAULT_BALL_GROUND_RESTITUTION,
+    min: 0,
+    max: 1,
+    step: 0.05
+  },
+  {
+    key: BALL_GROUND_DAMPING_KEY,
+    domain: 'ball',
+    label: 'Ball ground damping',
+    defaultValue: DEFAULT_BALL_GROUND_DAMPING,
+    min: 0,
+    max: 1,
+    step: 0.05
+  },
+  {
+    key: BALL_GROUND_SETTLE_SPEED_KEY,
+    domain: 'ball',
+    label: 'Ball ground settle speed',
+    defaultValue: DEFAULT_BALL_GROUND_SETTLE_SPEED,
+    min: 0,
+    max: 5,
+    step: 0.05
+  },
+  {
+    key: BALL_PREDICTION_HORIZON_STEPS_KEY,
+    domain: 'trajectory',
+    label: 'Ball prediction horizon',
+    defaultValue: DEFAULT_BALL_PREDICTION_HORIZON_STEPS,
+    min: 30,
+    max: 300,
+    step: 1
   }
 ];
 

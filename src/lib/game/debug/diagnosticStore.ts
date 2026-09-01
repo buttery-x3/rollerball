@@ -7,6 +7,7 @@ import type {
 } from '../sim/diagnostics';
 import {
   ARENA_DIAGNOSTIC_LAYER,
+  BALL_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER
@@ -14,6 +15,7 @@ import {
 
 export {
   ARENA_DIAGNOSTIC_LAYER,
+  BALL_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER
@@ -46,6 +48,11 @@ export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
   {
     key: PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
     label: 'Player movement',
+    enabledByDefault: true
+  },
+  {
+    key: BALL_DIAGNOSTIC_LAYER,
+    label: 'Ball trajectory',
     enabledByDefault: true
   }
 ];

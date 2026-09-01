@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { DEFAULT_PLAYER_RADIUS } from '../config/tuning';
+import { DEFAULT_BALL_RADIUS, DEFAULT_PLAYER_RADIUS } from '../config/tuning';
 import { createArenaDiagnosticRecords } from '../sim/arenaDiagnostics';
 import { ARENA_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
 import type { DiagnosticFrame } from '../sim/diagnostics';
@@ -19,7 +19,8 @@ export interface ArenaRenderer {
     alpha: number,
     diagnostics?: DiagnosticFrame,
     arenaDiagnosticsEnabled?: boolean,
-    playerRadius?: number
+    playerRadius?: number,
+    ballRadius?: number
   ): void;
   setArena(arena: ArenaDefinition): void;
   setCameraFraming(framing: ArenaCameraFraming): void;
@@ -56,6 +57,11 @@ interface PlayerPresentation {
   readonly radius: number;
 }
 
+interface BallPresentation {
+  readonly mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
+  readonly radius: number;
+}
+
 function playerColor(teamId: string): string {
   return teamId === 'human' ? '#f6c177' : '#eb6f92';
 }
@@ -81,6 +87,15 @@ function createPlayerPresentation(
   root.add(heading);
 
   return { root, radius: safeRadius };
+}
+
+function createBallPresentation(radius: number): BallPresentation {
+  const safeRadius = Math.max(0.01, radius);
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(safeRadius, 24, 16),
+    new THREE.MeshBasicMaterial({ color: '#f6c177' })
+  );
+  return { mesh, radius: safeRadius };
 }
 
 export function disposeObject(object: THREE.Object3D): void {
@@ -130,11 +145,15 @@ export function createArenaRenderer(
   const playerGroup = new THREE.Group();
   playerGroup.name = 'players-presentation';
   scene.add(playerGroup);
+  const ballGroup = new THREE.Group();
+  ballGroup.name = 'ball-presentation';
+  scene.add(ballGroup);
 
   let arena = initialArena;
   let signature = arenaSignature(arena);
   let arenaObjects: THREE.Object3D[] = [];
   let playerObjects = new Map<string, PlayerPresentation>();
+  let ballPresentation: BallPresentation | undefined;
   let arenaDiagnosticRecords = createArenaDiagnosticRecords(arena);
   let composedFrame: DiagnosticFrame | undefined;
   let composedSourceFrame: DiagnosticFrame | undefined;
@@ -154,6 +173,39 @@ export function createArenaRenderer(
       disposeObject(presentation.root);
     }
     playerObjects = new Map();
+  };
+
+  const clearBallObject = (): void => {
+    if (!ballPresentation) {
+      return;
+    }
+
+    ballGroup.remove(ballPresentation.mesh);
+    disposeObject(ballPresentation.mesh);
+    ballPresentation = undefined;
+  };
+
+  const syncBall = (state: GameState, radius: number): void => {
+    if (state.ball.mode !== 'loose') {
+      if (ballPresentation) {
+        ballPresentation.mesh.visible = false;
+      }
+      return;
+    }
+
+    const safeRadius = Math.max(0.01, radius);
+    if (!ballPresentation || ballPresentation.radius !== safeRadius) {
+      clearBallObject();
+      ballPresentation = createBallPresentation(safeRadius);
+      ballGroup.add(ballPresentation.mesh);
+    }
+
+    ballPresentation.mesh.visible = true;
+    ballPresentation.mesh.position.set(
+      state.ball.position.x,
+      state.ball.height + safeRadius,
+      -state.ball.position.y
+    );
   };
 
   const syncPlayers = (state: GameState, radius: number): void => {
@@ -268,9 +320,11 @@ export function createArenaRenderer(
       _alpha: number,
       diagnostics: DiagnosticFrame = EMPTY_DIAGNOSTIC_FRAME,
       arenaDiagnosticsEnabled = true,
-      playerRadius = DEFAULT_PLAYER_RADIUS
+      playerRadius = DEFAULT_PLAYER_RADIUS,
+      ballRadius = DEFAULT_BALL_RADIUS
     ): void {
       syncPlayers(state, playerRadius);
+      syncBall(state, ballRadius);
       diagnosticRenderer.render(composeDiagnostics(diagnostics, arenaDiagnosticsEnabled));
       renderer.render(scene, camera);
     },
@@ -304,8 +358,10 @@ export function createArenaRenderer(
       diagnosticRenderer.dispose();
       clearArenaObjects();
       clearPlayerObjects();
+      clearBallObject();
       scene.remove(arenaGroup);
       scene.remove(playerGroup);
+      scene.remove(ballGroup);
       renderer.dispose();
       renderer.domElement.remove();
     }

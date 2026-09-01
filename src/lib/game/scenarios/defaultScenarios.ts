@@ -3,6 +3,7 @@ import { createGameState, type GameState } from '../sim/gameState';
 import type { RoutedPlayerIntent } from '../control/types';
 import type { ScenarioDefinition } from './scenario';
 import { PLAYER_MOVEMENT_SCENARIOS } from './playerMovementScenario';
+import { BALL_SCENARIOS } from './ballScenario';
 
 export const DETERMINISTIC_TICK_SCENARIO_ID = 'deterministic-tick';
 
@@ -26,7 +27,7 @@ export const deterministicTickScenario: ScenarioDefinition<GameState, RoutedPlay
 export const DEFAULT_SCENARIOS: readonly ScenarioDefinition<
   GameState,
   RoutedPlayerIntent
->[] = [deterministicTickScenario, ...PLAYER_MOVEMENT_SCENARIOS];
+>[] = [deterministicTickScenario, ...PLAYER_MOVEMENT_SCENARIOS, ...BALL_SCENARIOS];
 
 export function getScenario(
   id: string

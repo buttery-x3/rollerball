@@ -1,7 +1,7 @@
 import { createNeutralInputSnapshot } from '../control/browserInput';
 import { createControlRouter } from '../control/controlRouter';
 import type { InputSnapshot, RightStickThrowPulse } from '../control/types';
-import type { GameState } from '../sim/gameState';
+import { createGameState, type GameState } from '../sim/gameState';
 import type { ScenarioDefinition, ScenarioStep } from './scenario';
 
 export interface ControlInputScenarioState extends GameState {
@@ -20,8 +20,7 @@ export const controlInputConsumptionScenario: ScenarioDefinition<
   id: CONTROL_INPUT_SCENARIO_ID,
   name: 'Control input consumption',
   createInitialState: () => ({
-    tick: 0,
-    players: [],
+    ...createGameState(),
     pressedTicks: [],
     releasedTicks: [],
     pulses: [],

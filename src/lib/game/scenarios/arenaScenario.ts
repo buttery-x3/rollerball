@@ -4,7 +4,7 @@ import {
   type CircleBoundaryContact,
   type Vec2
 } from '../physics/geometry';
-import type { GameState } from '../sim/gameState';
+import { createGameState, type GameState } from '../sim/gameState';
 import type { ScenarioDefinition, ScenarioStep } from './scenario';
 
 export interface ArenaConstraintObservation {
@@ -28,8 +28,7 @@ export const arenaConstraintScenario: ScenarioDefinition<
   id: ARENA_CONSTRAINT_SCENARIO_ID,
   name: 'Arena circle constraint',
   createInitialState: () => ({
-    tick: 0,
-    players: [],
+    ...createGameState(),
     position: { x: 0, y: 0 },
     radius: DEFAULT_PLAYER_RADIUS,
     contacts: [],

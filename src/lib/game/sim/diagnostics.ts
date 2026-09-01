@@ -71,6 +71,7 @@ export const RUNTIME_DIAGNOSTIC_LAYER = 'runtime';
 export const ARENA_DIAGNOSTIC_LAYER = 'arena';
 export const CONTROL_DIAGNOSTIC_LAYER = 'control';
 export const PLAYER_MOVEMENT_DIAGNOSTIC_LAYER = 'playerMovement';
+export const BALL_DIAGNOSTIC_LAYER = 'ball';
 
 export interface DiagnosticSink {
   beginTick(tick: number): void;

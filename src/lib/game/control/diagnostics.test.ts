@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createTuningRegistry } from '../config/tuning';
+import { createArenaDefinition } from '../physics/arena';
 import {
   createFixedStepRuntime,
   DEFAULT_FIXED_STEP_SECONDS
@@ -26,14 +27,17 @@ function inputSnapshot(): InputSnapshot {
 describe('control diagnostics', () => {
   it('publishes the normalized input, intent, assignment, and capture state', () => {
     const diagnostics = createDiagnosticStore();
+    const tuning = createTuningRegistry();
     const router = createControlRouter({
-      tuning: createTuningRegistry(),
+      tuning,
       initialPlayerId: 'player-a'
     });
     const state = createGameState();
     const runtime = createFixedStepRuntime({
       state,
       diagnostics,
+      tuning,
+      getArena: () => createArenaDefinition(tuning),
       getInput: (tick, context) => {
         const result = router.consumeTick(inputSnapshot(), 'possessed');
         publishControlDiagnostics(tick, result, context.diagnostics);
@@ -75,10 +79,13 @@ describe('control diagnostics', () => {
   it('suppresses control records when the control layer is disabled', () => {
     const diagnostics = createDiagnosticStore();
     diagnostics.setLayerEnabled(CONTROL_DIAGNOSTIC_LAYER, false);
-    const router = createControlRouter({ tuning: createTuningRegistry() });
+    const tuning = createTuningRegistry();
+    const router = createControlRouter({ tuning });
     const runtime = createFixedStepRuntime({
       state: createGameState(),
       diagnostics,
+      tuning,
+      getArena: () => createArenaDefinition(tuning),
       getInput: (tick, context) => {
         const result = router.consumeTick(inputSnapshot());
         publishControlDiagnostics(tick, result, context.diagnostics);

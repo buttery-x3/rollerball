@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   constrainCircleToBounds,
   isCircleWithinBounds,
+  sweepCircleAgainstBounds,
   type AxisAlignedBounds
 } from './geometry';
 
@@ -58,5 +59,48 @@ describe('planar circle constraints', () => {
     expect(() => constrainCircleToBounds({ x: 0, y: 0 }, -1, BOUNDS)).toThrow(
       'Circle radius must be non-negative.'
     );
+  });
+});
+
+describe('swept circle boundaries', () => {
+  it('finds the earliest solid boundary contact instead of tunnelling', () => {
+    expect(sweepCircleAgainstBounds({ x: 0, y: 0 }, { x: 20, y: 0 }, 1, BOUNDS)).toEqual([
+      {
+        boundary: 'right',
+        time: 0.4,
+        position: { x: 8, y: 0 },
+        normal: { x: -1, y: 0 }
+      }
+    ]);
+  });
+
+  it('returns simultaneous corner contacts in stable boundary order', () => {
+    expect(sweepCircleAgainstBounds({ x: 0, y: 0 }, { x: 16, y: 28 }, 1, BOUNDS)).toEqual([
+      {
+        boundary: 'right',
+        time: 0.5,
+        position: { x: 8, y: 14 },
+        normal: { x: -1, y: 0 }
+      },
+      {
+        boundary: 'top',
+        time: 0.5,
+        position: { x: 8, y: 14 },
+        normal: { x: 0, y: -1 }
+      }
+    ]);
+  });
+
+  it('reports an outward sweep immediately when already touching a boundary', () => {
+    expect(
+      sweepCircleAgainstBounds({ x: 8, y: 0 }, { x: 1, y: 0 }, 1, BOUNDS)
+    ).toEqual([
+      {
+        boundary: 'right',
+        time: 0,
+        position: { x: 8, y: 0 },
+        normal: { x: -1, y: 0 }
+      }
+    ]);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createArenaDefinition } from '../physics/arena';
 import { createTuningRegistry } from '../config/tuning';
 import { createGameState } from '../sim/gameState';
 import { stepGame } from '../sim/stepGame';
@@ -9,11 +10,14 @@ import {
 
 function runSchedule(schedule: number[]): number {
   const state = createGameState();
+  const tuning = createTuningRegistry();
   const runtime = createFixedStepRuntime({
     state,
     step: stepGame,
     fixedStepSeconds: DEFAULT_FIXED_STEP_SECONDS,
-    maxCatchUpSteps: 8
+    maxCatchUpSteps: 8,
+    tuning,
+    getArena: () => createArenaDefinition(tuning)
   });
 
   for (const frameDeltaSeconds of schedule) {
@@ -26,7 +30,13 @@ function runSchedule(schedule: number[]): number {
 describe('fixed-step runtime', () => {
   it('advances the headless simulation exactly once per fixed step', () => {
     const state = createGameState();
-    const runtime = createFixedStepRuntime({ state, step: stepGame });
+    const tuning = createTuningRegistry();
+    const runtime = createFixedStepRuntime({
+      state,
+      step: stepGame,
+      tuning,
+      getArena: () => createArenaDefinition(tuning)
+    });
 
     const frame = runtime.advance(DEFAULT_FIXED_STEP_SECONDS);
 
@@ -46,10 +56,13 @@ describe('fixed-step runtime', () => {
 
   it('bounds catch-up work and discards excess debt after a stalled render frame', () => {
     const state = createGameState();
+    const tuning = createTuningRegistry();
     const runtime = createFixedStepRuntime({
       state,
       step: stepGame,
-      maxCatchUpSteps: 4
+      maxCatchUpSteps: 4,
+      tuning,
+      getArena: () => createArenaDefinition(tuning)
     });
 
     const frame = runtime.advance(60 * 60);
@@ -66,7 +79,13 @@ describe('fixed-step runtime', () => {
 
   it('pauses simulation and advances exactly one tick when manually stepped', () => {
     const state = createGameState();
-    const runtime = createFixedStepRuntime({ state, step: stepGame });
+    const tuning = createTuningRegistry();
+    const runtime = createFixedStepRuntime({
+      state,
+      step: stepGame,
+      tuning,
+      getArena: () => createArenaDefinition(tuning)
+    });
 
     runtime.pause();
 
@@ -90,7 +109,12 @@ describe('fixed-step runtime', () => {
   it('reads the live maximum catch-up limit from central tuning', () => {
     const state = createGameState();
     const tuning = createTuningRegistry();
-    const runtime = createFixedStepRuntime({ state, step: stepGame, tuning });
+    const runtime = createFixedStepRuntime({
+      state,
+      step: stepGame,
+      tuning,
+      getArena: () => createArenaDefinition(tuning)
+    });
 
     tuning.setOverride('runtime.maxCatchUpSteps', 2);
 

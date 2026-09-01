@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RUNTIME_MAX_CATCH_UP_STEPS_KEY } from '../config/tuning';
 import { DEFAULT_FIXED_STEP_SECONDS } from '../runtime/fixedStepRuntime';
 import { createGameState, type GameState } from '../sim/gameState';
+import { createArenaDefinition } from '../physics/arena';
 import { stepGame } from '../sim/stepGame';
 import {
   DEFAULT_SCENARIOS,
@@ -18,7 +19,12 @@ import {
 describe('deterministic scenarios', () => {
   it('runs the shared trivial scenario through the headless fixed-step runtime', () => {
     const scenario = getScenario(DETERMINISTIC_TICK_SCENARIO_ID);
-    const run = runScenario({ definition: scenario, step: stepGame, ticks: 3 });
+    const run = runScenario({
+      definition: scenario,
+      step: stepGame,
+      getArena: (tuning) => createArenaDefinition(tuning),
+      ticks: 3
+    });
 
     expect(run.state.tick).toBe(3);
     expect(run.runtime.isPaused).toBe(true);
@@ -27,14 +33,22 @@ describe('deterministic scenarios', () => {
 
   it('uses a fresh state and runtime when the same scenario is loaded again', () => {
     const scenario = DEFAULT_SCENARIOS[0];
-    const firstRun = createScenarioRun({ definition: scenario, step: stepGame });
+    const firstRun = createScenarioRun({
+      definition: scenario,
+      step: stepGame,
+      getArena: (tuning) => createArenaDefinition(tuning)
+    });
 
     firstRun.runtime.advance(DEFAULT_FIXED_STEP_SECONDS);
 
-    const resetRun = createScenarioRun({ definition: scenario, step: stepGame });
+    const resetRun = createScenarioRun({
+      definition: scenario,
+      step: stepGame,
+      getArena: (tuning) => createArenaDefinition(tuning)
+    });
 
     expect(resetRun.definition).toBe(scenario);
-    expect(resetRun.state).toEqual({ tick: 0, players: [] });
+    expect(resetRun.state).toEqual(createGameState());
     expect(resetRun.runtime.isPaused).toBe(false);
     expect(firstRun.state.tick).toBe(1);
   });
@@ -44,6 +58,7 @@ describe('deterministic scenarios', () => {
     const run = createScenarioRun({
       definition: scenario,
       step: stepGame,
+      getArena: (tuning) => createArenaDefinition(tuning),
       diagnosticsEnabled: false
     });
 
@@ -62,7 +77,10 @@ describe('deterministic scenarios', () => {
     const scenario: ScenarioDefinition<InputState, number> = {
       id: 'scripted-inputs',
       name: 'Scripted inputs',
-      createInitialState: () => ({ tick: 0, players: [], receivedInputs: [] }),
+      createInitialState: () => ({
+        ...createGameState(),
+        receivedInputs: []
+      }),
       scriptedInputs: [
         { tick: 1, input: 10 },
         { tick: 3, input: 30 }
@@ -77,7 +95,11 @@ describe('deterministic scenarios', () => {
 
     const run = runScenario({ definition: scenario, step, ticks: 3 });
 
-    expect(run.state).toEqual({ tick: 3, players: [], receivedInputs: [10, 30] });
+    expect(run.state).toEqual({
+      ...createGameState(),
+      tick: 3,
+      receivedInputs: [10, 30]
+    });
   });
 
   it('does not let an interactive input provider override scripted scenario inputs', () => {
@@ -88,7 +110,10 @@ describe('deterministic scenarios', () => {
     const scenario: ScenarioDefinition<InputState, number> = {
       id: 'interactive-scripted-inputs',
       name: 'Interactive scripted inputs',
-      createInitialState: () => ({ tick: 0, players: [], receivedInputs: [] }),
+      createInitialState: () => ({
+        ...createGameState(),
+        receivedInputs: []
+      }),
       scriptedInputs: [
         { tick: 1, input: 10 },
         { tick: 3, input: 30 }
@@ -124,7 +149,10 @@ describe('deterministic scenarios', () => {
     const scenario: ScenarioDefinition<TuningState, never> = {
       id: 'scenario-tuning',
       name: 'Scenario tuning',
-      createInitialState: () => ({ tick: 0, players: [], observedCatchUpSteps: 0 }),
+      createInitialState: () => ({
+        ...createGameState(),
+        observedCatchUpSteps: 0
+      }),
       tuningOverrides: [{ key: RUNTIME_MAX_CATCH_UP_STEPS_KEY, value: 8 }]
     };
     const step: ScenarioStep<TuningState, never> = (state, _fixedStepSeconds, context) => {
@@ -153,7 +181,14 @@ describe('deterministic scenarios', () => {
       ]
     };
 
-    expect(() => runScenario({ definition: scenario, step: stepGame, ticks: 1 })).toThrow(
+    expect(() =>
+      runScenario({
+        definition: scenario,
+        step: stepGame,
+        getArena: (tuning) => createArenaDefinition(tuning),
+        ticks: 1
+      })
+    ).toThrow(
       "Scenario 'failing-scenario' (Failing scenario) failed invariant 'expected-state' at tick 1: state did not match the expected setup"
     );
   });

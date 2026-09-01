@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ARENA_DIAGNOSTIC_LAYER,
+  BALL_DIAGNOSTIC_LAYER,
   createDiagnosticStore,
   RUNTIME_DIAGNOSTIC_LAYER
 } from './diagnosticStore';
@@ -13,10 +14,15 @@ import { stepGame } from '../sim/stepGame';
 describe('structured diagnostic store', () => {
   it('collects simulation primitives by fixed tick', () => {
     const diagnostics = createDiagnosticStore();
+    diagnostics.setLayerEnabled(BALL_DIAGNOSTIC_LAYER, false);
+    diagnostics.setLayerEnabled(ARENA_DIAGNOSTIC_LAYER, false);
+    const tuning = createTuningRegistry();
     const runtime = createFixedStepRuntime({
       state: createGameState(),
       step: stepGame,
-      diagnostics
+      diagnostics,
+      tuning,
+      getArena: () => createArenaDefinition(tuning)
     });
 
     runtime.advance(DEFAULT_FIXED_STEP_SECONDS);
@@ -32,11 +38,13 @@ describe('structured diagnostic store', () => {
 
   it('publishes the shared arena geometry through its own debug layer', () => {
     const diagnostics = createDiagnosticStore();
-    const arena = createArenaDefinition(createTuningRegistry());
+    const tuning = createTuningRegistry();
+    const arena = createArenaDefinition(tuning);
     const runtime = createFixedStepRuntime({
       state: createGameState(),
       step: stepGame,
       diagnostics,
+      tuning,
       getArena: () => arena
     });
 
@@ -53,11 +61,16 @@ describe('structured diagnostic store', () => {
 
   it('filters disabled layers while still advancing the diagnostic frame', () => {
     const diagnostics = createDiagnosticStore();
+    diagnostics.setLayerEnabled(BALL_DIAGNOSTIC_LAYER, false);
+    diagnostics.setLayerEnabled(ARENA_DIAGNOSTIC_LAYER, false);
+    const tuning = createTuningRegistry();
     const state = createGameState();
     const runtime = createFixedStepRuntime({
       state,
       step: stepGame,
-      diagnostics
+      diagnostics,
+      tuning,
+      getArena: () => createArenaDefinition(tuning)
     });
 
     diagnostics.setLayerEnabled(RUNTIME_DIAGNOSTIC_LAYER, false);
@@ -68,10 +81,15 @@ describe('structured diagnostic store', () => {
 
   it('applies layer changes immediately to the current frame', () => {
     const diagnostics = createDiagnosticStore();
+    diagnostics.setLayerEnabled(BALL_DIAGNOSTIC_LAYER, false);
+    diagnostics.setLayerEnabled(ARENA_DIAGNOSTIC_LAYER, false);
+    const tuning = createTuningRegistry();
     const runtime = createFixedStepRuntime({
       state: createGameState(),
       step: stepGame,
-      diagnostics
+      diagnostics,
+      tuning,
+      getArena: () => createArenaDefinition(tuning)
     });
 
     runtime.advance(DEFAULT_FIXED_STEP_SECONDS);

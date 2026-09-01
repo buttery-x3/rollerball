@@ -9,6 +9,14 @@ import {
   MOVEMENT_MAX_SPEED_KEY,
   MOVEMENT_REVERSAL_RESPONSE_KEY,
   MOVEMENT_TURNING_RESPONSE_KEY,
+  BALL_GRAVITY_KEY,
+  BALL_GROUND_DAMPING_KEY,
+  BALL_GROUND_RESTITUTION_KEY,
+  BALL_GROUND_SETTLE_SPEED_KEY,
+  BALL_PLANAR_DAMPING_KEY,
+  BALL_PREDICTION_HORIZON_STEPS_KEY,
+  BALL_RADIUS_KEY,
+  BALL_WALL_RESTITUTION_KEY,
   PLAYER_RADIUS_KEY,
   RUNTIME_MAX_CATCH_UP_STEPS_KEY
 } from './tuning';
@@ -113,6 +121,30 @@ describe('central tuning registry', () => {
       max: 60,
       step: 0.5,
       effectiveValue: 8
+    });
+  });
+
+  it('registers the loose-ball and trajectory tunables centrally', () => {
+    const registry = createTuningRegistry();
+
+    expect({
+      radius: registry.getNumber(BALL_RADIUS_KEY),
+      planarDamping: registry.getNumber(BALL_PLANAR_DAMPING_KEY),
+      gravity: registry.getNumber(BALL_GRAVITY_KEY),
+      wallRestitution: registry.getNumber(BALL_WALL_RESTITUTION_KEY),
+      groundRestitution: registry.getNumber(BALL_GROUND_RESTITUTION_KEY),
+      groundDamping: registry.getNumber(BALL_GROUND_DAMPING_KEY),
+      groundSettleSpeed: registry.getNumber(BALL_GROUND_SETTLE_SPEED_KEY),
+      predictionHorizon: registry.getNumber(BALL_PREDICTION_HORIZON_STEPS_KEY)
+    }).toEqual({
+      radius: 0.35,
+      planarDamping: 0.25,
+      gravity: 28,
+      wallRestitution: 0.85,
+      groundRestitution: 0.45,
+      groundDamping: 0.25,
+      groundSettleSpeed: 0.5,
+      predictionHorizon: 150
     });
   });
 
