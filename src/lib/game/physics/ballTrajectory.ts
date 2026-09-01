@@ -1,12 +1,20 @@
 import {
   BALL_GRAVITY_KEY,
+  BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY,
+  BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY,
+  BALL_HIGH_THROW_MIN_PLANAR_SPEED_KEY,
+  BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY,
   BALL_GROUND_DAMPING_KEY,
   BALL_GROUND_RESTITUTION_KEY,
   BALL_GROUND_SETTLE_SPEED_KEY,
+  BALL_LOW_THROW_MAX_SPEED_KEY,
+  BALL_LOW_THROW_MIN_SPEED_KEY,
   BALL_PLANAR_DAMPING_KEY,
   BALL_PREDICTION_HORIZON_STEPS_KEY,
   BALL_RADIUS_KEY,
   BALL_WALL_RESTITUTION_KEY,
+  CONTROLS_THROW_MAX_STRENGTH_KEY,
+  CONTROLS_THROW_MIN_STRENGTH_KEY,
   type TuningReader
 } from '../config/tuning';
 import type { ArenaDefinition, ArenaGoalAperture } from './arena';
@@ -27,6 +35,16 @@ export interface LooseBallMotion {
   readonly position: Vec2;
   readonly velocity: Vec2;
   readonly height: number;
+  readonly verticalVelocity: number;
+}
+
+export type BallThrowFamily = 'low' | 'high';
+
+export interface BallThrowLaunch {
+  readonly family: BallThrowFamily;
+  readonly direction: Vec2;
+  readonly strength: number;
+  readonly velocity: Vec2;
   readonly verticalVelocity: number;
 }
 
@@ -100,6 +118,17 @@ interface BallPhysicsTuning {
   readonly groundRestitution: number;
   readonly groundDamping: number;
   readonly groundSettleSpeed: number;
+}
+
+interface BallThrowTuning {
+  readonly minStrength: number;
+  readonly maxStrength: number;
+  readonly lowMinSpeed: number;
+  readonly lowMaxSpeed: number;
+  readonly highMinPlanarSpeed: number;
+  readonly highMaxPlanarSpeed: number;
+  readonly highMinVerticalSpeed: number;
+  readonly highMaxVerticalSpeed: number;
 }
 
 interface VerticalSegment {
@@ -199,6 +228,121 @@ function readBallPhysicsTuning(tuning: TuningReader): BallPhysicsTuning {
   assertNonNegative(values.groundSettleSpeed, 'Ball ground settle speed');
 
   return values;
+}
+
+function readBallThrowTuning(tuning: TuningReader): BallThrowTuning {
+  const values = {
+    minStrength: tuning.getNumber(CONTROLS_THROW_MIN_STRENGTH_KEY),
+    maxStrength: tuning.getNumber(CONTROLS_THROW_MAX_STRENGTH_KEY),
+    lowMinSpeed: tuning.getNumber(BALL_LOW_THROW_MIN_SPEED_KEY),
+    lowMaxSpeed: tuning.getNumber(BALL_LOW_THROW_MAX_SPEED_KEY),
+    highMinPlanarSpeed: tuning.getNumber(BALL_HIGH_THROW_MIN_PLANAR_SPEED_KEY),
+    highMaxPlanarSpeed: tuning.getNumber(BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY),
+    highMinVerticalSpeed: tuning.getNumber(BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY),
+    highMaxVerticalSpeed: tuning.getNumber(BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY)
+  };
+
+  assertNonNegative(values.minStrength, 'Throw minimum strength');
+  assertNonNegative(values.maxStrength, 'Throw maximum strength');
+  assertNonNegative(values.lowMinSpeed, 'Low throw minimum speed');
+  assertNonNegative(values.lowMaxSpeed, 'Low throw maximum speed');
+  assertNonNegative(values.highMinPlanarSpeed, 'High throw minimum planar speed');
+  assertNonNegative(values.highMaxPlanarSpeed, 'High throw maximum planar speed');
+  assertNonNegative(values.highMinVerticalSpeed, 'High throw minimum vertical speed');
+  assertNonNegative(values.highMaxVerticalSpeed, 'High throw maximum vertical speed');
+
+  if (values.maxStrength < values.minStrength) {
+    throw new RangeError('Throw maximum strength must be at least the minimum strength.');
+  }
+  if (values.lowMaxSpeed < values.lowMinSpeed) {
+    throw new RangeError('Low throw maximum speed must be at least the minimum speed.');
+  }
+  if (values.highMaxPlanarSpeed < values.highMinPlanarSpeed) {
+    throw new RangeError(
+      'High throw maximum planar speed must be at least the minimum speed.'
+    );
+  }
+  if (values.highMaxVerticalSpeed < values.highMinVerticalSpeed) {
+    throw new RangeError(
+      'High throw maximum vertical speed must be at least the minimum speed.'
+    );
+  }
+
+  return values;
+}
+
+function normalizeDirection(direction: Vec2): Vec2 {
+  assertFinite(direction.x, 'Throw direction x');
+  assertFinite(direction.y, 'Throw direction y');
+  const magnitude = Math.hypot(direction.x, direction.y);
+  if (magnitude <= EPSILON) {
+    throw new RangeError('A throw direction must have non-zero magnitude.');
+  }
+
+  return { x: direction.x / magnitude, y: direction.y / magnitude };
+}
+
+function interpolate(minimum: number, maximum: number, progress: number): number {
+  return minimum + (maximum - minimum) * progress;
+}
+
+/**
+ * Converts an authored throw family/strength into the loose-ball launch state.
+ * Possession and action semantics remain simulation-owned; this function only
+ * defines the deterministic motion family that follows a release.
+ */
+export function createBallThrowLaunch(
+  family: BallThrowFamily,
+  direction: Vec2,
+  strength: number,
+  tuning: TuningReader
+): BallThrowLaunch {
+  assertFinite(strength, 'Throw strength');
+  const throwTuning = readBallThrowTuning(tuning);
+  const normalizedDirection = normalizeDirection(direction);
+  const strengthRange = throwTuning.maxStrength - throwTuning.minStrength;
+  const progress =
+    strengthRange <= EPSILON
+      ? 1
+      : Math.min(
+          1,
+          Math.max(
+            0,
+            (strength - throwTuning.minStrength) / strengthRange
+          )
+        );
+
+  if (family === 'low') {
+    const speed = interpolate(
+      throwTuning.lowMinSpeed,
+      throwTuning.lowMaxSpeed,
+      progress
+    );
+    return {
+      family,
+      direction: normalizedDirection,
+      strength,
+      velocity: scaleVector(normalizedDirection, speed),
+      verticalVelocity: 0
+    };
+  }
+
+  const planarSpeed = interpolate(
+    throwTuning.highMinPlanarSpeed,
+    throwTuning.highMaxPlanarSpeed,
+    progress
+  );
+  return {
+    family,
+    direction: normalizedDirection,
+    strength,
+    velocity: scaleVector(normalizedDirection, planarSpeed),
+    verticalVelocity: interpolate(
+      throwTuning.highMinVerticalSpeed,
+      throwTuning.highMaxVerticalSpeed,
+      progress
+    )
+  };
 }
 
 function solveGroundHitTime(

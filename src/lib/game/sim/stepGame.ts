@@ -5,11 +5,15 @@ import {
   ARENA_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER,
+  THROW_DIAGNOSTIC_LAYER,
   type SimulationStepContext,
 } from './diagnostics';
 import { createArenaDiagnosticRecords } from './arenaDiagnostics';
 import { createPlayerDiagnosticRecords } from './playerDiagnostics';
-import { createBallDiagnosticRecords } from './ballDiagnostics';
+import {
+  createBallDiagnosticRecords,
+  createPossessedBallDiagnosticRecords
+} from './ballDiagnostics';
 import {
   advanceLooseBall,
   predictLooseBallTrajectory,
@@ -20,6 +24,8 @@ import {
   integrateFieldPlayer,
   type PlayerMovementObservation
 } from './playerMovement';
+import { createThrowDiagnosticRecords } from './throwDiagnostics';
+import { advanceThrowState } from './throwing';
 
 export function stepGame(
   state: GameState,
@@ -38,15 +44,21 @@ export function stepGame(
     throw new Error('Simulation requires an arena definition.');
   }
 
+  const throwStep = advanceThrowState(
+    state,
+    fixedStepSeconds,
+    context.tuning,
+    input
+  );
   const observations: PlayerMovementObservation[] = [];
   if (state.players.length > 0) {
-
     for (const player of state.players) {
       if (player.definition.role !== 'field') {
         continue;
       }
 
-      const playerInput = input?.playerId === player.definition.id ? input.intent : undefined;
+      const playerInput =
+        input?.playerId === player.definition.id ? input.intent : undefined;
       observations.push(
         integrateFieldPlayer(
           player,
@@ -61,7 +73,12 @@ export function stepGame(
 
   let ballStep: LooseBallStepResult | undefined;
   if (state.ball.mode === 'loose') {
-    ballStep = advanceLooseBall(state.ball, fixedStepSeconds, context.tuning, context.arena);
+    ballStep = advanceLooseBall(
+      state.ball,
+      fixedStepSeconds,
+      context.tuning,
+      context.arena
+    );
     state.ball.position = ballStep.nextState.position;
     state.ball.velocity = ballStep.nextState.velocity;
     state.ball.height = ballStep.nextState.height;
@@ -99,20 +116,52 @@ export function stepGame(
     }
   }
 
-  if (
-    ballStep &&
-    state.ball.mode === 'loose' &&
-    context.diagnostics?.isLayerEnabled(BALL_DIAGNOSTIC_LAYER)
-  ) {
-    const prediction = predictLooseBallTrajectory(state.ball, context.tuning, context.arena);
-    for (const record of createBallDiagnosticRecords(
+  if (context.diagnostics?.isLayerEnabled(THROW_DIAGNOSTIC_LAYER)) {
+    const throwPlayer = throwStep.playerId
+      ? state.players.find(
+          (player) => player.definition.id === throwStep.playerId
+        )
+      : undefined;
+    for (const record of createThrowDiagnosticRecords(
       state.tick,
-      state.ball,
-      context.tuning.getNumber(BALL_RADIUS_KEY),
-      ballStep,
-      prediction
+      throwPlayer,
+      throwStep
     )) {
       context.diagnostics.publish(record);
+    }
+  }
+
+  if (context.diagnostics?.isLayerEnabled(BALL_DIAGNOSTIC_LAYER)) {
+    if (ballStep && state.ball.mode === 'loose') {
+      const prediction = predictLooseBallTrajectory(
+        state.ball,
+        context.tuning,
+        context.arena
+      );
+      for (const record of createBallDiagnosticRecords(
+        state.tick,
+        state.ball,
+        context.tuning.getNumber(BALL_RADIUS_KEY),
+        ballStep,
+        prediction
+      )) {
+        context.diagnostics.publish(record);
+      }
+    } else if (state.ball.mode === 'possessed') {
+      const possessedBall = state.ball;
+      const holder = state.players.find(
+        (player) => player.definition.id === possessedBall.holderId
+      );
+      if (holder) {
+        for (const record of createPossessedBallDiagnosticRecords(
+          state.tick,
+          possessedBall,
+          holder,
+          context.tuning.getNumber(BALL_RADIUS_KEY)
+        )) {
+          context.diagnostics.publish(record);
+        }
+      }
     }
   }
 }

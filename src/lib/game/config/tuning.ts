@@ -36,11 +36,18 @@ export const CONTROLS_RIGHT_STICK_CAPTURE_WINDOW_TICKS_KEY =
   'controls.rightStickCaptureWindowTicks';
 export const CONTROLS_RIGHT_STICK_NEUTRAL_THRESHOLD_KEY =
   'controls.rightStickNeutralThreshold';
+export const CONTROLS_THROW_MIN_STRENGTH_KEY = 'controls.throwMinStrength';
+export const CONTROLS_THROW_MAX_STRENGTH_KEY = 'controls.throwMaxStrength';
+export const CONTROLS_THROW_CHARGE_TO_MAX_SECONDS_KEY =
+  'controls.throwChargeToMaxSeconds';
 
 export const DEFAULT_CONTROLS_LEFT_STICK_DEADZONE = 0.15;
 export const DEFAULT_CONTROLS_RIGHT_STICK_DEADZONE = 0.2;
 export const DEFAULT_CONTROLS_RIGHT_STICK_CAPTURE_WINDOW_TICKS = 3;
 export const DEFAULT_CONTROLS_RIGHT_STICK_NEUTRAL_THRESHOLD = 0.1;
+export const DEFAULT_CONTROLS_THROW_MIN_STRENGTH = 0.2;
+export const DEFAULT_CONTROLS_THROW_MAX_STRENGTH = 1;
+export const DEFAULT_CONTROLS_THROW_CHARGE_TO_MAX_SECONDS = 0.5;
 
 export const ARENA_WIDTH_KEY = 'arena.width';
 export const ARENA_LENGTH_KEY = 'arena.length';
@@ -65,6 +72,14 @@ export const BALL_GROUND_RESTITUTION_KEY = 'ball.groundRestitution';
 export const BALL_GROUND_DAMPING_KEY = 'ball.groundDamping';
 export const BALL_GROUND_SETTLE_SPEED_KEY = 'ball.groundSettleSpeed';
 export const BALL_PREDICTION_HORIZON_STEPS_KEY = 'ball.predictionHorizonSteps';
+export const BALL_LOW_THROW_MIN_SPEED_KEY = 'ball.lowThrowMinSpeed';
+export const BALL_LOW_THROW_MAX_SPEED_KEY = 'ball.lowThrowMaxSpeed';
+export const BALL_HIGH_THROW_MIN_PLANAR_SPEED_KEY = 'ball.highThrowMinPlanarSpeed';
+export const BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY = 'ball.highThrowMaxPlanarSpeed';
+export const BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY = 'ball.highThrowMinVerticalSpeed';
+export const BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY = 'ball.highThrowMaxVerticalSpeed';
+export const BALL_POST_RELEASE_LOCKOUT_TICKS_KEY =
+  'ball.postReleaseReacquisitionLockoutTicks';
 
 export const DEFAULT_ARENA_WIDTH = 18;
 export const DEFAULT_ARENA_LENGTH = 30;
@@ -89,6 +104,13 @@ export const DEFAULT_BALL_GROUND_RESTITUTION = 0.45;
 export const DEFAULT_BALL_GROUND_DAMPING = 0.25;
 export const DEFAULT_BALL_GROUND_SETTLE_SPEED = 0.5;
 export const DEFAULT_BALL_PREDICTION_HORIZON_STEPS = 150;
+export const DEFAULT_BALL_LOW_THROW_MIN_SPEED = 8;
+export const DEFAULT_BALL_LOW_THROW_MAX_SPEED = 30;
+export const DEFAULT_BALL_HIGH_THROW_MIN_PLANAR_SPEED = 5;
+export const DEFAULT_BALL_HIGH_THROW_MAX_PLANAR_SPEED = 18;
+export const DEFAULT_BALL_HIGH_THROW_MIN_VERTICAL_SPEED = 12;
+export const DEFAULT_BALL_HIGH_THROW_MAX_VERTICAL_SPEED = 22;
+export const DEFAULT_BALL_POST_RELEASE_LOCKOUT_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   {
@@ -135,6 +157,33 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     min: 0,
     max: 0.5,
     step: 0.01
+  },
+  {
+    key: CONTROLS_THROW_MIN_STRENGTH_KEY,
+    domain: 'controls',
+    label: 'Throw minimum strength',
+    defaultValue: DEFAULT_CONTROLS_THROW_MIN_STRENGTH,
+    min: 0,
+    max: 1,
+    step: 0.05
+  },
+  {
+    key: CONTROLS_THROW_MAX_STRENGTH_KEY,
+    domain: 'controls',
+    label: 'Throw maximum strength',
+    defaultValue: DEFAULT_CONTROLS_THROW_MAX_STRENGTH,
+    min: 0,
+    max: 1,
+    step: 0.05
+  },
+  {
+    key: CONTROLS_THROW_CHARGE_TO_MAX_SECONDS_KEY,
+    domain: 'controls',
+    label: 'Throw charge to maximum',
+    defaultValue: DEFAULT_CONTROLS_THROW_CHARGE_TO_MAX_SECONDS,
+    min: 0.05,
+    max: 3,
+    step: 0.05
   },
   {
     key: ARENA_WIDTH_KEY,
@@ -323,6 +372,69 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     defaultValue: DEFAULT_BALL_PREDICTION_HORIZON_STEPS,
     min: 30,
     max: 300,
+    step: 1
+  },
+  {
+    key: BALL_LOW_THROW_MIN_SPEED_KEY,
+    domain: 'trajectory',
+    label: 'Low throw minimum speed',
+    defaultValue: DEFAULT_BALL_LOW_THROW_MIN_SPEED,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: BALL_LOW_THROW_MAX_SPEED_KEY,
+    domain: 'trajectory',
+    label: 'Low throw maximum speed',
+    defaultValue: DEFAULT_BALL_LOW_THROW_MAX_SPEED,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: BALL_HIGH_THROW_MIN_PLANAR_SPEED_KEY,
+    domain: 'trajectory',
+    label: 'High throw minimum planar speed',
+    defaultValue: DEFAULT_BALL_HIGH_THROW_MIN_PLANAR_SPEED,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY,
+    domain: 'trajectory',
+    label: 'High throw maximum planar speed',
+    defaultValue: DEFAULT_BALL_HIGH_THROW_MAX_PLANAR_SPEED,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY,
+    domain: 'trajectory',
+    label: 'High throw minimum vertical speed',
+    defaultValue: DEFAULT_BALL_HIGH_THROW_MIN_VERTICAL_SPEED,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY,
+    domain: 'trajectory',
+    label: 'High throw maximum vertical speed',
+    defaultValue: DEFAULT_BALL_HIGH_THROW_MAX_VERTICAL_SPEED,
+    min: 0,
+    max: 60,
+    step: 0.5
+  },
+  {
+    key: BALL_POST_RELEASE_LOCKOUT_TICKS_KEY,
+    domain: 'ball',
+    label: 'Post-release reacquisition lockout',
+    defaultValue: DEFAULT_BALL_POST_RELEASE_LOCKOUT_TICKS,
+    min: 0,
+    max: 30,
     step: 1
   }
 ];

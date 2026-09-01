@@ -8,11 +8,26 @@ export interface PlayerDefinition {
   readonly role: PlayerRole;
 }
 
+export type ThrowChargeFamily = 'low' | 'high';
+
+export interface ThrowChargeState {
+  family: ThrowChargeFamily | undefined;
+  elapsedSeconds: number;
+  strength: number;
+  progress: number;
+}
+
 export interface PlayerState {
   readonly definition: PlayerDefinition;
   position: Vec2;
   velocity: Vec2;
   facing: Vec2;
+  throwCharge: ThrowChargeState;
+}
+
+export interface BallReleaseMetadata {
+  readonly releasedById: string;
+  reacquisitionLockoutTicksRemaining: number;
 }
 
 /**
@@ -25,9 +40,15 @@ export interface LooseBallState {
   velocity: Vec2;
   height: number;
   verticalVelocity: number;
+  release: BallReleaseMetadata | undefined;
 }
 
-export type BallState = LooseBallState;
+export interface PossessedBallState {
+  readonly mode: 'possessed';
+  readonly holderId: string;
+}
+
+export type BallState = LooseBallState | PossessedBallState;
 
 export interface GameState {
   tick: number;
@@ -41,6 +62,7 @@ export interface CreateFieldPlayerOptions {
   readonly position?: Vec2;
   readonly velocity?: Vec2;
   readonly facing?: Vec2;
+  readonly throwCharge?: Partial<ThrowChargeState>;
 }
 
 export interface CreateLooseBallOptions {
@@ -48,6 +70,7 @@ export interface CreateLooseBallOptions {
   readonly velocity?: Vec2;
   readonly height?: number;
   readonly verticalVelocity?: number;
+  readonly release?: BallReleaseMetadata;
 }
 
 const DEFAULT_PLAYER_ID = 'player-1';
@@ -62,6 +85,24 @@ function cloneVector(vector: Vec2): Vec2 {
   return { x: vector.x, y: vector.y };
 }
 
+export function createEmptyThrowChargeState(): ThrowChargeState {
+  return {
+    family: undefined,
+    elapsedSeconds: 0,
+    strength: 0,
+    progress: 0
+  };
+}
+
+export function cloneThrowChargeState(state: ThrowChargeState): ThrowChargeState {
+  return {
+    family: state.family,
+    elapsedSeconds: state.elapsedSeconds,
+    strength: state.strength,
+    progress: state.progress
+  };
+}
+
 export function createFieldPlayerState(
   options: CreateFieldPlayerOptions = {}
 ): PlayerState {
@@ -73,7 +114,11 @@ export function createFieldPlayerState(
     },
     position: cloneVector(options.position ?? DEFAULT_POSITION),
     velocity: cloneVector(options.velocity ?? DEFAULT_VELOCITY),
-    facing: cloneVector(options.facing ?? DEFAULT_FACING)
+    facing: cloneVector(options.facing ?? DEFAULT_FACING),
+    throwCharge: {
+      ...createEmptyThrowChargeState(),
+      ...options.throwCharge
+    }
   };
 }
 
@@ -85,8 +130,17 @@ export function createLooseBallState(
     position: cloneVector(options.position ?? DEFAULT_BALL_POSITION),
     velocity: cloneVector(options.velocity ?? DEFAULT_BALL_VELOCITY),
     height: options.height ?? 0,
-    verticalVelocity: options.verticalVelocity ?? 0
+    verticalVelocity: options.verticalVelocity ?? 0,
+    release: options.release
   };
+}
+
+export function createPossessedBallState(holderId: string): PossessedBallState {
+  if (!holderId.trim()) {
+    throw new RangeError('A possessed ball holder ID must have a non-empty value.');
+  }
+
+  return { mode: 'possessed', holderId };
 }
 
 export function createGameState(): GameState {
@@ -96,9 +150,23 @@ export function createGameState(): GameState {
 export function createPlayableGameState(
   playerOptions: CreateFieldPlayerOptions = {}
 ): GameState {
+  const player = createFieldPlayerState(playerOptions);
+
   return {
     tick: 0,
-    players: [createFieldPlayerState(playerOptions)],
+    players: [player],
     ball: createLooseBallState()
+  };
+}
+
+export function createPlayablePossessedGameState(
+  playerOptions: CreateFieldPlayerOptions = {}
+): GameState {
+  const player = createFieldPlayerState(playerOptions);
+
+  return {
+    tick: 0,
+    players: [player],
+    ball: createPossessedBallState(player.definition.id)
   };
 }

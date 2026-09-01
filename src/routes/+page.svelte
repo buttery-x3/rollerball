@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Workbench from '$lib/game/debug/Workbench.svelte';
+  import ThrowChargeHud from '$lib/game/debug/ThrowChargeHud.svelte';
   import { createArenaDefinition } from '$lib/game/physics/arena';
   import { createArenaRenderer } from '$lib/game/render/arenaRenderer';
   import {
@@ -13,7 +14,10 @@
     type BrowserInputSource
   } from '$lib/game/control/browserInput';
   import { createControlRouter, type ControlRouter } from '$lib/game/control/controlRouter';
-  import type { RoutedPlayerIntent } from '$lib/game/control/types';
+  import type {
+    ControlActionContext,
+    RoutedPlayerIntent
+  } from '$lib/game/control/types';
   import { publishControlDiagnostics } from '$lib/game/control/diagnostics';
   import {
     createBrowserGameLoop,
@@ -34,7 +38,10 @@
   } from '$lib/game/scenarios/scenario';
   import { stepGame } from '$lib/game/sim/stepGame';
   import { ARENA_DIAGNOSTIC_LAYER } from '$lib/game/sim/diagnostics';
-  import type { GameState } from '$lib/game/sim/gameState';
+  import type {
+    GameState,
+    ThrowChargeState
+  } from '$lib/game/sim/gameState';
   import type { ArenaRenderer } from '$lib/game/render/arenaRenderer';
 
   let canvasHost: HTMLDivElement;
@@ -59,14 +66,21 @@
   function createRun(id: string): ControlScenarioRun {
     const definition = getScenario(id);
     let control: ControlRouter | undefined;
+    let scenarioState: GameState | undefined;
     const run = createScenarioRun({
       definition,
       step: scenarioStep,
       inputProvider:
         definition.scriptedInputs === undefined
           ? (tick, context) => {
+              const actionContext: ControlActionContext =
+                scenarioState?.ball.mode === 'possessed' &&
+                control?.assignment?.playerId === scenarioState.ball.holderId
+                  ? 'possessed'
+                  : 'neutral';
               const result = control?.consumeTick(
-                browserInput?.getSnapshot() ?? createNeutralInputSnapshot()
+                browserInput?.getSnapshot() ?? createNeutralInputSnapshot(),
+                actionContext
               );
               if (result) {
                 publishControlDiagnostics(tick, result, context.diagnostics);
@@ -78,6 +92,7 @@
       getArena: (currentTuning) => createArenaDefinition(currentTuning),
       diagnosticsEnabled: developmentMode
     });
+    scenarioState = run.state;
 
     control = createControlRouter({
       tuning: run.tuning,
@@ -96,14 +111,28 @@
   let runtime = activeRun.runtime;
   let activeScenarioId = activeRun.definition.id;
   let scenarioError: string | undefined;
+  let chargeHudVisible = false;
+  let chargeHud: ThrowChargeState | undefined;
 
   let renderer: ArenaRenderer | undefined;
   let loop: BrowserGameLoop | undefined;
   let tick = state.tick;
   let paused = runtime.isPaused;
 
+  function updateChargeHud(): void {
+    const controlledPlayerId = activeControl.assignment?.playerId;
+    const controlledPlayer = state.players.find(
+      (player) => player.definition.id === controlledPlayerId
+    );
+    chargeHudVisible =
+      state.ball.mode === 'possessed' &&
+      state.ball.holderId === controlledPlayerId;
+    chargeHud = chargeHudVisible ? controlledPlayer?.throwCharge : undefined;
+  }
+
   function renderFrame(frame: FixedStepFrame<GameState>): void {
     tick = frame.state.tick;
+    updateChargeHud();
     const arena = activeRun.getArena?.();
     if (arena) {
       renderer?.setArena(arena);
@@ -223,6 +252,7 @@
 <main class="page-shell">
   <section class="game-panel" aria-label="Rollerball arena">
     <div class="arena-viewport" bind:this={canvasHost}></div>
+    <ThrowChargeHud visible={chargeHudVisible} charge={chargeHud} />
   </section>
   {#if developmentMode && diagnostics}
     <Workbench
@@ -271,6 +301,7 @@
   }
 
   .game-panel {
+    position: relative;
     width: auto;
     min-width: 0;
     min-height: 0;

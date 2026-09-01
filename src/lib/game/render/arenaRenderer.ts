@@ -186,13 +186,6 @@ export function createArenaRenderer(
   };
 
   const syncBall = (state: GameState, radius: number): void => {
-    if (state.ball.mode !== 'loose') {
-      if (ballPresentation) {
-        ballPresentation.mesh.visible = false;
-      }
-      return;
-    }
-
     const safeRadius = Math.max(0.01, radius);
     if (!ballPresentation || ballPresentation.radius !== safeRadius) {
       clearBallObject();
@@ -200,11 +193,39 @@ export function createArenaRenderer(
       ballGroup.add(ballPresentation.mesh);
     }
 
+    const ball = state.ball;
+    let position: { x: number; y: number };
+    let height: number;
+    if (ball.mode === 'loose') {
+      position = ball.position;
+      height = ball.height;
+    } else {
+      const holder = state.players.find(
+        (player) => player.definition.id === ball.holderId
+      );
+      if (!holder) {
+        ballPresentation.mesh.visible = false;
+        return;
+      }
+
+      const facingLength = Math.hypot(holder.facing.x, holder.facing.y);
+      const facing =
+        facingLength > 1e-9
+          ? { x: holder.facing.x / facingLength, y: holder.facing.y / facingLength }
+          : { x: 0, y: 1 };
+      const carryOffset = safeRadius * 1.5;
+      position = {
+        x: holder.position.x + facing.x * carryOffset,
+        y: holder.position.y + facing.y * carryOffset
+      };
+      height = 0;
+    }
+
     ballPresentation.mesh.visible = true;
     ballPresentation.mesh.position.set(
-      state.ball.position.x,
-      state.ball.height + safeRadius,
-      -state.ball.position.y
+      position.x,
+      height + safeRadius,
+      -position.y
     );
   };
 

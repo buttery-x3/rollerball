@@ -1,4 +1,8 @@
-import type { LooseBallState } from './gameState';
+import type {
+  LooseBallState,
+  PlayerState,
+  PossessedBallState
+} from './gameState';
 import {
   BALL_DIAGNOSTIC_LAYER,
   type DiagnosticRecord
@@ -35,7 +39,8 @@ function stateData(
     landing: step.landing,
     contacts: step.contacts,
     goalAperture: step.goalAperture,
-    predictedLanding: prediction.landing
+    predictedLanding: prediction.landing,
+    release: ball.release
   };
 }
 
@@ -182,4 +187,47 @@ export function createBallDiagnosticRecords(
   }
 
   return records;
+}
+
+export function createPossessedBallDiagnosticRecords(
+  tick: number,
+  ball: PossessedBallState,
+  holder: PlayerState,
+  radius: number
+): readonly DiagnosticRecord[] {
+  const data = {
+    tick,
+    mode: ball.mode,
+    holderId: ball.holderId,
+    holderPosition: holder.position,
+    holderFacing: holder.facing,
+    radius
+  } satisfies Readonly<Record<string, unknown>>;
+
+  return [
+    {
+      layer: BALL_DIAGNOSTIC_LAYER,
+      source: 'possessedBall',
+      entityId: 'ball-state',
+      primitive: {
+        type: 'circle',
+        center: holder.position,
+        radius,
+        color: BALL_COLOR
+      },
+      data
+    },
+    {
+      layer: BALL_DIAGNOSTIC_LAYER,
+      source: 'possessedBall',
+      entityId: 'ball-holder-facing',
+      primitive: {
+        type: 'vector',
+        origin: holder.position,
+        direction: holder.facing,
+        color: VELOCITY_COLOR
+      },
+      data
+    }
+  ];
 }

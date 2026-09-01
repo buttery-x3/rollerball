@@ -13,6 +13,10 @@ function createBallState(options: CreateLooseBallOptions): GameState {
 
 function finiteBallStateAssertion(state: GameState): void {
   const { ball } = state;
+  if (ball.mode !== 'loose') {
+    throw new Error('Ball scenario must keep the ball loose.');
+  }
+
   const values = [
     ball.position.x,
     ball.position.y,
@@ -22,7 +26,7 @@ function finiteBallStateAssertion(state: GameState): void {
     ball.verticalVelocity
   ];
 
-  if (ball.mode !== 'loose' || !values.every(Number.isFinite) || ball.height < 0) {
+  if (!values.every(Number.isFinite) || ball.height < 0) {
     throw new Error('Loose ball state contains an invalid value.');
   }
 }

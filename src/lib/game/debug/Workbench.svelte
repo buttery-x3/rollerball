@@ -12,7 +12,8 @@
   import {
     BALL_DIAGNOSTIC_LAYER,
     CONTROL_DIAGNOSTIC_LAYER,
-    PLAYER_MOVEMENT_DIAGNOSTIC_LAYER
+    PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+    THROW_DIAGNOSTIC_LAYER
   } from '$lib/game/sim/diagnostics';
   import type { RoutedPlayerIntent } from '$lib/game/control/types';
   import type { GameState } from '$lib/game/sim/gameState';
@@ -145,6 +146,12 @@
       );
   }
 
+  function latestThrowRecord(frame: DiagnosticFrame): DiagnosticRecord | undefined {
+    return [...frame.records]
+      .reverse()
+      .find((record) => record.layer === THROW_DIAGNOSTIC_LAYER);
+  }
+
   function formatDiagnosticData(record: DiagnosticRecord | undefined): string {
     return record?.data ? JSON.stringify(record.data, null, 2) : 'No diagnostic data sampled yet.';
   }
@@ -152,6 +159,7 @@
   $: controlRecord = latestControlRecord(diagnosticFrame);
   $: playerRecord = latestPlayerRecord(diagnosticFrame);
   $: ballRecord = latestBallRecord(diagnosticFrame);
+  $: throwRecord = latestThrowRecord(diagnosticFrame);
 </script>
 
 <aside class="workbench" aria-label="Development workbench">
@@ -279,6 +287,14 @@
       <span class="tick">Tick {diagnosticFrame.tick}</span>
     </div>
     <pre class="diagnostic-output">{formatDiagnosticData(ballRecord)}</pre>
+  </section>
+
+  <section class="workbench-section" aria-labelledby="throw-heading">
+    <div class="section-heading">
+      <h2 id="throw-heading">Throw state</h2>
+      <span class="tick">Tick {diagnosticFrame.tick}</span>
+    </div>
+    <pre class="diagnostic-output">{formatDiagnosticData(throwRecord)}</pre>
   </section>
 </aside>
 

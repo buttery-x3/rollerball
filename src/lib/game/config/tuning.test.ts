@@ -17,6 +17,16 @@ import {
   BALL_PREDICTION_HORIZON_STEPS_KEY,
   BALL_RADIUS_KEY,
   BALL_WALL_RESTITUTION_KEY,
+  BALL_LOW_THROW_MIN_SPEED_KEY,
+  BALL_LOW_THROW_MAX_SPEED_KEY,
+  BALL_HIGH_THROW_MIN_PLANAR_SPEED_KEY,
+  BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY,
+  BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY,
+  BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY,
+  BALL_POST_RELEASE_LOCKOUT_TICKS_KEY,
+  CONTROLS_THROW_MIN_STRENGTH_KEY,
+  CONTROLS_THROW_MAX_STRENGTH_KEY,
+  CONTROLS_THROW_CHARGE_TO_MAX_SECONDS_KEY,
   PLAYER_RADIUS_KEY,
   RUNTIME_MAX_CATCH_UP_STEPS_KEY
 } from './tuning';
@@ -145,6 +155,34 @@ describe('central tuning registry', () => {
       groundDamping: 0.25,
       groundSettleSpeed: 0.5,
       predictionHorizon: 150
+    });
+  });
+
+  it('registers throw charging, launch families, and lockout centrally', () => {
+    const registry = createTuningRegistry();
+
+    expect({
+      minStrength: registry.getNumber(CONTROLS_THROW_MIN_STRENGTH_KEY),
+      maxStrength: registry.getNumber(CONTROLS_THROW_MAX_STRENGTH_KEY),
+      chargeToMaxSeconds: registry.getNumber(CONTROLS_THROW_CHARGE_TO_MAX_SECONDS_KEY),
+      lowMinSpeed: registry.getNumber(BALL_LOW_THROW_MIN_SPEED_KEY),
+      lowMaxSpeed: registry.getNumber(BALL_LOW_THROW_MAX_SPEED_KEY),
+      highMinPlanarSpeed: registry.getNumber(BALL_HIGH_THROW_MIN_PLANAR_SPEED_KEY),
+      highMaxPlanarSpeed: registry.getNumber(BALL_HIGH_THROW_MAX_PLANAR_SPEED_KEY),
+      highMinVerticalSpeed: registry.getNumber(BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY),
+      highMaxVerticalSpeed: registry.getNumber(BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY),
+      lockoutTicks: registry.getNumber(BALL_POST_RELEASE_LOCKOUT_TICKS_KEY)
+    }).toEqual({
+      minStrength: 0.2,
+      maxStrength: 1,
+      chargeToMaxSeconds: 0.5,
+      lowMinSpeed: 8,
+      lowMaxSpeed: 30,
+      highMinPlanarSpeed: 5,
+      highMaxPlanarSpeed: 18,
+      highMinVerticalSpeed: 12,
+      highMaxVerticalSpeed: 22,
+      lockoutTicks: 6
     });
   });
 

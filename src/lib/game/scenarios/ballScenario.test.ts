@@ -30,14 +30,20 @@ function runBallScenario(
   definition: ScenarioDefinition<GameState, RoutedPlayerIntent>,
   ticks: number
 ) {
-  let maximumHeight = definition.createInitialState().ball.height;
+  const initialState = definition.createInitialState();
+  if (initialState.ball.mode !== 'loose') {
+    throw new Error('Ball scenario must start with a loose ball.');
+  }
+  let maximumHeight = initialState.ball.height;
   const run = runScenario({
     definition,
     step: stepGame,
     getArena: (tuning) => createArenaDefinition(tuning),
     ticks,
     onStep: (state) => {
-      maximumHeight = Math.max(maximumHeight, state.ball.height);
+      if (state.ball.mode === 'loose') {
+        maximumHeight = Math.max(maximumHeight, state.ball.height);
+      }
     }
   });
 
@@ -66,17 +72,23 @@ describe('loose-ball scenarios', () => {
     const data = ballStateRecord(result)?.data as { contacts: Array<{ boundary: string }> };
 
     expect(data.contacts.map((contact) => contact.boundary)).toContain('right');
-    expect(result.run.state.ball.velocity.x).toBeLessThan(0);
+    expect(result.run.state.ball.mode).toBe('loose');
+    if (result.run.state.ball.mode === 'loose') {
+      expect(result.run.state.ball.velocity.x).toBeLessThan(0);
+    }
   });
 
   it('runs the maximum-speed sweep scenario without escaping a solid wall', () => {
     const result = runBallScenario(ballMaximumSpeedSweepScenario, 1);
     const arena = createArenaDefinition(result.run.tuning);
 
-    expect(result.run.state.ball.position.x).toBeLessThanOrEqual(
-      arena.bounds.maxX - result.run.tuning.getNumber(BALL_RADIUS_KEY) + 1e-7
-    );
-    expect(result.run.state.ball.velocity.x).toBeLessThan(0);
+    expect(result.run.state.ball.mode).toBe('loose');
+    if (result.run.state.ball.mode === 'loose') {
+      expect(result.run.state.ball.position.x).toBeLessThanOrEqual(
+        arena.bounds.maxX - result.run.tuning.getNumber(BALL_RADIUS_KEY) + 1e-7
+      );
+      expect(result.run.state.ball.velocity.x).toBeLessThan(0);
+    }
   });
 
   it('passes the centred low aperture scenario through the end boundary', () => {
@@ -88,10 +100,13 @@ describe('loose-ball scenarios', () => {
 
     expect(data.goalAperture.crossed).toBe(true);
     expect(data.contacts).toEqual([]);
-    expect(result.run.state.ball.position.y).toBeGreaterThan(
-      createArenaDefinition(result.run.tuning).bounds.maxY -
-        result.run.tuning.getNumber(BALL_RADIUS_KEY)
-    );
+    expect(result.run.state.ball.mode).toBe('loose');
+    if (result.run.state.ball.mode === 'loose') {
+      expect(result.run.state.ball.position.y).toBeGreaterThan(
+        createArenaDefinition(result.run.tuning).bounds.maxY -
+          result.run.tuning.getNumber(BALL_RADIUS_KEY)
+      );
+    }
   });
 
   it('rebound scenarios report invalid aperture decisions', () => {
@@ -123,7 +138,10 @@ describe('loose-ball scenarios', () => {
 
     expect(data.goalAperture.crossed).toBe(true);
     expect(data.contacts).toEqual([]);
-    expect(result.run.state.ball.velocity.y).toBeGreaterThan(0);
+    expect(result.run.state.ball.mode).toBe('loose');
+    if (result.run.state.ball.mode === 'loose') {
+      expect(result.run.state.ball.velocity.y).toBeGreaterThan(0);
+    }
   });
 
   it('shows a lob arc and keeps the scenario deterministic', () => {
@@ -131,7 +149,10 @@ describe('loose-ball scenarios', () => {
     const second = runBallScenario(ballLobFlightScenario, 100);
 
     expect(first.maximumHeight).toBeGreaterThan(5);
-    expect(first.run.state.ball.height).toBeGreaterThanOrEqual(0);
+    expect(first.run.state.ball.mode).toBe('loose');
+    if (first.run.state.ball.mode === 'loose') {
+      expect(first.run.state.ball.height).toBeGreaterThanOrEqual(0);
+    }
     expect(second.run.state).toEqual(first.run.state);
   });
 

@@ -10,7 +10,8 @@ import {
   BALL_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
-  RUNTIME_DIAGNOSTIC_LAYER
+  RUNTIME_DIAGNOSTIC_LAYER,
+  THROW_DIAGNOSTIC_LAYER
 } from '../sim/diagnostics';
 
 export {
@@ -18,7 +19,8 @@ export {
   BALL_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
-  RUNTIME_DIAGNOSTIC_LAYER
+  RUNTIME_DIAGNOSTIC_LAYER,
+  THROW_DIAGNOSTIC_LAYER
 } from '../sim/diagnostics';
 
 export interface DiagnosticStore extends DiagnosticSink {
@@ -53,6 +55,11 @@ export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
   {
     key: BALL_DIAGNOSTIC_LAYER,
     label: 'Ball trajectory',
+    enabledByDefault: true
+  },
+  {
+    key: THROW_DIAGNOSTIC_LAYER,
+    label: 'Throw charging and releases',
     enabledByDefault: true
   }
 ];
