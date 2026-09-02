@@ -27,6 +27,7 @@ export const arenaConstraintScenario: ScenarioDefinition<
 > = {
   id: ARENA_CONSTRAINT_SCENARIO_ID,
   name: 'Arena circle constraint',
+  automatedRunTicks: 3,
   createInitialState: () => ({
     ...createGameState(),
     position: { x: 0, y: 0 },

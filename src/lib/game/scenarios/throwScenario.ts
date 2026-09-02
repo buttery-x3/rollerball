@@ -120,12 +120,14 @@ function validThrowState(state: GameState): void {
 function throwScenario(
   id: string,
   name: string,
+  automatedRunTicks: number,
   scriptedInputs?: readonly ScenarioInputFrame<RoutedPlayerIntent>[],
   tuningOverrides?: ScenarioDefinition<GameState, RoutedPlayerIntent>['tuningOverrides']
 ): ScenarioDefinition<GameState, RoutedPlayerIntent> {
   return {
     id,
     name,
+    automatedRunTicks,
     createInitialState: () => createPlayablePossessedGameState(),
     ...(scriptedInputs ? { scriptedInputs } : {}),
     tuningOverrides,
@@ -153,36 +155,42 @@ export const THROW_RELEASE_LOCKOUT_SCENARIO_ID = 'throw-release-once-lockout';
 
 export const throwFreePlayScenario = throwScenario(
   THROW_FREE_PLAY_SCENARIO_ID,
-  'Throwing · possessed free play'
+  'Throwing · possessed free play',
+  1
 );
 
 export const throwLowMinimumChargeScenario = throwScenario(
   THROW_LOW_MIN_CHARGE_SCENARIO_ID,
   'Throwing · low minimum charge',
+  2,
   chargeFrames('low', 1)
 );
 
 export const throwLowMaximumChargeScenario = throwScenario(
   THROW_LOW_MAX_CHARGE_SCENARIO_ID,
   'Throwing · low maximum charge',
+  32,
   chargeFrames('low', 31)
 );
 
 export const throwHighMinimumChargeScenario = throwScenario(
   THROW_HIGH_MIN_CHARGE_SCENARIO_ID,
   'Throwing · high minimum charge',
+  2,
   chargeFrames('high', 1)
 );
 
 export const throwHighMaximumChargeScenario = throwScenario(
   THROW_HIGH_MAX_CHARGE_SCENARIO_ID,
   'Throwing · high maximum charge',
+  32,
   chargeFrames('high', 31)
 );
 
 export const throwFacingAtReleaseScenario = throwScenario(
   THROW_FACING_AT_RELEASE_SCENARIO_ID,
   'Throwing · facing at release',
+  3,
   [
     {
       tick: 1,
@@ -211,6 +219,7 @@ export const throwFacingAtReleaseScenario = throwScenario(
 export const throwRightStickLowScenario = throwScenario(
   THROW_RIGHT_STICK_LOW_SCENARIO_ID,
   'Throwing · right-stick low release',
+  1,
   [
     {
       tick: 1,
@@ -227,6 +236,7 @@ export const throwRightStickLowScenario = throwScenario(
 export const throwReleaseLockoutScenario = throwScenario(
   THROW_RELEASE_LOCKOUT_SCENARIO_ID,
   'Throwing · exactly one release and lockout',
+  4,
   [
     {
       tick: 1,

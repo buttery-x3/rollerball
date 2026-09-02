@@ -23,12 +23,12 @@ describe('deterministic scenarios', () => {
       definition: scenario,
       step: stepGame,
       getArena: (tuning) => createArenaDefinition(tuning),
-      ticks: 3
+      ticks: scenario.automatedRunTicks
     });
 
-    expect(run.state.tick).toBe(3);
+    expect(run.state.tick).toBe(scenario.automatedRunTicks);
     expect(run.runtime.isPaused).toBe(true);
-    expect(run.diagnostics?.getFrame().tick).toBe(3);
+    expect(run.diagnostics?.getFrame().tick).toBe(scenario.automatedRunTicks);
   });
 
   it('uses a fresh state and runtime when the same scenario is loaded again', () => {
@@ -77,6 +77,7 @@ describe('deterministic scenarios', () => {
     const scenario: ScenarioDefinition<InputState, number> = {
       id: 'scripted-inputs',
       name: 'Scripted inputs',
+      automatedRunTicks: 3,
       createInitialState: () => ({
         ...createGameState(),
         receivedInputs: []
@@ -93,7 +94,11 @@ describe('deterministic scenarios', () => {
       }
     };
 
-    const run = runScenario({ definition: scenario, step, ticks: 3 });
+    const run = runScenario({
+      definition: scenario,
+      step,
+      ticks: scenario.automatedRunTicks
+    });
 
     expect(run.state).toEqual({
       ...createGameState(),
@@ -110,6 +115,7 @@ describe('deterministic scenarios', () => {
     const scenario: ScenarioDefinition<InputState, number> = {
       id: 'interactive-scripted-inputs',
       name: 'Interactive scripted inputs',
+      automatedRunTicks: 3,
       createInitialState: () => ({
         ...createGameState(),
         receivedInputs: []
@@ -134,7 +140,7 @@ describe('deterministic scenarios', () => {
         providerTicks.push(tick);
         return 99;
       },
-      ticks: 3
+      ticks: scenario.automatedRunTicks
     });
 
     expect(run.state.receivedInputs).toEqual([10, 30]);
@@ -149,6 +155,7 @@ describe('deterministic scenarios', () => {
     const scenario: ScenarioDefinition<TuningState, never> = {
       id: 'scenario-tuning',
       name: 'Scenario tuning',
+      automatedRunTicks: 1,
       createInitialState: () => ({
         ...createGameState(),
         observedCatchUpSteps: 0
@@ -160,7 +167,11 @@ describe('deterministic scenarios', () => {
       state.observedCatchUpSteps = context.tuning?.getNumber(RUNTIME_MAX_CATCH_UP_STEPS_KEY) ?? 0;
     };
 
-    const run = runScenario({ definition: scenario, step, ticks: 1 });
+    const run = runScenario({
+      definition: scenario,
+      step,
+      ticks: scenario.automatedRunTicks
+    });
 
     expect(run.state.observedCatchUpSteps).toBe(8);
     expect(run.tuning.get(RUNTIME_MAX_CATCH_UP_STEPS_KEY).overrideValue).toBe(8);
@@ -170,6 +181,7 @@ describe('deterministic scenarios', () => {
     const scenario: ScenarioDefinition<GameState, never> = {
       id: 'failing-scenario',
       name: 'Failing scenario',
+      automatedRunTicks: 1,
       createInitialState: createGameState,
       assertions: [
         {
@@ -186,7 +198,7 @@ describe('deterministic scenarios', () => {
         definition: scenario,
         step: stepGame,
         getArena: (tuning) => createArenaDefinition(tuning),
-        ticks: 1
+        ticks: scenario.automatedRunTicks
       })
     ).toThrow(
       "Scenario 'failing-scenario' (Failing scenario) failed invariant 'expected-state' at tick 1: state did not match the expected setup"

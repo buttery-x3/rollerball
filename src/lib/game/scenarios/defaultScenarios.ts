@@ -11,6 +11,7 @@ export const DETERMINISTIC_TICK_SCENARIO_ID = 'deterministic-tick';
 export const deterministicTickScenario: ScenarioDefinition<GameState, RoutedPlayerIntent> = {
   id: DETERMINISTIC_TICK_SCENARIO_ID,
   name: 'Deterministic tick',
+  automatedRunTicks: 1,
   createInitialState: createGameState,
   diagnosticLayerOverrides: [{ key: RUNTIME_DIAGNOSTIC_LAYER, enabled: true }],
   assertions: [

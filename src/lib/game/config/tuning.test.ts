@@ -256,6 +256,41 @@ describe('central tuning registry', () => {
     }
   });
 
+  it('rejects an individual reset that would violate a throw relationship', () => {
+    const registry = createTuningRegistry();
+    let notifications = 0;
+    registry.subscribe(() => {
+      notifications += 1;
+    });
+
+    registry.setOverride(BALL_LOW_THROW_MAX_SPEED_KEY, 40);
+    registry.setOverride(BALL_LOW_THROW_MIN_SPEED_KEY, 35);
+
+    expect(() => registry.resetOverride(BALL_LOW_THROW_MAX_SPEED_KEY)).toThrow(
+      `Tuning relationship invalid: '${BALL_LOW_THROW_MIN_SPEED_KEY}' must be less than or equal to '${BALL_LOW_THROW_MAX_SPEED_KEY}'.`
+    );
+
+    expect(registry.getNumber(BALL_LOW_THROW_MIN_SPEED_KEY)).toBe(35);
+    expect(registry.getNumber(BALL_LOW_THROW_MAX_SPEED_KEY)).toBe(40);
+    expect(registry.get(BALL_LOW_THROW_MAX_SPEED_KEY).overrideValue).toBe(40);
+    expect(notifications).toBe(2);
+  });
+
+  it('allows a valid individual reset and publishes its change', () => {
+    const registry = createTuningRegistry();
+    let notifications = 0;
+    registry.subscribe(() => {
+      notifications += 1;
+    });
+
+    registry.setOverride(BALL_LOW_THROW_MAX_SPEED_KEY, 40);
+    registry.resetOverride(BALL_LOW_THROW_MAX_SPEED_KEY);
+
+    expect(registry.getNumber(BALL_LOW_THROW_MAX_SPEED_KEY)).toBe(30);
+    expect(registry.get(BALL_LOW_THROW_MAX_SPEED_KEY).overrideValue).toBeUndefined();
+    expect(notifications).toBe(2);
+  });
+
   it('rejects invalid values and duplicate keys', () => {
     const registry = createTuningRegistry();
 

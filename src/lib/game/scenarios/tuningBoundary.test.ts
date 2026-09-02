@@ -8,12 +8,6 @@ import { DEFAULT_SCENARIOS } from './defaultScenarios';
 import { runScenario, type ScenarioDefinition } from './scenario';
 
 type DefaultScenario = ScenarioDefinition<GameState, RoutedPlayerIntent>;
-type Boundary = 'min' | 'max';
-
-function scenarioTicks(definition: DefaultScenario): number {
-  const scriptedTicks = (definition.scriptedInputs ?? []).map(({ tick }) => tick);
-  return Math.max(1, ...scriptedTicks);
-}
 
 function runBoundaryScenarios(
   definition: DefaultScenario,
@@ -32,7 +26,7 @@ function runBoundaryScenarios(
       getArena: (tuning) => createArenaDefinition(tuning),
       tuningOverrides,
       diagnosticsEnabled: false,
-      ticks: scenarioTicks(definition)
+      ticks: definition.automatedRunTicks
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -47,7 +41,7 @@ describe('Workbench tuning boundaries', () => {
     const tuningDefinitions = createTuningRegistry().list();
 
     for (const definition of tuningDefinitions) {
-      for (const boundary of ['min', 'max'] as const satisfies readonly Boundary[]) {
+      for (const boundary of ['min', 'max'] as const) {
         const tuning = createTuningRegistry();
         const before = tuning.list();
         const value = definition[boundary];

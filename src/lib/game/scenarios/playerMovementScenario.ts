@@ -90,11 +90,13 @@ function movementScenario(
   id: string,
   name: string,
   scriptedInputs: readonly ScenarioInputFrame<RoutedPlayerIntent>[],
+  automatedRunTicks: number,
   createInitialState: () => GameState = createPlayableGameState
 ): ScenarioDefinition<GameState, RoutedPlayerIntent> {
   return {
     id,
     name,
+    automatedRunTicks,
     createInitialState,
     scriptedInputs,
     diagnosticLayerOverrides: [
@@ -121,6 +123,7 @@ export const movementFreePlayScenario: ScenarioDefinition<
 > = {
   id: MOVEMENT_FREE_PLAY_SCENARIO_ID,
   name: 'Field movement · free play',
+  automatedRunTicks: 1,
   createInitialState: createPlayableGameState,
   diagnosticLayerOverrides: [
     { key: PLAYER_MOVEMENT_DIAGNOSTIC_LAYER, enabled: true }
@@ -139,7 +142,8 @@ export const movementAccelerationScenario = movementScenario(
   [
     ...movementFrames(1, 30, { x: 0, y: 1 }),
     { tick: 31, input: createRoutedMovementIntent({ x: 0, y: 0 }) }
-  ]
+  ],
+  180
 );
 
 export const movementReversalScenario = movementScenario(
@@ -148,7 +152,8 @@ export const movementReversalScenario = movementScenario(
   [
     ...movementFrames(1, 30, { x: 0, y: 1 }),
     ...movementFrames(31, 120, { x: 0, y: -1 })
-  ]
+  ],
+  120
 );
 
 export const movementMaximumSpeedTurnScenario = movementScenario(
@@ -157,7 +162,8 @@ export const movementMaximumSpeedTurnScenario = movementScenario(
   [
     ...movementFrames(1, 60, { x: 0, y: 1 }),
     ...movementFrames(61, 120, { x: 1, y: 0 })
-  ]
+  ],
+  120
 );
 
 function createBoundaryState(): GameState {
@@ -171,6 +177,7 @@ export const movementArenaBoundaryScenario = movementScenario(
   MOVEMENT_BOUNDARY_SCENARIO_ID,
   'Field movement · arena boundary contact',
   [{ tick: 1, input: createRoutedMovementIntent({ x: 1, y: 0 }) }],
+  1,
   createBoundaryState
 );
 

@@ -41,14 +41,13 @@ import { runScenario } from '../scenarios/scenario';
 import type { InputSnapshot } from '../control/types';
 
 function runThrowScenario(
-  definition: (typeof THROW_SCENARIOS)[number],
-  ticks: number
+  definition: (typeof THROW_SCENARIOS)[number]
 ) {
   return runScenario({
     definition,
     step: stepGame,
     getArena: (tuning) => createArenaDefinition(tuning),
-    ticks
+    ticks: definition.automatedRunTicks
   });
 }
 
@@ -92,7 +91,7 @@ describe('throw action simulation', () => {
   });
 
   it('releases a low throw at minimum charge', () => {
-    const run = runThrowScenario(throwLowMinimumChargeScenario, 2);
+    const run = runThrowScenario(throwLowMinimumChargeScenario);
     const ball = looseBall(run);
 
     expect(ball.velocity.y).toBeGreaterThan(0);
@@ -102,8 +101,8 @@ describe('throw action simulation', () => {
   });
 
   it('charges low throws to a clamped maximum', () => {
-    const minimum = looseBall(runThrowScenario(throwLowMinimumChargeScenario, 2));
-    const maximum = looseBall(runThrowScenario(throwLowMaximumChargeScenario, 32));
+    const minimum = looseBall(runThrowScenario(throwLowMinimumChargeScenario));
+    const maximum = looseBall(runThrowScenario(throwLowMaximumChargeScenario));
 
     expect(maximum.velocity.y).toBeGreaterThan(minimum.velocity.y);
     expect(maximum.velocity.y).toBeCloseTo(30 * Math.exp(-0.25 / 60), 6);
@@ -111,8 +110,8 @@ describe('throw action simulation', () => {
   });
 
   it('releases high throws with a distinct lob trajectory and clamps maximum charge', () => {
-    const minimumRun = runThrowScenario(throwHighMinimumChargeScenario, 2);
-    const maximumRun = runThrowScenario(throwHighMaximumChargeScenario, 32);
+    const minimumRun = runThrowScenario(throwHighMinimumChargeScenario);
+    const maximumRun = runThrowScenario(throwHighMaximumChargeScenario);
     const minimum = looseBall(minimumRun);
     const maximum = looseBall(maximumRun);
 
@@ -120,12 +119,12 @@ describe('throw action simulation', () => {
     expect(maximum.verticalVelocity).toBeGreaterThan(minimum.verticalVelocity);
     expect(maximum.velocity.y).toBeGreaterThan(minimum.velocity.y);
     expect(maximum.velocity.y).toBeLessThan(
-      looseBall(runThrowScenario(throwLowMaximumChargeScenario, 32)).velocity.y
+      looseBall(runThrowScenario(throwLowMaximumChargeScenario)).velocity.y
     );
   });
 
   it('uses facing at release after the player turns during charge', () => {
-    const run = runThrowScenario(throwFacingAtReleaseScenario, 3);
+    const run = runThrowScenario(throwFacingAtReleaseScenario);
     const ball = looseBall(run);
     const player = run.state.players[0];
     const ballDirection = normalized(ball.velocity);
@@ -137,7 +136,7 @@ describe('throw action simulation', () => {
   });
 
   it('executes a right-stick-only low release from the captured magnitude', () => {
-    const run = runThrowScenario(throwRightStickLowScenario, 1);
+    const run = runThrowScenario(throwRightStickLowScenario);
     const ball = looseBall(run);
     const release = run.diagnostics?.getFrame().records.find(
       (record) =>
@@ -180,7 +179,7 @@ describe('throw action simulation', () => {
   });
 
   it('transitions from possessed to loose exactly once and exposes lockout diagnostics', () => {
-    const run = runThrowScenario(throwReleaseLockoutScenario, 4);
+    const run = runThrowScenario(throwReleaseLockoutScenario);
     const ball = looseBall(run);
     const ballRecords = run.diagnostics?.getFrame().records.filter(
       (record) => record.layer === BALL_DIAGNOSTIC_LAYER && record.entityId === 'ball-state'

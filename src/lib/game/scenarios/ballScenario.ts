@@ -34,11 +34,13 @@ function finiteBallStateAssertion(state: GameState): void {
 function ballScenario(
   id: string,
   name: string,
-  ball: CreateLooseBallOptions
+  ball: CreateLooseBallOptions,
+  automatedRunTicks: number
 ): ScenarioDefinition<GameState, RoutedPlayerIntent> {
   return {
     id,
     name,
+    automatedRunTicks,
     createInitialState: () => createBallState(ball),
     scriptedInputs: [],
     diagnosticLayerOverrides: [{ key: BALL_DIAGNOSTIC_LAYER, enabled: true }],
@@ -68,7 +70,8 @@ export const ballLowWallReboundScenario = ballScenario(
     position: { x: 8.2, y: 0 },
     velocity: { x: 40, y: 2 },
     height: 0
-  }
+  },
+  1
 );
 
 export const ballMaximumSpeedSweepScenario = ballScenario(
@@ -78,7 +81,8 @@ export const ballMaximumSpeedSweepScenario = ballScenario(
     position: { x: 8, y: 0 },
     velocity: { x: 240, y: 0 },
     height: 0
-  }
+  },
+  1
 );
 
 export const ballValidLowApertureScenario = ballScenario(
@@ -88,7 +92,8 @@ export const ballValidLowApertureScenario = ballScenario(
     position: { x: 0, y: 14 },
     velocity: { x: 0, y: 60 },
     height: 0
-  }
+  },
+  1
 );
 
 export const ballDiagonalNearPostScenario = ballScenario(
@@ -98,7 +103,8 @@ export const ballDiagonalNearPostScenario = ballScenario(
     position: { x: 3.4, y: 14 },
     velocity: { x: 30, y: 60 },
     height: 0
-  }
+  },
+  1
 );
 
 export const ballRisingNearCrossbarScenario = ballScenario(
@@ -109,7 +115,8 @@ export const ballRisingNearCrossbarScenario = ballScenario(
     velocity: { x: 0, y: 60 },
     height: 2.2,
     verticalVelocity: 20
-  }
+  },
+  1
 );
 
 export const ballValidSlowApertureScenario = ballScenario(
@@ -119,7 +126,8 @@ export const ballValidSlowApertureScenario = ballScenario(
     position: { x: 0, y: 14 },
     velocity: { x: 0, y: 20 },
     height: 0
-  }
+  },
+  2
 );
 
 export const ballLobFlightScenario = ballScenario(
@@ -130,7 +138,8 @@ export const ballLobFlightScenario = ballScenario(
     velocity: { x: 2, y: 6 },
     height: 0,
     verticalVelocity: 18
-  }
+  },
+  100
 );
 
 export const ballOverCrossbarScenario = ballScenario(
@@ -140,7 +149,8 @@ export const ballOverCrossbarScenario = ballScenario(
     position: { x: 0, y: 14 },
     velocity: { x: 0, y: 60 },
     height: 2.5
-  }
+  },
+  1
 );
 
 export const BALL_SCENARIOS: readonly ScenarioDefinition<

@@ -40,6 +40,7 @@ export interface ScenarioDefinition<
 > {
   readonly id: string;
   readonly name: string;
+  readonly automatedRunTicks: number;
   readonly createInitialState: () => TState;
   readonly scriptedInputs?: readonly ScenarioInputFrame<TInput>[];
   readonly tuningOverrides?: readonly ScenarioTuningOverride[];
@@ -160,6 +161,12 @@ function validateScenario<TState extends GameState, TInput>(
 
   if (!Number.isInteger(state.tick) || state.tick < 0) {
     throw new RangeError(`Scenario '${definition.id}' must create a non-negative integer tick.`);
+  }
+
+  if (!Number.isInteger(definition.automatedRunTicks) || definition.automatedRunTicks < 0) {
+    throw new RangeError(
+      `Scenario '${definition.id}' must declare a non-negative integer automated run duration.`
+    );
   }
 
   for (const assertion of definition.assertions ?? []) {

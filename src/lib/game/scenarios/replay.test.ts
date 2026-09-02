@@ -23,6 +23,7 @@ interface ReplayState extends GameState {
 const replayScenarioDefinition: ScenarioDefinition<ReplayState, number> = {
   id: 'replay-inputs',
   name: 'Replay inputs',
+  automatedRunTicks: 4,
   createInitialState: () => ({
     ...createGameState(),
     receivedInputs: [],
@@ -70,7 +71,11 @@ function createRecordedReplay(): {
   });
 
   run.runtime.pause();
-  for (let tick = 0; tick < 4; tick += 1) {
+  for (
+    let tick = 0;
+    tick < replayScenarioDefinition.automatedRunTicks;
+    tick += 1
+  ) {
     run.runtime.stepOnce();
   }
 
@@ -120,6 +125,7 @@ describe('deterministic replay', () => {
     const scenario: ScenarioDefinition<MutableReplayState, MutableInput> = {
       id: 'mutable-replay-inputs',
       name: 'Mutable replay inputs',
+      automatedRunTicks: 2,
       createInitialState: () => ({
         ...createGameState(),
         receivedInputs: []
@@ -164,8 +170,9 @@ describe('deterministic replay', () => {
     });
 
     run.runtime.pause();
-    run.runtime.stepOnce();
-    run.runtime.stepOnce();
+    for (let tick = 0; tick < scenario.automatedRunTicks; tick += 1) {
+      run.runtime.stepOnce();
+    }
     const record = recorder.finish(run.state);
     const replay = replayScenario({ scenario, step, replay: record });
 
@@ -189,7 +196,9 @@ describe('deterministic replay', () => {
         lastInput: 0
       })
     );
-    expect(record.checkpoints).toHaveLength(4);
+    expect(record.checkpoints).toHaveLength(
+      replayScenarioDefinition.automatedRunTicks
+    );
     expect(record.checkpoints.map((checkpoint) => checkpoint.tick)).toEqual([1, 2, 3, 4]);
   });
 
@@ -230,7 +239,7 @@ describe('deterministic replay', () => {
     const run = runScenario({
       definition: replayScenarioDefinition,
       step: replayStep,
-      ticks: 4
+      ticks: replayScenarioDefinition.automatedRunTicks
     });
 
     expect(run.state).toEqual({

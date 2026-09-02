@@ -19,6 +19,7 @@ export const controlInputConsumptionScenario: ScenarioDefinition<
 > = {
   id: CONTROL_INPUT_SCENARIO_ID,
   name: 'Control input consumption',
+  automatedRunTicks: 8,
   createInitialState: () => ({
     ...createGameState(),
     pressedTicks: [],

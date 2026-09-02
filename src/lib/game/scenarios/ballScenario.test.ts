@@ -27,8 +27,7 @@ import { runScenario, type ScenarioDefinition } from './scenario';
 import type { RoutedPlayerIntent } from '../control/types';
 
 function runBallScenario(
-  definition: ScenarioDefinition<GameState, RoutedPlayerIntent>,
-  ticks: number
+  definition: ScenarioDefinition<GameState, RoutedPlayerIntent>
 ) {
   const initialState = definition.createInitialState();
   if (initialState.ball.mode !== 'loose') {
@@ -39,7 +38,7 @@ function runBallScenario(
     definition,
     step: stepGame,
     getArena: (tuning) => createArenaDefinition(tuning),
-    ticks,
+    ticks: definition.automatedRunTicks,
     onStep: (state) => {
       if (state.ball.mode === 'loose') {
         maximumHeight = Math.max(maximumHeight, state.ball.height);
@@ -68,7 +67,7 @@ describe('loose-ball scenarios', () => {
   });
 
   it('runs a low side-wall rebound scenario', () => {
-    const result = runBallScenario(ballLowWallReboundScenario, 1);
+    const result = runBallScenario(ballLowWallReboundScenario);
     const data = ballStateRecord(result)?.data as { contacts: Array<{ boundary: string }> };
 
     expect(data.contacts.map((contact) => contact.boundary)).toContain('right');
@@ -79,7 +78,7 @@ describe('loose-ball scenarios', () => {
   });
 
   it('runs the maximum-speed sweep scenario without escaping a solid wall', () => {
-    const result = runBallScenario(ballMaximumSpeedSweepScenario, 1);
+    const result = runBallScenario(ballMaximumSpeedSweepScenario);
     const arena = createArenaDefinition(result.run.tuning);
 
     expect(result.run.state.ball.mode).toBe('loose');
@@ -92,7 +91,7 @@ describe('loose-ball scenarios', () => {
   });
 
   it('passes the centred low aperture scenario through the end boundary', () => {
-    const result = runBallScenario(ballValidLowApertureScenario, 1);
+    const result = runBallScenario(ballValidLowApertureScenario);
     const data = ballStateRecord(result)?.data as {
       contacts: unknown[];
       goalAperture: { crossed: boolean };
@@ -110,7 +109,7 @@ describe('loose-ball scenarios', () => {
   });
 
   it('rebound scenarios report invalid aperture decisions', () => {
-    const nearPost = runBallScenario(ballDiagonalNearPostScenario, 1);
+    const nearPost = runBallScenario(ballDiagonalNearPostScenario);
     const nearPostData = ballStateRecord(nearPost)?.data as {
       goalAperture: { horizontalFit: boolean; crossed: boolean };
       contacts: Array<{ boundary: string }>;
@@ -119,7 +118,7 @@ describe('loose-ball scenarios', () => {
     expect(nearPostData.goalAperture.crossed).toBe(false);
     expect(nearPostData.contacts.map((contact) => contact.boundary)).toContain('top');
 
-    const nearCrossbar = runBallScenario(ballRisingNearCrossbarScenario, 1);
+    const nearCrossbar = runBallScenario(ballRisingNearCrossbarScenario);
     const nearCrossbarData = ballStateRecord(nearCrossbar)?.data as {
       goalAperture: { verticalFit: boolean; crossed: boolean };
       contacts: Array<{ boundary: string }>;
@@ -130,7 +129,7 @@ describe('loose-ball scenarios', () => {
   });
 
   it('passes the valid slow aperture scenario without a false rebound', () => {
-    const result = runBallScenario(ballValidSlowApertureScenario, 2);
+    const result = runBallScenario(ballValidSlowApertureScenario);
     const data = ballStateRecord(result)?.data as {
       contacts: unknown[];
       goalAperture: { crossed: boolean };
@@ -145,8 +144,8 @@ describe('loose-ball scenarios', () => {
   });
 
   it('shows a lob arc and keeps the scenario deterministic', () => {
-    const first = runBallScenario(ballLobFlightScenario, 100);
-    const second = runBallScenario(ballLobFlightScenario, 100);
+    const first = runBallScenario(ballLobFlightScenario);
+    const second = runBallScenario(ballLobFlightScenario);
 
     expect(first.maximumHeight).toBeGreaterThan(5);
     expect(first.run.state.ball.mode).toBe('loose');
@@ -157,7 +156,7 @@ describe('loose-ball scenarios', () => {
   });
 
   it('rebound above the crossbar in the over-crossbar scenario', () => {
-    const result = runBallScenario(ballOverCrossbarScenario, 1);
+    const result = runBallScenario(ballOverCrossbarScenario);
     const data = ballStateRecord(result)?.data as {
       goalAperture: { verticalFit: boolean; crossed: boolean };
       contacts: Array<{ boundary: string }>;

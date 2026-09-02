@@ -11,7 +11,7 @@ function runArenaConstraintScenario() {
     definition: arenaConstraintScenario,
     step: stepArenaConstraintScenario,
     getArena: (tuning) => createArenaDefinition(tuning),
-    ticks: 3
+    ticks: arenaConstraintScenario.automatedRunTicks
   });
 }
 

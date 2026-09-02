@@ -32,14 +32,13 @@ import {
 import type { GameState } from '../sim/gameState';
 
 function runMovementScenario(
-  definition: ScenarioDefinition<GameState, RoutedPlayerIntent>,
-  ticks: number
+  definition: ScenarioDefinition<GameState, RoutedPlayerIntent>
 ) {
   return runScenario({
     definition,
     step: stepGame,
     getArena: (tuning) => createArenaDefinition(tuning),
-    ticks
+    ticks: definition.automatedRunTicks
   });
 }
 
@@ -74,7 +73,7 @@ describe('field-player movement scenarios', () => {
       definition: movementAccelerationScenario,
       step: stepGame,
       getArena: (tuning) => createArenaDefinition(tuning),
-      ticks: 180,
+      ticks: movementAccelerationScenario.automatedRunTicks,
       onStep: (state) => {
         const currentPlayer = player(state);
         speeds.push(Math.hypot(currentPlayer.velocity.x, currentPlayer.velocity.y));
@@ -95,7 +94,7 @@ describe('field-player movement scenarios', () => {
       step: stepGame,
       getArena: (tuning) => createArenaDefinition(tuning),
       tuningOverrides: [{ key: MOVEMENT_REVERSAL_RESPONSE_KEY, value: 18 }],
-      ticks: 120,
+      ticks: movementReversalScenario.automatedRunTicks,
       onStep: (state, tick) => {
         speedsByTick.set(tick, player(state).velocity.y);
       }
@@ -119,7 +118,7 @@ describe('field-player movement scenarios', () => {
       definition: movementMaximumSpeedTurnScenario,
       step: stepGame,
       getArena: (tuning) => createArenaDefinition(tuning),
-      ticks: 120,
+      ticks: movementMaximumSpeedTurnScenario.automatedRunTicks,
       onStep: (state, tick) => {
         const currentPlayer = player(state);
         observations.push({
@@ -142,7 +141,7 @@ describe('field-player movement scenarios', () => {
   });
 
   it('keeps the player circle inside the arena and exposes boundary diagnostics', () => {
-    const run = runMovementScenario(movementArenaBoundaryScenario, 1);
+    const run = runMovementScenario(movementArenaBoundaryScenario);
     const currentPlayer = player(run.state);
 
     expect(currentPlayer.position).toEqual({ x: 8.4, y: 0 });
@@ -158,6 +157,7 @@ describe('field-player movement scenarios', () => {
   });
 
   it('produces identical results across render schedules and replay', () => {
+    const scenarioTicks = movementReversalScenario.automatedRunTicks;
     const runAtSchedule = (schedule: readonly number[]): GameState => {
       const run = createScenarioRun({
         definition: movementReversalScenario,
@@ -172,9 +172,15 @@ describe('field-player movement scenarios', () => {
       return run.state;
     };
 
-    const atThirtyHz = runAtSchedule(Array.from({ length: 60 }, () => 1 / 30));
-    const atSixtyHz = runAtSchedule(Array.from({ length: 120 }, () => 1 / 60));
-    const atOneTwentyHz = runAtSchedule(Array.from({ length: 240 }, () => 1 / 120));
+    const atThirtyHz = runAtSchedule(
+      Array.from({ length: scenarioTicks / 2 }, () => 1 / 30)
+    );
+    const atSixtyHz = runAtSchedule(
+      Array.from({ length: scenarioTicks }, () => 1 / 60)
+    );
+    const atOneTwentyHz = runAtSchedule(
+      Array.from({ length: scenarioTicks * 2 }, () => 1 / 120)
+    );
 
     expect(atThirtyHz).toEqual(atSixtyHz);
     expect(atOneTwentyHz).toEqual(atSixtyHz);
@@ -196,7 +202,7 @@ describe('field-player movement scenarios', () => {
     });
 
     run.runtime.pause();
-    for (let tick = 0; tick < 120; tick += 1) {
+    for (let tick = 0; tick < scenarioTicks; tick += 1) {
       run.runtime.stepOnce();
     }
 
@@ -213,7 +219,7 @@ describe('field-player movement scenarios', () => {
   });
 
   it('exposes movement tuning through the scenario registry', () => {
-    const run = runMovementScenario(movementAccelerationScenario, 1);
+    const run = runMovementScenario(movementAccelerationScenario);
 
     expect(run.tuning.get(MOVEMENT_MAX_SPEED_KEY)).toMatchObject({
       domain: 'movement',

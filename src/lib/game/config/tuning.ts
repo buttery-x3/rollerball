@@ -627,11 +627,15 @@ export function createTuningRegistry(
     },
 
     resetOverride(key: string): void {
-      getDefinition(key);
-      if (!overrides.delete(key)) {
+      const definition = getDefinition(key);
+      if (!overrides.has(key)) {
         return;
       }
 
+      assertValidThrowTuningRelationships((candidateKey) =>
+        candidateKey === key ? definition.defaultValue : getEffectiveValue(candidateKey)
+      );
+      overrides.delete(key);
       notify();
     },
 

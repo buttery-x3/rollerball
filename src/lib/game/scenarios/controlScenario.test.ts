@@ -17,7 +17,7 @@ function runControlScenario() {
   return runScenario({
     definition: controlInputConsumptionScenario,
     step: createControlInputScenarioStep(),
-    ticks: 8
+    ticks: controlInputConsumptionScenario.automatedRunTicks
   });
 }
 
@@ -59,7 +59,11 @@ describe('control input scenario', () => {
     });
 
     run.runtime.pause();
-    for (let tick = 0; tick < 8; tick += 1) {
+    for (
+      let tick = 0;
+      tick < controlInputConsumptionScenario.automatedRunTicks;
+      tick += 1
+    ) {
       run.runtime.stepOnce();
     }
 
