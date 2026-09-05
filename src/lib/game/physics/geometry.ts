@@ -24,6 +24,14 @@ export interface SweptCircleBoundaryHit {
   readonly normal: Vec2;
 }
 
+export interface SweptCircleCircleInterval {
+  /** Normalized entry time within the supplied displacement. */
+  readonly enterTime: number;
+  /** Normalized exit time within the supplied displacement. */
+  readonly exitTime: number;
+  readonly enterPosition: Vec2;
+}
+
 export type CircleBoundaryContact = 'left' | 'right' | 'bottom' | 'top';
 
 function assertFinite(value: number, description: string): void {
@@ -210,4 +218,69 @@ export function sweepCircleAgainstBounds(
       position: { ...position },
       normal: candidate.normal
     }));
+}
+
+/**
+ * Finds the interval during which a moving circle overlaps a static circle.
+ * This helper reports geometry only; callers decide the gameplay consequence.
+ */
+export function sweepCircleAgainstCircle(
+  start: Vec2,
+  displacement: Vec2,
+  movingRadius: number,
+  targetCenter: Vec2,
+  targetRadius: number
+): SweptCircleCircleInterval | undefined {
+  assertCircle(start, movingRadius);
+  assertCircle(targetCenter, targetRadius);
+  assertDisplacement(displacement);
+
+  const relativeX = start.x - targetCenter.x;
+  const relativeY = start.y - targetCenter.y;
+  const combinedRadius = movingRadius + targetRadius;
+  const c =
+    relativeX * relativeX +
+    relativeY * relativeY -
+    combinedRadius * combinedRadius;
+  const a =
+    displacement.x * displacement.x +
+    displacement.y * displacement.y;
+
+  if (a <= 1e-18) {
+    return c <= 1e-9
+      ? {
+          enterTime: 0,
+          exitTime: 1,
+          enterPosition: { ...start }
+        }
+      : undefined;
+  }
+
+  const b = 2 * (relativeX * displacement.x + relativeY * displacement.y);
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < -1e-9) {
+    return undefined;
+  }
+
+  const root = Math.sqrt(Math.max(0, discriminant));
+  const first = (-b - root) / (2 * a);
+  const second = (-b + root) / (2 * a);
+  if (second < -1e-9 || first > 1 + 1e-9) {
+    return undefined;
+  }
+
+  const enterTime = clamp(c <= 1e-9 ? 0 : first, 0, 1);
+  const exitTime = clamp(second, 0, 1);
+  if (exitTime + 1e-9 < enterTime) {
+    return undefined;
+  }
+
+  return {
+    enterTime,
+    exitTime,
+    enterPosition: {
+      x: start.x + displacement.x * enterTime,
+      y: start.y + displacement.y * enterTime
+    }
+  };
 }

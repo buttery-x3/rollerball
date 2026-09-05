@@ -13,6 +13,7 @@
     BALL_DIAGNOSTIC_LAYER,
     CONTROL_DIAGNOSTIC_LAYER,
     PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+    RECEIVE_DIAGNOSTIC_LAYER,
     THROW_DIAGNOSTIC_LAYER
   } from '$lib/game/sim/diagnostics';
   import type { RoutedPlayerIntent } from '$lib/game/control/types';
@@ -152,6 +153,16 @@
       .find((record) => record.layer === THROW_DIAGNOSTIC_LAYER);
   }
 
+  function latestReceiveRecord(frame: DiagnosticFrame): DiagnosticRecord | undefined {
+    return [...frame.records]
+      .reverse()
+      .find(
+        (record) =>
+          record.layer === RECEIVE_DIAGNOSTIC_LAYER &&
+          record.entityId === 'receive-state'
+      );
+  }
+
   function formatDiagnosticData(record: DiagnosticRecord | undefined): string {
     return record?.data ? JSON.stringify(record.data, null, 2) : 'No diagnostic data sampled yet.';
   }
@@ -160,6 +171,7 @@
   $: playerRecord = latestPlayerRecord(diagnosticFrame);
   $: ballRecord = latestBallRecord(diagnosticFrame);
   $: throwRecord = latestThrowRecord(diagnosticFrame);
+  $: receiveRecord = latestReceiveRecord(diagnosticFrame);
 </script>
 
 <aside class="workbench" aria-label="Development workbench">
@@ -295,6 +307,14 @@
       <span class="tick">Tick {diagnosticFrame.tick}</span>
     </div>
     <pre class="diagnostic-output">{formatDiagnosticData(throwRecord)}</pre>
+  </section>
+
+  <section class="workbench-section" aria-labelledby="receive-heading">
+    <div class="section-heading">
+      <h2 id="receive-heading">Receiving and one-touch</h2>
+      <span class="tick">Tick {diagnosticFrame.tick}</span>
+    </div>
+    <pre class="diagnostic-output">{formatDiagnosticData(receiveRecord)}</pre>
   </section>
 </aside>
 

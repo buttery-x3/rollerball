@@ -28,7 +28,9 @@ import {
   CONTROLS_THROW_MAX_STRENGTH_KEY,
   CONTROLS_THROW_CHARGE_TO_MAX_SECONDS_KEY,
   PLAYER_RADIUS_KEY,
-  RUNTIME_MAX_CATCH_UP_STEPS_KEY
+  RUNTIME_MAX_CATCH_UP_STEPS_KEY,
+  RECEIVE_CATCH_HEIGHT_KEY,
+  RECEIVE_ONE_TOUCH_BUFFER_TICKS_KEY
 } from './tuning';
 
 const THROW_TUNING_RELATIONSHIPS = [
@@ -214,6 +216,25 @@ describe('central tuning registry', () => {
       highMinVerticalSpeed: 12,
       highMaxVerticalSpeed: 22,
       lockoutTicks: 6
+    });
+  });
+
+  it('registers receiving height and one-touch buffering centrally', () => {
+    const registry = createTuningRegistry();
+
+    expect(registry.get(RECEIVE_CATCH_HEIGHT_KEY)).toMatchObject({
+      domain: 'receive',
+      defaultValue: 1.5,
+      min: 0,
+      max: 4,
+      step: 0.05
+    });
+    expect(registry.get(RECEIVE_ONE_TOUCH_BUFFER_TICKS_KEY)).toMatchObject({
+      domain: 'receive',
+      defaultValue: 6,
+      min: 1,
+      max: 30,
+      step: 1
     });
   });
 

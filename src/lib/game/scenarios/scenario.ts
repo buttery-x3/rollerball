@@ -8,6 +8,7 @@ import {
 import type { DiagnosticLayerDefinition } from '../sim/diagnostics';
 import type { GameState } from '../sim/gameState';
 import type { ArenaDefinition } from '../physics/arena';
+import type { ControlActionContext } from '../control/types';
 import {
   createTuningRegistry,
   type NumericTuningDefinition,
@@ -45,6 +46,8 @@ export interface ScenarioDefinition<
   readonly scriptedInputs?: readonly ScenarioInputFrame<TInput>[];
   readonly tuningOverrides?: readonly ScenarioTuningOverride[];
   readonly diagnosticLayerOverrides?: readonly ScenarioDiagnosticLayerOverride[];
+  /** Development-workbench-only action context for unscripted interactive input. */
+  readonly interactiveActionContext?: ControlActionContext;
   readonly assertions?: readonly ScenarioAssertion<TState>[];
 }
 

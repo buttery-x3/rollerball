@@ -4,6 +4,7 @@ import {
   BALL_DIAGNOSTIC_LAYER,
   ARENA_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+  RECEIVE_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER,
   THROW_DIAGNOSTIC_LAYER,
   type SimulationStepContext,
@@ -26,6 +27,12 @@ import {
 } from './playerMovement';
 import { createThrowDiagnosticRecords } from './throwDiagnostics';
 import { advanceThrowState } from './throwing';
+import {
+  advanceOneTouchState,
+  resolveLooseBallPlayerInteraction,
+  type ReceiveInteractionObservation
+} from './receiving';
+import { createReceivingDiagnosticRecords } from './receivingDiagnostics';
 
 export function stepGame(
   state: GameState,
@@ -50,6 +57,7 @@ export function stepGame(
     context.tuning,
     input
   );
+  advanceOneTouchState(state, fixedStepSeconds, context.tuning, input);
   const observations: PlayerMovementObservation[] = [];
   if (state.players.length > 0) {
     for (const player of state.players) {
@@ -72,6 +80,7 @@ export function stepGame(
   }
 
   let ballStep: LooseBallStepResult | undefined;
+  let receiveInteraction: ReceiveInteractionObservation | undefined;
   if (state.ball.mode === 'loose') {
     ballStep = advanceLooseBall(
       state.ball,
@@ -83,6 +92,11 @@ export function stepGame(
     state.ball.velocity = ballStep.nextState.velocity;
     state.ball.height = ballStep.nextState.height;
     state.ball.verticalVelocity = ballStep.nextState.verticalVelocity;
+    receiveInteraction = resolveLooseBallPlayerInteraction(
+      state,
+      ballStep,
+      context.tuning
+    );
   }
 
   state.tick += 1;
@@ -126,6 +140,17 @@ export function stepGame(
       state.tick,
       throwPlayer,
       throwStep
+    )) {
+      context.diagnostics.publish(record);
+    }
+  }
+
+  if (context.diagnostics?.isLayerEnabled(RECEIVE_DIAGNOSTIC_LAYER)) {
+    for (const record of createReceivingDiagnosticRecords(
+      state.tick,
+      state,
+      context.tuning,
+      receiveInteraction
     )) {
       context.diagnostics.publish(record);
     }

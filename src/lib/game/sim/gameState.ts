@@ -17,12 +17,24 @@ export interface ThrowChargeState {
   progress: number;
 }
 
+export interface OneTouchBufferState {
+  direction: Vec2;
+  magnitude: number;
+  ticksRemaining: number;
+}
+
+export interface OneTouchState {
+  charge: ThrowChargeState;
+  buffer: OneTouchBufferState | undefined;
+}
+
 export interface PlayerState {
   readonly definition: PlayerDefinition;
   position: Vec2;
   velocity: Vec2;
   facing: Vec2;
   throwCharge: ThrowChargeState;
+  oneTouch: OneTouchState;
 }
 
 export interface BallReleaseMetadata {
@@ -103,6 +115,13 @@ export function cloneThrowChargeState(state: ThrowChargeState): ThrowChargeState
   };
 }
 
+export function createEmptyOneTouchState(): OneTouchState {
+  return {
+    charge: createEmptyThrowChargeState(),
+    buffer: undefined
+  };
+}
+
 export function createFieldPlayerState(
   options: CreateFieldPlayerOptions = {}
 ): PlayerState {
@@ -118,7 +137,8 @@ export function createFieldPlayerState(
     throwCharge: {
       ...createEmptyThrowChargeState(),
       ...options.throwCharge
-    }
+    },
+    oneTouch: createEmptyOneTouchState()
   };
 }
 
