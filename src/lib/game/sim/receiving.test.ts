@@ -31,6 +31,7 @@ import {
   receiveLowOneTouchScenario,
   receiveRightStickOneTouchScenario
 } from '../scenarios/receivingScenario';
+import { movementFreePlayScenario } from '../scenarios/playerMovementScenario';
 import { runScenario } from '../scenarios/scenario';
 import {
   RECEIVE_DIAGNOSTIC_LAYER
@@ -234,7 +235,7 @@ describe('loose-ball pickup and receiving', () => {
     const router = createControlRouter({ tuning, initialPlayerId: 'player-1' });
     const arena = createArenaDefinition(tuning);
 
-    const step = (low: boolean, actionContext: 'possessed' | 'neutral') => {
+    const step = (low: boolean, actionContext: 'possessed' | 'receiving') => {
       const routed = router.consumeTick(snapshot(low), actionContext).routedIntent;
       stepGame(state, DEFAULT_FIXED_STEP_SECONDS, { tuning, arena }, routed);
       expect(router.assignment?.playerId).toBe('player-1');
@@ -243,7 +244,7 @@ describe('loose-ball pickup and receiving', () => {
     step(true, 'possessed');
     step(false, 'possessed');
     for (let tick = 3; tick <= 8; tick += 1) {
-      step(false, 'neutral');
+      step(false, 'receiving');
     }
     expect(state.ball).toEqual({ mode: 'possessed', holderId: 'player-1' });
 
@@ -251,6 +252,60 @@ describe('loose-ball pickup and receiving', () => {
     step(false, 'possessed');
     expect(state.ball.mode).toBe('loose');
     expect(router.assignment?.playerId).toBe('player-1');
+  });
+
+  it('arms and resolves a one-touch through the movement free-play control path', () => {
+    const tuning = createTuningRegistry();
+    const state = movementFreePlayScenario.createInitialState();
+    const router = createControlRouter({ tuning, initialPlayerId: 'player-1' });
+    const arena = createArenaDefinition(tuning);
+    const looseActionContexts: string[] = [];
+
+    const step = (low: boolean) => {
+      const actionContext =
+        state.ball.mode === 'possessed' &&
+        state.ball.holderId === router.assignment?.playerId
+          ? 'possessed'
+          : (movementFreePlayScenario.interactiveActionContext ?? 'neutral');
+
+      if (state.ball.mode === 'loose') {
+        looseActionContexts.push(actionContext);
+      }
+
+      const routed = router.consumeTick(snapshot(low), actionContext).routedIntent;
+      stepGame(state, DEFAULT_FIXED_STEP_SECONDS, { tuning, arena }, routed);
+      expect(router.assignment?.playerId).toBe('player-1');
+    };
+
+    step(false);
+    expect(state.ball).toEqual({ mode: 'possessed', holderId: 'player-1' });
+
+    step(true);
+    step(false);
+    expect(state.ball.mode).toBe('loose');
+    if (state.ball.mode !== 'loose') {
+      throw new Error('Free-play throw did not release the ball.');
+    }
+    expect(state.ball.release?.releasedById).toBe('player-1');
+    const ordinaryThrowSpeed = Math.hypot(state.ball.velocity.x, state.ball.velocity.y);
+
+    step(true);
+    expect(state.players[0].oneTouch.charge?.family).toBe('low');
+
+    for (let tick = 0; tick < 5; tick += 1) {
+      step(true);
+    }
+
+    expect(looseActionContexts).toEqual(Array(7).fill('receiving'));
+    expect(state.ball.mode).toBe('loose');
+    if (state.ball.mode !== 'loose') {
+      throw new Error('Free-play one-touch did not redirect the ball.');
+    }
+    expect(state.ball.release?.releasedById).toBe('player-1');
+    expect(state.ball.release?.reacquisitionLockoutTicksRemaining).toBe(6);
+    expect(state.ball.velocity.y).toBeGreaterThan(ordinaryThrowSpeed);
+    expect(state.players[0].oneTouch.charge.family).toBeUndefined();
+    expect(state.players[0].oneTouch.buffer).toBeUndefined();
   });
 });
 

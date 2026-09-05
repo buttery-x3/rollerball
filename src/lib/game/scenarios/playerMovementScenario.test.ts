@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createArenaDefinition } from '../physics/arena';
-import { PLAYER_MOVEMENT_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
+import {
+  PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+  RECEIVE_DIAGNOSTIC_LAYER
+} from '../sim/diagnostics';
 import { stepGame } from '../sim/stepGame';
 import {
   createReplayRecorder,
@@ -62,6 +65,15 @@ describe('field-player movement scenarios', () => {
       role: 'field'
     });
     expect(movementFreePlayScenario.scriptedInputs).toBeUndefined();
+    expect(movementFreePlayScenario.interactiveActionContext).toBe('receiving');
+    expect(movementFreePlayScenario.diagnosticLayerOverrides).toContainEqual({
+      key: PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+      enabled: true
+    });
+    expect(movementFreePlayScenario.diagnosticLayerOverrides).toContainEqual({
+      key: RECEIVE_DIAGNOSTIC_LAYER,
+      enabled: true
+    });
     expect(DEFAULT_SCENARIOS.map((scenario) => scenario.id)).toContain(
       MOVEMENT_FREE_PLAY_SCENARIO_ID
     );

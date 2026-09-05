@@ -5,7 +5,10 @@ import {
   type PlayerState
 } from '../sim/gameState';
 import type { Vec2 } from '../physics/geometry';
-import { PLAYER_MOVEMENT_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
+import {
+  PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+  RECEIVE_DIAGNOSTIC_LAYER
+} from '../sim/diagnostics';
 import type { ScenarioDefinition, ScenarioInputFrame } from './scenario';
 
 const PLAYER_ID = 'player-1';
@@ -125,8 +128,10 @@ export const movementFreePlayScenario: ScenarioDefinition<
   name: 'Field movement · free play',
   automatedRunTicks: 1,
   createInitialState: createPlayableGameState,
+  interactiveActionContext: 'receiving',
   diagnosticLayerOverrides: [
-    { key: PLAYER_MOVEMENT_DIAGNOSTIC_LAYER, enabled: true }
+    { key: PLAYER_MOVEMENT_DIAGNOSTIC_LAYER, enabled: true },
+    { key: RECEIVE_DIAGNOSTIC_LAYER, enabled: true }
   ],
   assertions: [
     {
