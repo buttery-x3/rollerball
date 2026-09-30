@@ -32,6 +32,7 @@ import {
 import {
   advanceThrowCharge,
   readThrowChargeTuning,
+  releaseReacquisitionTicks,
   startThrowCharge,
   throwStrengthForRightStick
 } from './throwing';
@@ -404,7 +405,8 @@ function oneTouchAction(
 export function resolveLooseBallPlayerInteraction(
   state: GameState,
   ballStep: LooseBallStepResult | undefined,
-  tuning: TuningReader
+  tuning: TuningReader,
+  fixedStepSeconds: number
 ): ReceiveInteractionObservation | undefined {
   if (state.ball.mode !== 'loose' || !ballStep) {
     return undefined;
@@ -464,6 +466,7 @@ export function resolveLooseBallPlayerInteraction(
     action.strength,
     createPlayerTuning(player.definition.attributes, tuning)
   );
+  const lockoutTicks = releaseReacquisitionTicks(player, contact.position, launch.velocity, tuning, fixedStepSeconds);
   state.ball = createLooseBallState({
     position: contact.position,
     velocity: launch.velocity,
@@ -471,7 +474,7 @@ export function resolveLooseBallPlayerInteraction(
     verticalVelocity: launch.verticalVelocity,
     release: {
       releasedById: player.definition.id,
-      reacquisitionLockoutTicksRemaining: receiveTuning.releaseLockoutTicks
+      reacquisitionLockoutTicksRemaining: lockoutTicks
     }
   });
   clearOneTouchState(player);
@@ -485,7 +488,7 @@ export function resolveLooseBallPlayerInteraction(
     strength: launch.strength,
     velocity: cloneVector(launch.velocity),
     verticalVelocity: launch.verticalVelocity,
-    reacquisitionLockoutTicks: receiveTuning.releaseLockoutTicks
+    reacquisitionLockoutTicks: lockoutTicks
   };
   }
   return missed;

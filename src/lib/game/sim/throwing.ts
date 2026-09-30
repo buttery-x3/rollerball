@@ -13,7 +13,7 @@ import {
   createBallThrowLaunch,
   type BallThrowFamily
 } from '../physics/ballTrajectory';
-import type { Vec2 } from '../physics/geometry';
+import { sweepCircleAgainstCircle, type Vec2 } from '../physics/geometry';
 import type {
   PlayerIntent,
   RightStickThrowPulse,
@@ -209,6 +209,22 @@ function decrementLockout(ball: Extract<BallState, { mode: 'loose' }>): void {
   };
 }
 
+/** A release must leave the releasing player's envelope before reacquisition. */
+export function releaseReacquisitionTicks(player: PlayerState, origin: Vec2, velocity: Vec2,
+  tuning: TuningReader, fixedStepSeconds: number): number {
+  const minimum = tuning.getNumber(BALL_POST_RELEASE_LOCKOUT_TICKS_KEY);
+  const speed = Math.hypot(velocity.x, velocity.y);
+  if (speed <= 1e-9) return minimum;
+  const radius = player.definition.role === 'goalkeeper'
+    ? getGoalkeeperSaveEnvelope(player, tuning).radius : tuning.getNumber(PLAYER_RADIUS_KEY);
+  const ballRadius = tuning.getNumber(BALL_RADIUS_KEY);
+  const travel = radius + ballRadius + Math.hypot(origin.x - player.position.x, origin.y - player.position.y);
+  const interval = sweepCircleAgainstCircle(origin, { x: velocity.x / speed * travel,
+    y: velocity.y / speed * travel }, ballRadius, player.position, radius);
+  const escapeDistance = interval ? interval.exitTime * travel : 0;
+  return Math.max(minimum, Math.ceil(escapeDistance / (speed * fixedStepSeconds)) + 1);
+}
+
 function releaseBall(
   state: GameState,
   holder: PlayerState,
@@ -227,14 +243,7 @@ function releaseBall(
     createPlayerTuning(holder.definition.attributes, physicsTuning)
   );
   const origin = cloneVector(holder.position);
-  const envelope = (holder.definition.role === 'goalkeeper'
-    ? getGoalkeeperSaveEnvelope(holder, physicsTuning).radius
-    : physicsTuning.getNumber(PLAYER_RADIUS_KEY)) + physicsTuning.getNumber(BALL_RADIUS_KEY);
-  const launchSpeed = Math.hypot(launch.velocity.x, launch.velocity.y);
-  // The configured duration is a minimum. A soft release must have enough
-  // fixed ticks to leave its own envelope, including the larger keeper reach.
-  const lockoutTicks = Math.max(tuning.lockoutTicks, launchSpeed > 1e-9
-    ? Math.ceil(envelope / (launchSpeed * fixedStepSeconds)) + 1 : tuning.lockoutTicks);
+  const lockoutTicks = releaseReacquisitionTicks(holder, origin, launch.velocity, physicsTuning, fixedStepSeconds);
 
   state.ball = createLooseBallState({
     position: origin,

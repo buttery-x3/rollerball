@@ -123,7 +123,8 @@ export function stepGame(
     receiveInteraction = resolveLooseBallPlayerInteraction(
       state,
       ballStep,
-      context.tuning
+      context.tuning,
+      fixedStepSeconds
     );
   }
 

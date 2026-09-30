@@ -96,7 +96,7 @@ export function createDiagnosticStore(
   // sampled explanation between updates without recalculating gameplay queries.
   const spatialDecisions = new Map<string, readonly DiagnosticRecord[]>();
   const isDecision = (record: DiagnosticRecord) =>
-    record.source === 'spatialCandidates' || record.source === 'teamRoleSelection';
+    record.source === 'spatialCandidates' || record.source === 'teamRoleSelection' || record.source === 'actionCandidates';
   const decisionKey = (record: DiagnosticRecord) => `${record.source}:${record.data?.playerId}`;
 
   const notify = (): void => {
@@ -174,6 +174,11 @@ export function createDiagnosticStore(
       const nonPlaying = (match?.data?.phase && match.data.phase !== 'playing') ||
         pendingRecords.some(record => record.layer === 'ai' && record.data?.context === 'non-playing');
       if (nonPlaying) spatialDecisions.clear();
+      const activeActions = new Set(pendingRecords.filter(record => record.source === 'actionController')
+        .map(record => decisionKey({ ...record, source: 'actionCandidates' })));
+      for (const key of spatialDecisions.keys()) {
+        if (key.startsWith('actionCandidates:') && !activeActions.has(key)) spatialDecisions.delete(key);
+      }
       for (const record of pendingRecords.filter(record => record.entityId?.endsWith('-current-role'))) {
         const key = `teamRoleSelection:${record.data?.playerId}`;
         if (spatialDecisions.get(key)?.[0].data?.role !== record.data?.role) spatialDecisions.delete(key);

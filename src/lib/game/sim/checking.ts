@@ -3,6 +3,7 @@ import { playerStrengthRatio, playerRetentionThreshold } from '../config/playerA
 import { BALL_POST_RELEASE_LOCKOUT_TICKS_KEY } from '../config/tuning';
 import { routedInputs, type SimulationInput } from '../control/types';
 import type { PlayerContact } from '../physics/playerContact';
+import type { Vec2 } from '../physics/geometry';
 import { createEmptyOneTouchState, createEmptyThrowChargeState, createLooseBallState, type GameState, type PlayerState } from './gameState';
 import type { DiagnosticSink } from './diagnostics';
 
@@ -16,6 +17,20 @@ export interface CheckImpact {
   readonly control: number;
   readonly retentionThreshold: number;
   readonly outcome: 'weak' | 'knockback' | 'stumble' | 'turnover' | 'immune';
+}
+
+/** Shared authored feasibility calculation for resolution and read-only AI queries. */
+export function evaluateCheckImpact(
+  checker: Pick<PlayerState, 'definition' | 'facing'>,
+  target: Pick<PlayerState, 'definition'>,
+  closingSpeed: number,
+  normal: Vec2,
+  tuning: TuningReader
+): Pick<CheckImpact, 'alignment' | 'strengthFactor' | 'impactScore' | 'retentionThreshold'> {
+  const alignment = Math.max(0, checker.facing.x * normal.x + checker.facing.y * normal.y);
+  const strengthFactor = playerStrengthRatio(checker.definition.attributes, target.definition.attributes, tuning);
+  return { alignment, strengthFactor, impactScore: closingSpeed * alignment * strengthFactor,
+    retentionThreshold: playerRetentionThreshold(target.definition.attributes, tuning) };
 }
 
 export function advanceCheckState(state: GameState, tuning: TuningReader, input?: SimulationInput): void {
@@ -62,10 +77,8 @@ export function resolveActiveChecks(state: GameState, contacts: readonly PlayerC
       checker.contact.hitPlayerIds.push(target.definition.id);
       const direction = reverse ? -1 : 1;
       const normal = { x: geometry.normal.x * direction, y: geometry.normal.y * direction };
-      const alignment = Math.max(0, checker.facing.x * normal.x + checker.facing.y * normal.y);
-      const strengthFactor = playerStrengthRatio(checker.definition.attributes, target.definition.attributes, tuning);
-      const impactScore = geometry.closingSpeed * alignment * strengthFactor;
-      const retentionThreshold = playerRetentionThreshold(target.definition.attributes, tuning);
+      const { alignment, strengthFactor, impactScore, retentionThreshold } =
+        evaluateCheckImpact(checker, target, geometry.closingSpeed, normal, tuning);
       let outcome: CheckImpact['outcome'] = 'weak';
       if (target.contact.immunityTicksRemaining > 0) {
         outcome = 'immune';

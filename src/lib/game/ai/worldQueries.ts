@@ -8,10 +8,10 @@ import {
   type LooseBallTrajectoryPrediction
 } from '../physics/ballTrajectory';
 import type { AxisAlignedBounds, Vec2 } from '../physics/geometry';
-import { estimateReachSeconds, predictBall, receiveOpportunities, type ReceiveOpportunity } from '../sim/ballQueries';
+import { estimateReachSeconds, keeperThreat, predictBall, receiveOpportunities, type ReachOpportunity, type ReceiveOpportunity } from '../sim/ballQueries';
 import type { GameState, PlayerState } from '../sim/gameState';
 import { getGoalkeeperSaveEnvelope, getPlayerMovementBounds } from '../sim/goalkeeping';
-import { evaluateReceiveDifficulty } from '../sim/receiveDifficulty';
+import { evaluateReceiveDifficulty, type ReceiveDifficulty } from '../sim/receiveDifficulty';
 import { findPlayerBallContact } from '../sim/receiving';
 
 export type DeepReadonly<T> = T extends readonly (infer Item)[]
@@ -30,6 +30,7 @@ export interface LaneOptions {
   readonly family?: BallThrowFamily;
   readonly strength?: number;
   readonly sourcePlayerId?: string;
+  readonly originHeight?: number;
 }
 
 export interface LaneContact {
@@ -47,6 +48,17 @@ export interface LaneQuery {
   readonly contacts: readonly LaneContact[];
 }
 
+export interface ThrowOpportunity {
+  readonly launchVelocity: Vec2;
+  readonly lane: LaneQuery;
+  readonly receiver?: ReceiveOpportunity;
+  readonly receiverContact?: { readonly timeSeconds: number; readonly difficulty: ReceiveDifficulty };
+  readonly opposingReceiver?: ReceiveOpportunity;
+  readonly goalCrossing?: LooseBallTrajectoryPrediction['goalApertures'][number];
+  readonly keeperThreats: readonly { readonly playerId: string; readonly ordinaryTime?: number;
+    readonly extendedTime?: number; readonly recovering: boolean }[];
+}
+
 export interface WorldQueries {
   player(playerId: string): ReadonlyPlayerState | undefined;
   teamPlayers(teamId: string): readonly ReadonlyPlayerState[];
@@ -56,9 +68,13 @@ export interface WorldQueries {
   trajectory(): LooseBallTrajectoryPrediction | undefined;
   reachSeconds(playerId: string, target: Vec2, reachRadius?: number): number;
   receivers(): readonly ReceiveOpportunity[];
+  incomingContact(playerId: string): ReachOpportunity | undefined;
   density(position: Vec2, teamId?: string, excludeId?: string): DensityQuery;
   goalSide(position: Vec2, teamId: string): boolean;
   lane(from: Vec2, to: Vec2, teamId: string, options?: LaneOptions): LaneQuery;
+  throwOpportunity(playerId: string, target: Vec2, family: BallThrowFamily, strength: number,
+    receiverId?: string, origin?: Vec2, originHeight?: number): ThrowOpportunity;
+  receiveDifficultyAt(playerId: string, opportunity: ReachOpportunity, redirect?: Vec2): ReceiveDifficulty;
 }
 
 /** Detached adapter for existing read-only simulation queries with mutable signatures. */
@@ -110,7 +126,23 @@ export function createWorldQueries(state: ReadonlyGameState, arena: ArenaDefinit
     return prediction;
   };
 
-  return {
+  const throwForecasts = new Map<string, { launch: ReturnType<typeof createBallThrowLaunch>; path: LooseBallTrajectoryPrediction }>();
+  const forecastThrow = (from: Vec2, to: Vec2, sourceId: string | undefined,
+    family: BallThrowFamily, strength: number, height = 0) => {
+    const key = JSON.stringify([from, to, sourceId, family, strength, height]);
+    let forecast = throwForecasts.get(key);
+    if (!forecast) {
+      const source = sourceId ? player(sourceId) : undefined;
+      const launch = createBallThrowLaunch(family, { x: to.x - from.x, y: to.y - from.y }, strength,
+        source ? createPlayerTuning(source.definition.attributes, tuning) : tuning);
+      forecast = { launch, path: predictLooseBallTrajectory({ position: from, velocity: launch.velocity,
+        height, verticalVelocity: launch.verticalVelocity }, tuning, arena, { maxSteps: tuning.getNumber('ai.predictionSteps') }) };
+      throwForecasts.set(key, forecast);
+    }
+    return forecast;
+  };
+
+  const queries: WorldQueries = {
     player,
     teamPlayers: (teamId) => snapshot.players.filter((candidate) => candidate.definition.teamId === teamId),
     ballPosition,
@@ -126,6 +158,64 @@ export function createWorldQueries(state: ReadonlyGameState, arena: ArenaDefinit
       return current ? estimateReachSeconds(current, target, tuning, arena, reachRadius) : Infinity;
     },
     receivers: () => receiveOpportunities(snapshot, tuning, arena, trajectory()),
+    incomingContact(id) {
+      const current = player(id);
+      const path = trajectory();
+      if (!current || !path || snapshot.ball.mode !== 'loose' ||
+          (snapshot.ball.release?.releasedById === id && snapshot.ball.release.reacquisitionLockoutTicksRemaining > 0)) return undefined;
+      const goalTime = path.goalApertures.find((crossing) => crossing.crossed)?.timeSeconds;
+      for (const segment of path.segments) {
+        if (goalTime !== undefined && segment.startTimeSeconds > goalTime) break;
+        const contact = findPlayerBallContact(segment, current, { ballRadius: tuning.getNumber(BALL_RADIUS_KEY),
+          playerRadius: tuning.getNumber(PLAYER_RADIUS_KEY), catchHeight: tuning.getNumber('receive.catchHeight') });
+        if (contact && (goalTime === undefined || contact.timeSeconds <= goalTime)) return {
+          position: contact.position, height: contact.height, timeSeconds: contact.timeSeconds,
+          arrivalSeconds: 0, incomingVelocity: contact.incomingVelocity };
+      }
+      return undefined;
+    },
+    receiveDifficultyAt(id, opportunity, redirect) {
+      const current = player(id);
+      if (!current) throw new Error(`Unknown receiver '${id}'.`);
+      return evaluateReceiveDifficulty({ ...current, position: opportunity.position }, snapshot.players,
+        opportunity.incomingVelocity, opportunity.height, tuning, redirect);
+    },
+    throwOpportunity(id, target, family, strength, receiverId, origin, originHeight = 0) {
+      const source = player(id);
+      if (!source) throw new Error(`Unknown thrower '${id}'.`);
+      const from = origin ?? source.position;
+      const { launch, path } = forecastThrow(from, target, id, family, strength, originHeight);
+      const future: GameState = { tick: snapshot.tick, players: snapshot.players,
+        ball: { mode: 'loose', position: from, velocity: launch.velocity, height: originHeight,
+          verticalVelocity: launch.verticalVelocity, release: { releasedById: id, reacquisitionLockoutTicksRemaining: 1 } } };
+      const receivers = receiveOpportunities(future, tuning, arena, path);
+      const intended = receiverId ? player(receiverId) : undefined;
+      let receiverContact: ThrowOpportunity['receiverContact'];
+      if (intended) for (const segment of path.segments) {
+        const contact = findPlayerBallContact(segment, intended, { ballRadius: tuning.getNumber(BALL_RADIUS_KEY),
+          playerRadius: tuning.getNumber(PLAYER_RADIUS_KEY), catchHeight: tuning.getNumber('receive.catchHeight') });
+        if (contact) {
+          receiverContact = { timeSeconds: contact.timeSeconds,
+            difficulty: evaluateReceiveDifficulty(intended, snapshot.players, contact.incomingVelocity, contact.height, tuning) };
+          break;
+        }
+      }
+      return {
+        launchVelocity: { ...launch.velocity },
+        lane: queries.lane(from, target, source.definition.teamId, { family, strength, sourcePlayerId: id, originHeight }),
+        receiver: receivers.find((candidate) => candidate.playerId === receiverId),
+        receiverContact,
+        opposingReceiver: receivers.find((candidate) => candidate.teamId !== source.definition.teamId),
+        goalCrossing: path.goalApertures.find((crossing) => crossing.crossed && crossing.end === goal(source.definition.teamId).end),
+        keeperThreats: snapshot.players.filter((candidate) => candidate.definition.role === 'goalkeeper' &&
+          candidate.definition.teamId !== source.definition.teamId).map((keeper) => {
+            const threat = keeperThreat(future, keeper, tuning, arena, path);
+            return { playerId: keeper.definition.id, ordinaryTime: threat.ordinary?.timeSeconds,
+              extendedTime: keeper.goalkeeper!.recoveryTicksRemaining === 0 ? threat.extended?.timeSeconds : undefined,
+              recovering: keeper.goalkeeper!.recoveryTicksRemaining > 0 };
+          })
+      };
+    },
     density(position, teamId, excludeId) {
       const radius = tuning.getNumber('ai.densityRadius');
       const distances = snapshot.players.filter((candidate) => candidate.definition.id !== excludeId &&
@@ -145,11 +235,7 @@ export function createWorldQueries(state: ReadonlyGameState, arena: ArenaDefinit
       const family = options.family ?? 'low';
       const dx = to.x - from.x, dy = to.y - from.y, distance = Math.hypot(dx, dy);
       if (distance <= 1e-9) return { clear: true, reachesTarget: true, travelTimeSeconds: 0, family, contacts: [] };
-      const source = options.sourcePlayerId ? player(options.sourcePlayerId) : undefined;
-      const launch = createBallThrowLaunch(family, { x: dx, y: dy }, options.strength ?? 1,
-        source ? createPlayerTuning(source.definition.attributes, tuning) : tuning);
-      const path = predictLooseBallTrajectory({ position: from, velocity: launch.velocity, height: 0,
-        verticalVelocity: launch.verticalVelocity }, tuning, arena, { maxSteps: tuning.getNumber('ai.predictionSteps') });
+      const { path } = forecastThrow(from, to, options.sourcePlayerId, family, options.strength ?? 1, options.originHeight);
       const direction = { x: dx / distance, y: dy / distance };
       let travelTimeSeconds: number | undefined;
       for (const segment of path.segments) {
@@ -189,4 +275,5 @@ export function createWorldQueries(state: ReadonlyGameState, arena: ArenaDefinit
         reachesTarget: travelTimeSeconds !== undefined, travelTimeSeconds, family, contacts };
     }
   };
+  return queries;
 }

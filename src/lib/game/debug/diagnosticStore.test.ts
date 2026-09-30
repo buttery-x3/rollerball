@@ -12,6 +12,25 @@ import { createGameState } from '../sim/gameState';
 import { stepGame } from '../sim/stepGame';
 
 describe('structured diagnostic store', () => {
+  it('keeps action explanations between think ticks and removes them when human control takes over', () => {
+    const diagnostics = createDiagnosticStore();
+    diagnostics.setLayerEnabled('ai', true);
+    const record = { layer: 'ai', source: 'actionCandidates', entityId: 'player-2-action-candidates',
+      primitive: { type: 'label' as const, position: { x: 0, y: 0 }, text: 'pass-low' },
+      data: { playerId: 'player-2', tick: 1, selected: 'pass-low' } };
+    diagnostics.beginTick(1);
+    diagnostics.publish(record);
+    diagnostics.publish({ ...record, source: 'actionController' });
+    diagnostics.endTick();
+    diagnostics.beginTick(2);
+    diagnostics.publish({ ...record, source: 'actionController', data: { ...record.data, tick: 2 } });
+    diagnostics.endTick();
+    expect(diagnostics.getFrame().records.find(item => item.source === 'actionCandidates')?.data?.tick).toBe(1);
+    diagnostics.beginTick(3);
+    diagnostics.endTick();
+    expect(diagnostics.getFrame().records.some(item => item.source === 'actionCandidates')).toBe(false);
+  });
+
   it('retains the latest spatial decision between think ticks and clears it at stoppage', () => {
     const diagnostics = createDiagnosticStore();
     diagnostics.setLayerEnabled('ai', true);

@@ -39,28 +39,24 @@ function runBoundaryScenarios(
 }
 
 describe('Workbench tuning boundaries', () => {
-  it('either rejects each boundary atomically or runs every registered scenario', () => {
-    const tuningDefinitions = createTuningRegistry().list();
+  it.each(createTuningRegistry().list())('$key rejects boundaries atomically or runs every scenario', (definition) => {
+    for (const boundary of ['min', 'max'] as const) {
+      const tuning = createTuningRegistry();
+      const before = tuning.list();
+      const value = definition[boundary];
 
-    for (const definition of tuningDefinitions) {
-      for (const boundary of ['min', 'max'] as const) {
-        const tuning = createTuningRegistry();
-        const before = tuning.list();
-        const value = definition[boundary];
+      try {
+        tuning.setOverride(definition.key, value);
+      } catch {
+        expectUnchanged(tuning.list(), before);
+        continue;
+      }
 
-        try {
-          tuning.setOverride(definition.key, value);
-        } catch {
-          expectUnchanged(tuning.list(), before);
-          continue;
-        }
-
-        for (const scenario of DEFAULT_SCENARIOS) {
-          runBoundaryScenarios(scenario, definition.key, value);
-        }
+      for (const scenario of DEFAULT_SCENARIOS) {
+        runBoundaryScenarios(scenario, definition.key, value);
       }
     }
-  }, 120_000); // Full registry × scenario matrix includes tactical planning and physical execution.
+  }, 120_000); // Each parameter still exercises both boundaries against the complete scenario list.
 });
 
 function expectUnchanged<T>(actual: T, expected: T): void {

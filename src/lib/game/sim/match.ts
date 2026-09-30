@@ -7,6 +7,7 @@ import { createEmptyContactState, createEmptyGoalkeeperState, createEmptyOneTouc
 import { getPlayerMovementBounds } from './goalkeeping';
 import { MATCH_DIAGNOSTIC_LAYER, type DiagnosticSink } from './diagnostics';
 import { createTacticalState } from './tactics';
+import { createAiActionState } from './actionState';
 
 export const MATCH_STOPPAGE_SECONDS_KEY = 'match.goalStoppageSeconds';
 
@@ -47,6 +48,7 @@ export function createMatchState(players: readonly PlayerState[], humanTeamId = 
 
 export function clearMatchActions(state: GameState): void {
   if (state.tactics) state.tactics = createTacticalState();
+  if (state.aiActions) state.aiActions = createAiActionState();
   for (const player of state.players) {
     player.throwCharge = createEmptyThrowChargeState();
     player.oneTouch = createEmptyOneTouchState();

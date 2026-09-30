@@ -101,3 +101,70 @@ Next: commit/push128+Linear, then118 action decisions. Proposed sim-owned option
 aiActions memory enabled in freeplay/118 scenes;128 isolated positioning fixtures
 remain actionless. Root owns state/runtime, collision AIactions/tuning/query use,
 attributes118 scenarios/tests. No external blockers; hardware/feel unverified.
+
+FLAME-128 push confirmed a57005a, Linear In Review. FLAME-118 in progress.
+Root added sim/actionState.ts (AiActionDecision/AiActionState/create/apply),
+GameState.aiActions optional; match action reset clears it; freeplay enables it.
+Runtime now calls planActions after team planning and overlays actionPlayerIntent
+on ordinary field/keeper/neutral intents for players without external control.
+Both imports expected from ai/actionPlanner.ts, currently being written by
+collision agent. Root extracted evaluateCheckImpact from checking.ts so AI and
+real contact share Strength/alignment/retention math unchanged. Checking test
+attempt cannot load until pending actionPlanner module exists; not a pass.
+Attributes agent owns aiActionsScenario.ts + actionPlanner.test.ts + registrations.
+Collision owns action planner/executor, world query extensions and tuning.
+No118commit yet. Next: finish core, verify/fix scenarios, full validation, rebuild
+then restart production preview (asset listing cache), browser actions/exchange,
+commit/push118 and Linear. Then119 complete match and129 integrated tuning.
+Dev server77139 stopped intentionally; preview57224 currently serves128 on4173.
+
+FLAME-118 implementation complete, final validation in progress. Eleven action
+scenarios and17 outcome tests pass: real advance/low pass/lob/shot, ordinary and
+low/high one-touch receiving, check turnover, keeper distribution/recovery and
+15-second unrestricted5v5 exchanges. AI decisions and execution use the normal
+intent path; persistent decisions remain sim-owned. Shared world queries reuse
+the physical forecast/receive/keeper/contact paths. Planner prepares intended
+receivers through normal movement while a pass or one-touch is being prepared.
+High one-touch exposed early self-reacquisition across the receiver's body;
+normal throws and redirects now share geometric envelope-escape lockout using
+the existing physics sweep. Existing receiving/throwing27 tests pass unchanged.
+Action explanations persist between think ticks and clear on human takeover.
+Check0 errors/warnings; production build passed. Full test session40326 running
+the entire parameter-boundary matrix (each boundary still runs every scenario).
+Browser verified actual lob flight, high one-touch tick16 with10-tick lockout,
+and ordinary check impact/turnover tick12. Preview65541 on4173. Run check/build
+sequentially: concurrent SvelteKit sync/build caused one startup artifact error;
+sequential rebuild/restarted preview recovered it. No new browser errors since.
+Next: finish test40326, record results, commit/push118 and update Linear;119 may
+be prepared after118 files are staged, but its edits must stay out of118 commit.
+
+FLAME-119 implementation now also complete but UNSTAGED. All118 code is staged
+in the Git index; do not use git add-all before118 commit.119 adds sim-owned
+ready/playing/goal-stoppage/full-time, activeTicks/durationTicks/fixedStepSeconds,
+matchTimeRemaining, runRevision and typed transition events. MatchInput envelope
+keeps start/rematch outside PlayerIntent and records them as external inputs.
+Start/rematch consume one tick; last active tick scores then ends the match;
+rematch returns ready, global tick/restartCount stay monotonic. UI queues commands
+and resets browser/control immediately after phase/restart transitions. Typed
+event history clears on rematch. README includes play instructions.
+Six shared match scenes;11 new tests plus existing7 match tests pass. New input/
+diagnostic log tests pass; latest check initially0 then finalcheck23189 pending.
+119 fulltest88377 running. Production build passed and preview95137 serves119
+on4173. Browser verified defaultReady5:00→StartPlaying, exact60-active-tick draw,
+rematchReady0:01 with cleared events, keyboardEnterstart, finaltickgoal1:0 then
+FullTime and both ordered transitions. No refresh required.
+118 fulltest40326 still running its exhaustive boundary matrix (~15min CPU);
+no result yet, do not claim passed. Need finish118→commit only staged118→push
+and Linear; then stage119, finish its fullvalidation→commit/push/Linear. Avoid
+overwriting unstaged119 when finalizing118 checkpoint.
+129 read-only full300s autonomous audit by collision reproduces26:0 repeating
+identical restart sequence:140 throws per673-active-tick episode,125 within2m,
+74 backwards. Opponent wins centre pickup, so cause is pass value dominating
+advance and causing pass spam; deterministic repeat itself is expected. Details
+outside repo D:/dev/rollerball-run-context/ai-match-audit.json and .mjs. Collision
+is probing central override vectors read-only; root must exercise selected
+values in actual workbench before promoting defaults. Attributes currentlyidle.
+
+118 final result: fulltest40326 PASS408tests/33files (948s), check0errors/warnings,
+production build pass and browser evidence above. Committing staged118 only.
+119 finalcheck23189 also PASS0errors/warnings; fulltest88377 remains running.
