@@ -1,0 +1,53 @@
+# Autonomous completion run
+
+## Authorization
+User request (2026-09-30) authorizes the remaining five Linear milestones on
+`astra/rollerball-completion`, issue-scoped commits, regular pushes, reuse of
+existing issue work, and progress comments/status updates. Continue between
+issues without approval. Leave validated/pushed work In Review. Do not merge
+main, force-push, rewrite history, delete existing branches, deploy, or change
+infrastructure. This task-specific exception does not modify AGENTS.md.
+
+## Baseline and sources
+- Repository `https://github.com/buttery-x3/rollerball`; clean initial checkout.
+- Integration branch created from fetched `origin/main` at `037a460`.
+- Linear project, all five milestones, architecture hub and seven linked
+  subsystem/constitution documents read. Full remaining issues and dependency
+  relations retrieved; all 13 issues currently have no comments.
+- Existing FLAME-124 work: `4306370`, `39da7cf`; being integrated without
+  rewriting the original branch. Other remaining issues have no implementation
+  on origin. Completed work is preserved.
+- `npm ci` succeeded. Baseline `npm run check`: 0 errors/warnings;
+  `npm run test`: 21 files / 118 tests passed; `npm run build`: passed.
+  Existing non-failing build warning: client chunk exceeds 500 kB.
+- Linear In Review is available. Full fetched specifications are cached outside
+  the repository at `D:/dev/rollerball-run-context` for this run; Linear remains
+  authoritative.
+
+## Dependency queue
+1. FLAME-124 receiving: integrate and validate existing branch.
+2. FLAME-113 goal scoring and restart (requires 124).
+3. FLAME-114 attributes and FLAME-115 incidental contact (independently ready).
+4. FLAME-125 checks (114 + 115); FLAME-116 difficult receiving (124 + 125 + 114).
+5. FLAME-126 goalkeeper (113 + 114 + 116).
+6. FLAME-117 teams/routing (116 + 126).
+7. FLAME-127 queries -> FLAME-128 positioning -> FLAME-118 AI actions.
+8. FLAME-119 match completion -> FLAME-129 integrated tuning/regressions.
+
+## Completed checkpoints
+- FLAME-124: merged existing work, repaired stale `developmentMode` reference
+  against current main. Check: 0 errors/warnings; tests: 22 files / 137 passed;
+  production build passed. Browser: loaded receiving workbench, stepped low
+  one-touch through contact at tick 11; direct loose-to-loose redirect and full
+  lockout visible in diagnostics, no console errors. Physical controller pending.
+
+## Current work / exact next action
+Commit/push the validated FLAME-124 integration, then implement FLAME-113.
+Receiving owns ball/player interaction after ball
+integration, one-touch state before movement, and structured receive diagnostics;
+the existing tests cover pickup, lockout, contact order, height, all redirects,
+cancel and retained control. No changed architecture contract is required.
+
+## Verification and blockers
+Physical-controller feel/balance approval requires a human and is not claimed.
+Browser receiving smoke passed. No external implementation blocker identified.

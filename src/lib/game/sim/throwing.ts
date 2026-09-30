@@ -47,7 +47,7 @@ export interface ThrowStepResult {
   readonly release: ThrowReleaseObservation | undefined;
 }
 
-interface ThrowChargeTuning {
+export interface ThrowChargeTuning {
   readonly minStrength: number;
   readonly maxStrength: number;
   readonly chargeToMaxSeconds: number;
@@ -71,7 +71,7 @@ function cloneVector(vector: Vec2): Vec2 {
   return { x: vector.x, y: vector.y };
 }
 
-function readThrowChargeTuning(tuning: TuningReader): ThrowChargeTuning {
+export function readThrowChargeTuning(tuning: TuningReader): ThrowChargeTuning {
   const values = {
     minStrength: tuning.getNumber(CONTROLS_THROW_MIN_STRENGTH_KEY),
     maxStrength: tuning.getNumber(CONTROLS_THROW_MAX_STRENGTH_KEY),
@@ -124,14 +124,14 @@ function chargeState(
   };
 }
 
-function startCharge(
+export function startThrowCharge(
   family: ThrowChargeFamily,
   tuning: ThrowChargeTuning
 ): ThrowChargeState {
   return chargeState(family, 0, 0, tuning);
 }
 
-function advanceCharge(
+export function advanceThrowCharge(
   current: ThrowChargeState,
   fixedStepSeconds: number,
   tuning: ThrowChargeTuning
@@ -155,7 +155,7 @@ function buttonForFamily(
   return family === 'low' ? intent.lowThrow : intent.highThrow;
 }
 
-function rightStickStrength(
+export function throwStrengthForRightStick(
   pulse: RightStickThrowPulse,
   tuning: ThrowChargeTuning
 ): number {
@@ -311,7 +311,7 @@ export function advanceThrowState(
   if (isActiveCharge(activeCharge)) {
     const button = buttonForFamily(intent, activeCharge.family as ThrowChargeFamily);
     if (button.held) {
-      holder.throwCharge = advanceCharge(activeCharge, fixedStepSeconds, chargeTuning);
+      holder.throwCharge = advanceThrowCharge(activeCharge, fixedStepSeconds, chargeTuning);
       return resultFor(state, holder.definition.id, cancelledPlayerIds, undefined);
     }
 
@@ -342,7 +342,7 @@ export function advanceThrowState(
       'low',
       'right-stick',
       intent.rightStickThrow.direction,
-      rightStickStrength(intent.rightStickThrow, chargeTuning),
+      throwStrengthForRightStick(intent.rightStickThrow, chargeTuning),
       chargeTuning,
       tuning
     );
@@ -350,9 +350,9 @@ export function advanceThrowState(
   }
 
   if (intent.lowThrow.held) {
-    holder.throwCharge = startCharge('low', chargeTuning);
+    holder.throwCharge = startThrowCharge('low', chargeTuning);
   } else if (intent.highThrow.held) {
-    holder.throwCharge = startCharge('high', chargeTuning);
+    holder.throwCharge = startThrowCharge('high', chargeTuning);
   }
 
   return resultFor(state, holder.definition.id, cancelledPlayerIds, undefined);

@@ -10,6 +10,7 @@ import {
   BALL_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+  RECEIVE_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER,
   THROW_DIAGNOSTIC_LAYER
 } from '../sim/diagnostics';
@@ -19,6 +20,7 @@ export {
   BALL_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+  RECEIVE_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER,
   THROW_DIAGNOSTIC_LAYER
 } from '../sim/diagnostics';
@@ -61,6 +63,11 @@ export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
     key: THROW_DIAGNOSTIC_LAYER,
     label: 'Throw charging and releases',
     enabledByDefault: true
+  },
+  {
+    key: RECEIVE_DIAGNOSTIC_LAYER,
+    label: 'Receiving and one-touch',
+    enabledByDefault: false
   }
 ];
 

@@ -5,6 +5,7 @@ import type { ScenarioDefinition } from './scenario';
 import { PLAYER_MOVEMENT_SCENARIOS } from './playerMovementScenario';
 import { BALL_SCENARIOS } from './ballScenario';
 import { THROW_SCENARIOS } from './throwScenario';
+import { RECEIVING_SCENARIOS } from './receivingScenario';
 
 export const DETERMINISTIC_TICK_SCENARIO_ID = 'deterministic-tick';
 
@@ -33,7 +34,8 @@ export const DEFAULT_SCENARIOS: readonly ScenarioDefinition<
   deterministicTickScenario,
   ...PLAYER_MOVEMENT_SCENARIOS,
   ...BALL_SCENARIOS,
-  ...THROW_SCENARIOS
+  ...THROW_SCENARIOS,
+  ...RECEIVING_SCENARIOS
 ];
 
 export function getScenario(

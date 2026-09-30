@@ -76,7 +76,7 @@
                 scenarioState?.ball.mode === 'possessed' &&
                 control?.assignment?.playerId === scenarioState.ball.holderId
                   ? 'possessed'
-                  : 'neutral';
+                  : definition.interactiveActionContext ?? 'neutral';
               const result = control?.consumeTick(
                 browserInput?.getSnapshot() ?? createNeutralInputSnapshot(),
                 actionContext

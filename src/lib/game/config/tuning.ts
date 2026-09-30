@@ -80,6 +80,9 @@ export const BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY = 'ball.highThrowMinVertical
 export const BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY = 'ball.highThrowMaxVerticalSpeed';
 export const BALL_POST_RELEASE_LOCKOUT_TICKS_KEY =
   'ball.postReleaseReacquisitionLockoutTicks';
+export const RECEIVE_CATCH_HEIGHT_KEY = 'receive.catchHeight';
+export const RECEIVE_ONE_TOUCH_BUFFER_TICKS_KEY =
+  'receive.oneTouchRightStickBufferTicks';
 
 export const DEFAULT_ARENA_WIDTH = 18;
 export const DEFAULT_ARENA_LENGTH = 30;
@@ -111,6 +114,8 @@ export const DEFAULT_BALL_HIGH_THROW_MAX_PLANAR_SPEED = 18;
 export const DEFAULT_BALL_HIGH_THROW_MIN_VERTICAL_SPEED = 12;
 export const DEFAULT_BALL_HIGH_THROW_MAX_VERTICAL_SPEED = 22;
 export const DEFAULT_BALL_POST_RELEASE_LOCKOUT_TICKS = 6;
+export const DEFAULT_RECEIVE_CATCH_HEIGHT = 1.5;
+export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   {
@@ -434,6 +439,24 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     label: 'Post-release reacquisition lockout',
     defaultValue: DEFAULT_BALL_POST_RELEASE_LOCKOUT_TICKS,
     min: 0,
+    max: 30,
+    step: 1
+  },
+  {
+    key: RECEIVE_CATCH_HEIGHT_KEY,
+    domain: 'receive',
+    label: 'Receive/catch height',
+    defaultValue: DEFAULT_RECEIVE_CATCH_HEIGHT,
+    min: 0,
+    max: 4,
+    step: 0.05
+  },
+  {
+    key: RECEIVE_ONE_TOUCH_BUFFER_TICKS_KEY,
+    domain: 'receive',
+    label: 'One-touch right-stick buffer',
+    defaultValue: DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS,
+    min: 1,
     max: 30,
     step: 1
   }

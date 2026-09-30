@@ -3,6 +3,7 @@ import {
   constrainCircleToBounds,
   isCircleWithinBounds,
   sweepCircleAgainstBounds,
+  sweepCircleAgainstCircle,
   type AxisAlignedBounds
 } from './geometry';
 
@@ -102,5 +103,50 @@ describe('swept circle boundaries', () => {
         normal: { x: -1, y: 0 }
       }
     ]);
+  });
+});
+
+describe('swept circle contact', () => {
+  it('finds a fast circle crossing without tunnelling', () => {
+    const hit = sweepCircleAgainstCircle(
+      { x: 0, y: -5 },
+      { x: 0, y: 10 },
+      0.35,
+      { x: 0, y: 0 },
+      0.6
+    );
+
+    expect(hit?.enterTime).toBeCloseTo(0.405, 10);
+    expect(hit?.exitTime).toBeCloseTo(0.595, 10);
+    expect(hit?.enterPosition.x).toBe(0);
+    expect(hit?.enterPosition.y).toBeCloseTo(-0.95, 10);
+  });
+
+  it('reports an existing stationary overlap for the full sweep interval', () => {
+    expect(
+      sweepCircleAgainstCircle(
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+        0.35,
+        { x: 0, y: 0 },
+        0.6
+      )
+    ).toEqual({
+      enterTime: 0,
+      exitTime: 1,
+      enterPosition: { x: 0, y: 0 }
+    });
+  });
+
+  it('does not report a near miss', () => {
+    expect(
+      sweepCircleAgainstCircle(
+        { x: 2, y: -5 },
+        { x: 0, y: 10 },
+        0.35,
+        { x: 0, y: 0 },
+        0.6
+      )
+    ).toBeUndefined();
   });
 });
