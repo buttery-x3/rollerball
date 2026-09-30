@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RoutedPlayerIntent } from '../control/types';
+import type { SimulationInput } from '../control/types';
 import { createTuningRegistry } from '../config/tuning';
 import { createArenaDefinition } from '../physics/arena';
 import { stepControlledGame } from '../runtime/stepControlledGame';
@@ -8,7 +8,7 @@ import type { GameState } from '../sim/gameState';
 import { DEFAULT_SCENARIOS } from './defaultScenarios';
 import { runScenario, type ScenarioDefinition } from './scenario';
 
-type DefaultScenario = ScenarioDefinition<GameState, RoutedPlayerIntent>;
+type DefaultScenario = ScenarioDefinition<GameState, SimulationInput>;
 
 function runBoundaryScenarios(
   definition: DefaultScenario,

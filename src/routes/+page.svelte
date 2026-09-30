@@ -16,8 +16,11 @@
   import { createControlRouter, type ControlRouter } from '$lib/game/control/controlRouter';
   import type {
     ControlActionContext,
-    RoutedPlayerIntent
+    MatchAction,
+    SimulationInput
   } from '$lib/game/control/types';
+  import { routedInputs } from '$lib/game/control/types';
+  import { matchTimeRemaining } from '$lib/game/sim/match';
   import { publishControlDiagnostics } from '$lib/game/control/diagnostics';
   import {
     createBrowserGameLoop,
@@ -31,7 +34,7 @@
     DEFAULT_SCENARIOS,
     getScenario
   } from '$lib/game/scenarios/defaultScenarios';
-  import { teamFreePlayScenario } from '$lib/game/scenarios/teamControlScenario';
+  import { fullMatchScenario } from '$lib/game/scenarios/matchFlowScenario';
   import { getCandidatePreviewRequest } from '$lib/game/scenarios/aiCandidateScenario';
   import { evaluateSpatialCandidates } from '$lib/game/ai/tacticalCandidates';
   import {
@@ -52,18 +55,19 @@
     state: GameState,
     fixedStepSeconds: number,
     context: FixedStepStepContext,
-    input: RoutedPlayerIntent | undefined
+    input: SimulationInput | undefined
   ): void => {
     stepControlledGame(state, fixedStepSeconds, context, input);
   };
 
   interface ControlScenarioRun {
-    readonly run: ScenarioRun<GameState, RoutedPlayerIntent>;
+    readonly run: ScenarioRun<GameState, SimulationInput>;
     readonly control: ControlRouter;
   }
 
   let browserInput: BrowserInputSource | undefined;
   let focusedPlayerId = 'player-1';
+  let pendingMatchAction: MatchAction | undefined;
 
   function createRun(id: string): ControlScenarioRun {
     const definition = getScenario(id);
@@ -72,10 +76,21 @@
     let previousMatchPhase: string | undefined;
     let previousRestartCount = 0;
     const previewSelections = new Map<string, string>();
-    const run = createScenarioRun({
-      definition,
+    const scriptedInputs = new Map(definition.scriptedInputs?.map(frame => [frame.tick, frame.input]));
+    const synchronizeMatchControl = (current: GameState): void => {
+      const match = current.match;
+      if (match && (match.phase !== previousMatchPhase || match.restartCount !== previousRestartCount)) {
+        control?.reset();
+        browserInput?.reset();
+        previousMatchPhase = match.phase;
+        previousRestartCount = match.restartCount;
+      }
+    };
+    const run = createScenarioRun<GameState, SimulationInput>({
+      definition: { ...definition, scriptedInputs: undefined },
       step: (state, seconds, context, input) => {
         scenarioStep(state, seconds, context, input);
+        synchronizeMatchControl(state);
         // A development query uses the same tactical scorer as gameplay. It
         // stores only inspection history and cannot drive simulation outcomes.
         if (!state.tactics && context.tuning && context.arena &&
@@ -94,15 +109,18 @@
           }
         }
       },
-      inputProvider:
-        definition.scriptedInputs === undefined
-          ? (tick, context) => {
+      inputProvider: (tick, context) => {
               const match = scenarioState?.match;
-              if (match && (match.phase !== previousMatchPhase || match.restartCount !== previousRestartCount)) {
-                control?.reset();
-                browserInput?.reset();
-                previousMatchPhase = match.phase;
-                previousRestartCount = match.restartCount;
+              if (scenarioState) synchronizeMatchControl(scenarioState);
+              if (browserInput?.consumeMatchRequest()) {
+                if (match?.phase === 'ready') pendingMatchAction = 'start';
+                else if (match?.phase === 'full-time') pendingMatchAction = 'rematch';
+              }
+              const command = pendingMatchAction;
+              pendingMatchAction = undefined;
+              if (definition.scriptedInputs !== undefined) {
+                const scripted = scriptedInputs.get(tick);
+                return command ? { playerIntents: routedInputs(scripted), matchAction: command } : scripted;
               }
               const actionContext: ControlActionContext =
                 scenarioState?.ball.mode === 'possessed' &&
@@ -118,9 +136,8 @@
                 publishControlDiagnostics(tick, result, context.diagnostics);
               }
 
-              return result?.routedIntent;
-            }
-          : undefined,
+              return command ? { playerIntents: routedInputs(result?.routedIntent), matchAction: command } : result?.routedIntent;
+            },
       getArena: (currentTuning) => createArenaDefinition(currentTuning),
       diagnosticsEnabled: true
     });
@@ -136,7 +153,7 @@
     return { run, control };
   }
 
-  let activeSession = createRun(teamFreePlayScenario.id);
+  let activeSession = createRun(fullMatchScenario.id);
   let activeRun = activeSession.run;
   let activeControl = activeSession.control;
   let state = activeRun.state;
@@ -243,6 +260,7 @@
     diagnostics = activeRun.diagnostics;
     runtime = activeRun.runtime;
     activeScenarioId = activeRun.definition.id;
+    pendingMatchAction = undefined;
     focusedPlayerId = getCandidatePreviewRequest(id)?.playerId ?? 'player-1';
     scenarioError = undefined;
     tick = state.tick;
@@ -266,6 +284,16 @@
 
   function resetScenario(): void {
     loadScenario(activeScenarioId);
+  }
+
+  function requestMatchAction(action: MatchAction): void {
+    pendingMatchAction = action;
+    if (runtime.isPaused) stepSimulationOnce();
+  }
+
+  function formatTime(seconds: number): string {
+    const total = Math.max(0, Math.ceil(seconds - 1e-9));
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
   }
 
   onMount(() => {
@@ -307,7 +335,16 @@
     {#if matchHud}
       <div class="match-hud" aria-label="Score">
         <strong>Human {matchHud.score.human ?? 0} : {matchHud.score.opponent ?? 0} Opponent</strong>
-        <span>{matchHud.phase === 'goal-stoppage' ? 'Goal — restarting' : 'Playing'}</span>
+        <strong aria-label="Match clock">{formatTime(matchTimeRemaining(matchHud))}</strong>
+        <span>{matchHud.phase === 'goal-stoppage' ? 'Goal — restarting' : matchHud.phase === 'ready' ? 'Ready' : matchHud.phase === 'full-time' ? 'Full time' : 'Playing'}</span>
+        {#if matchHud.phase === 'ready'}
+          <button type="button" onclick={() => requestMatchAction('start')}>Start match</button>
+          <small>Enter / controller Menu</small>
+        {:else if matchHud.phase === 'full-time'}
+          <span>{matchHud.score.human === matchHud.score.opponent ? 'Draw' : matchHud.score.human > matchHud.score.opponent ? 'Human wins' : 'Opponent wins'}</span>
+          <button type="button" onclick={() => requestMatchAction('rematch')}>Rematch</button>
+          <small>Enter / controller Menu</small>
+        {/if}
       </div>
     {/if}
     <div class="control-hud" aria-label="Player controls">
@@ -387,9 +424,11 @@
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
     display: grid; gap: 4px; text-align: center; background: #10182de6;
     border: 1px solid #2c3d68; padding: 10px 18px; border-radius: 10px;
-    white-space: nowrap; pointer-events: none;
+    white-space: nowrap;
   }
   .match-hud span { font-size: 0.8rem; color: #a5b3d6; }
+  .match-hud button { color: #e7ecff; background: #263d6d; border: 1px solid #5573ad; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
+  .match-hud small { color: #a5b3d6; }
   .control-hud { position: absolute; bottom: 12px; left: 12px; right: 12px; display: grid; gap: 3px; font-size: .7rem; color: #b8c5df; pointer-events: none; }
 
   @media (max-width: 860px) {

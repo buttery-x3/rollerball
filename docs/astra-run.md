@@ -168,3 +168,26 @@ values in actual workbench before promoting defaults. Attributes currentlyidle.
 118 final result: fulltest40326 PASS408tests/33files (948s), check0errors/warnings,
 production build pass and browser evidence above. Committing staged118 only.
 119 finalcheck23189 also PASS0errors/warnings; fulltest88377 remains running.
+
+118 pushed591b0f5, LinearInReview. All119 files now staged separately; keep129
+edits unstaged until119 fulltest88377 completes, then commit staged119 only.
+119 build passed and browser flow verified; no code changes pending for119.
+129 begins workbench/replay completion and real central-override tuning pass:
+root owns stepN/speed/tuning export-category UI and event log integrations;
+attributes will own replay serialization+real-run recorder/import mechanics;
+collision owns measured tuning investigation (no defaults promoted until root
+has exercised the chosen vector through the workbench). No simulation phase or
+ownership changes planned. Existing deterministic100%scenario/boundary coverage
+must remain; full boundary suite takes about16min after118 expansion.
+
+FLAME-119 final validation PASS: 422 tests/34 files (982.53s), check0errors/warnings,
+production build pass. Browser ready/start, exact clock/full-time, goal on final
+active tick, and rematch without refresh verified. Committing staged119 only;
+129 work remains unstaged. Next push119 and update LinearInReview.
+129 replay UI now wired to real input recording, live tuning snapshots, lossless
+JSON/import and incremental state-hash playback. StepN/speed/category reset/export
+and typed event filters implemented. Nine integrated scoring scenarios registered;
+21 tests show six scoring paths, centre-shot saves, keeper recovery and stable
+mapped receiver control/replay. Collision agent repairing friendly keeper pass
+obstruction and premature check braking; current min pass1.2 awaiting actual
+workbench2m trial. Check passes0errors/warnings on integration as of00:48.

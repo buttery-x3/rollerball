@@ -3,7 +3,7 @@ import { planTeams } from '../ai/teamPlanner';
 import { fieldPlayerIntent } from '../ai/fieldController';
 import { planActions, actionPlayerIntent } from '../ai/actionPlanner';
 import { createNeutralPlayerIntent } from '../control/intent';
-import { routedInputs, type SimulationInput } from '../control/types';
+import { matchAction, routedInputs, type SimulationInput } from '../control/types';
 import type { GameState } from '../sim/gameState';
 import type { SimulationStepContext } from '../sim/diagnostics';
 import { stepGame } from '../sim/stepGame';
@@ -14,11 +14,12 @@ import { applyAiActionPlan } from '../sim/actionState';
 export function stepControlledGame(state: GameState, seconds: number, context: SimulationStepContext, external?: SimulationInput): void {
   const inputs = [...routedInputs(external)];
   const controlledPlayerIds = inputs.map(input => input.playerId);
-  if (state.tactics && context.tuning && context.arena) {
+  const playing = !state.match || state.match.phase === 'playing';
+  if (playing && state.tactics && context.tuning && context.arena) {
     const plan = planTeams(state, context.tuning, context.arena, context.diagnostics);
     if (plan) applyTacticalPlan(state, plan);
   }
-  if (context.tuning && context.arena && (!state.match || state.match.phase === 'playing')) {
+  if (context.tuning && context.arena && playing) {
     if (state.aiActions) {
       const plan = planActions(state, context.tuning, context.arena, controlledPlayerIds, context.diagnostics);
       if (plan) applyAiActionPlan(state, plan);
@@ -42,7 +43,7 @@ export function stepControlledGame(state: GameState, seconds: number, context: S
       inputs.push({ playerId: player.definition.id, intent: createNeutralPlayerIntent() });
     }
   }
-  if (state.aiActions && context.tuning && context.arena && (!state.match || state.match.phase === 'playing')) {
+  if (state.aiActions && context.tuning && context.arena && playing) {
     for (let index = 0; index < inputs.length; index++) {
       const input = inputs[index];
       if (controlledPlayerIds.includes(input.playerId)) continue;
@@ -50,5 +51,5 @@ export function stepControlledGame(state: GameState, seconds: number, context: S
         input.intent, context.tuning, context.arena, context.diagnostics) };
     }
   }
-  stepGame(state, seconds, context, inputs);
+  stepGame(state, seconds, context, { playerIntents: inputs, matchAction: matchAction(external) });
 }

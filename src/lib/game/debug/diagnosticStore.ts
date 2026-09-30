@@ -29,10 +29,19 @@ export {
 
 export interface DiagnosticStore extends DiagnosticSink {
   getFrame(): DiagnosticFrame;
+  getEvents(): readonly DiagnosticEvent[];
   listLayers(): readonly DiagnosticLayerState[];
   registerLayer(definition: DiagnosticLayerDefinition): void;
   setLayerEnabled(layer: string, enabled: boolean): void;
   subscribe(listener: () => void): () => void;
+}
+
+export interface DiagnosticEvent {
+  readonly tick: number;
+  readonly system: string;
+  readonly type: string;
+  readonly entityId?: string;
+  readonly data: Readonly<Record<string, unknown>>;
 }
 
 export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
@@ -92,6 +101,8 @@ export function createDiagnosticStore(
   let visibleFrame: DiagnosticFrame = currentFrame;
   let pendingTick: number | undefined;
   let pendingRecords: DiagnosticRecord[] = [];
+  let events: DiagnosticEvent[] = [];
+  let matchRunRevision: unknown;
   // Tactical decisions run more slowly than physics. Preserve their last
   // sampled explanation between updates without recalculating gameplay queries.
   const spatialDecisions = new Map<string, readonly DiagnosticRecord[]>();
@@ -171,6 +182,17 @@ export function createDiagnosticStore(
       }
 
       const match = pendingRecords.find(record => record.entityId === 'match-state');
+      if (match?.data?.runRevision !== undefined && match.data.runRevision !== matchRunRevision) {
+        events = [];
+        spatialDecisions.clear();
+        matchRunRevision = match.data.runRevision;
+      }
+      for (const record of pendingRecords) {
+        if (typeof record.data?.eventType !== 'string') continue;
+        events.push({ tick: pendingTick, system: record.layer, type: record.data.eventType,
+          entityId: record.entityId, data: structuredClone(record.data) });
+      }
+      events = events.slice(-300);
       const nonPlaying = (match?.data?.phase && match.data.phase !== 'playing') ||
         pendingRecords.some(record => record.layer === 'ai' && record.data?.context === 'non-playing');
       if (nonPlaying) spatialDecisions.clear();
@@ -201,6 +223,10 @@ export function createDiagnosticStore(
 
     getFrame(): DiagnosticFrame {
       return visibleFrame;
+    },
+
+    getEvents(): readonly DiagnosticEvent[] {
+      return events;
     },
 
     listLayers(): readonly DiagnosticLayerState[] {

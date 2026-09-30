@@ -18,10 +18,10 @@
     RECEIVE_DIAGNOSTIC_LAYER,
     THROW_DIAGNOSTIC_LAYER
   } from '$lib/game/sim/diagnostics';
-  import type { RoutedPlayerIntent } from '$lib/game/control/types';
+  import type { SimulationInput } from '$lib/game/control/types';
   import type { GameState } from '$lib/game/sim/gameState';
   import type { ScenarioDefinition } from '$lib/game/scenarios/scenario';
-  import type { DiagnosticStore } from './diagnosticStore';
+  import type { DiagnosticStore, DiagnosticEvent } from './diagnosticStore';
 
   export let diagnostics: DiagnosticStore;
   export let onPause: () => void;
@@ -32,7 +32,7 @@
   export let paused: boolean;
   export let activeScenarioId: string;
   export let scenarioError: string | undefined;
-  export let scenarios: readonly ScenarioDefinition<GameState, RoutedPlayerIntent>[];
+  export let scenarios: readonly ScenarioDefinition<GameState, SimulationInput>[];
   export let tick: number;
   export let tuning: TuningRegistry;
   export let focusedPlayerId = '';
@@ -40,6 +40,8 @@
   let tuningEntries: readonly NumericTuningEntry[] = tuning.list();
   let layerEntries: readonly DiagnosticLayerState[] = diagnostics.listLayers();
   let diagnosticFrame: DiagnosticFrame = diagnostics.getFrame();
+  let events: readonly DiagnosticEvent[] = diagnostics.getEvents();
+  let eventFilter = '';
   let unsubscribeTuning: (() => void) | undefined;
   let unsubscribeDiagnostics: (() => void) | undefined;
   let subscribedTuning: TuningRegistry | undefined;
@@ -53,6 +55,7 @@
   const refreshLayers = (): void => {
     layerEntries = diagnostics.listLayers();
     diagnosticFrame = diagnostics.getFrame();
+    events = diagnostics.getEvents();
   };
 
   function bindStores(): void {
@@ -378,6 +381,12 @@
   <section class="workbench-section" aria-label="Match flow">
     <h2>Match flow</h2>
     <pre class="diagnostic-output">{formatDiagnosticData(matchRecord)}</pre>
+  </section>
+  <section class="workbench-section" aria-label="Event log">
+    <h2>Event log</h2>
+    <label for="event-filter">Filter system, entity or event type</label>
+    <input id="event-filter" type="search" bind:value={eventFilter} />
+    <pre class="diagnostic-output">{events.filter(event => `${event.system} ${event.type} ${event.entityId ?? ''}`.toLowerCase().includes(eventFilter.toLowerCase())).slice().reverse().map(event => `${event.tick} · ${event.system} · ${event.type}\n${JSON.stringify(event.data)}`).join('\n\n') || 'No events recorded in this run.'}</pre>
   </section>
   <section class="workbench-section" aria-label="Checking">
     <h2>Checking</h2>

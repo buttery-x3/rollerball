@@ -1,4 +1,4 @@
-import { routedInputs, type SimulationInput } from '../control/types';
+import { matchAction, routedInputs, type SimulationInput } from '../control/types';
 import type { GameState } from './gameState';
 import {
   BALL_DIAGNOSTIC_LAYER,
@@ -34,7 +34,7 @@ import {
   type ReceiveInteractionObservation
 } from './receiving';
 import { createReceivingDiagnosticRecords } from './receivingDiagnostics';
-import { advanceMatchStoppage, publishMatchDiagnostics, resolveGoal } from './match';
+import { advanceMatchFlow, finishMatchPlayingTick, publishMatchDiagnostics } from './match';
 import { resolvePlayerContacts } from './playerContact';
 import { createContactDiagnosticRecords } from './contactDiagnostics';
 import { advanceCheckState, resolveActiveChecks, publishCheckingDiagnostics } from './checking';
@@ -57,7 +57,7 @@ export function stepGame(
     throw new Error('Simulation requires an arena definition.');
   }
 
-  if (advanceMatchStoppage(state, context.arena, context.tuning)) {
+  if (advanceMatchFlow(state, context.arena, context.tuning, fixedStepSeconds, matchAction(input), context.diagnostics)) {
     state.tick += 1;
     publishMatchDiagnostics(state, context.diagnostics);
     return;
@@ -128,7 +128,8 @@ export function stepGame(
     );
   }
 
-  if (!receiveInteraction || receiveInteraction.outcome === 'miss') resolveGoal(state, ballStep?.goalAperture, fixedStepSeconds, context.tuning);
+  finishMatchPlayingTick(state, !receiveInteraction || receiveInteraction.outcome === 'miss' ? ballStep?.goalAperture : undefined,
+    fixedStepSeconds, context.tuning, context.diagnostics);
   state.tick += 1;
   publishMatchDiagnostics(state, context.diagnostics);
   publishCheckingDiagnostics(state, checkImpacts, context.diagnostics);

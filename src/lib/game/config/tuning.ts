@@ -29,6 +29,8 @@ export interface TuningRegistry extends TuningReader {
 
 export const RUNTIME_MAX_CATCH_UP_STEPS_KEY = 'runtime.maxCatchUpSteps';
 export const DEFAULT_RUNTIME_MAX_CATCH_UP_STEPS = 5;
+export const MATCH_DURATION_SECONDS_KEY = 'match.durationSeconds';
+export const DEFAULT_MATCH_DURATION_SECONDS = 300;
 
 export const CONTROLS_LEFT_STICK_DEADZONE_KEY = 'controls.leftStickDeadzone';
 export const CONTROLS_RIGHT_STICK_DEADZONE_KEY = 'controls.rightStickDeadzone';
@@ -248,6 +250,7 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     ['stumbleTicks', 'Stumble duration', 24, 1, 120, 1],
     ['immunityTicks', 'Post-stumble immunity', 45, 1, 180, 1]
   ].map(([key, label, defaultValue, min, max, step]) => ({ key: `contact.${key}`, domain: 'contact', label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  { key: MATCH_DURATION_SECONDS_KEY, domain: 'match', label: 'Active match duration (seconds)', defaultValue: DEFAULT_MATCH_DURATION_SECONDS, min: 1, max: 1800, step: 1 },
   { key: 'match.goalStoppageSeconds', domain: 'match', label: 'Goal stoppage duration', defaultValue: 1.5, min: 0, max: 5, step: 0.1 },
   ...[
     { key: ATTRIBUTES_SPEED_SPREAD_KEY, label: 'Speed mapping spread', defaultValue: 0.25 },

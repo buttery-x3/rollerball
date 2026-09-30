@@ -1,6 +1,6 @@
 import { RUNTIME_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
 import { createGameState, type GameState } from '../sim/gameState';
-import type { RoutedPlayerIntent } from '../control/types';
+import type { RoutedPlayerIntent, SimulationInput } from '../control/types';
 import type { ScenarioDefinition } from './scenario';
 import { PLAYER_MOVEMENT_SCENARIOS } from './playerMovementScenario';
 import { BALL_SCENARIOS } from './ballScenario';
@@ -16,6 +16,7 @@ import { TEAM_CONTROL_SCENARIOS } from './teamControlScenario';
 import { AI_CANDIDATE_SCENARIOS } from './aiCandidateScenario';
 import { TEAM_TACTICS_SCENARIOS } from './teamTacticsScenario';
 import { AI_ACTION_SCENARIOS } from './aiActionsScenario';
+import { MATCH_FLOW_SCENARIOS } from './matchFlowScenario';
 
 export const DETERMINISTIC_TICK_SCENARIO_ID = 'deterministic-tick';
 
@@ -39,7 +40,7 @@ export const deterministicTickScenario: ScenarioDefinition<GameState, RoutedPlay
 
 export const DEFAULT_SCENARIOS: readonly ScenarioDefinition<
   GameState,
-  RoutedPlayerIntent
+  SimulationInput
 >[] = [
   deterministicTickScenario,
   ...PLAYER_MOVEMENT_SCENARIOS,
@@ -55,12 +56,13 @@ export const DEFAULT_SCENARIOS: readonly ScenarioDefinition<
   ...TEAM_CONTROL_SCENARIOS,
   ...AI_CANDIDATE_SCENARIOS,
   ...TEAM_TACTICS_SCENARIOS,
-  ...AI_ACTION_SCENARIOS
+  ...AI_ACTION_SCENARIOS,
+  ...MATCH_FLOW_SCENARIOS
 ];
 
 export function getScenario(
   id: string
-): ScenarioDefinition<GameState, RoutedPlayerIntent> {
+): ScenarioDefinition<GameState, SimulationInput> {
   const scenario = DEFAULT_SCENARIOS.find((candidate) => candidate.id === id);
   if (!scenario) {
     throw new Error(`Unknown scenario '${id}'.`);

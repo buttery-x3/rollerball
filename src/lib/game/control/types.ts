@@ -92,10 +92,24 @@ export interface RoutedPlayerIntent {
   readonly intent: PlayerIntent;
 }
 
-export type SimulationInput = RoutedPlayerIntent | readonly RoutedPlayerIntent[];
+export type MatchAction = 'start' | 'rematch';
+
+/** Match commands are external simulation input, separate from player actions. */
+export interface MatchInput {
+  readonly playerIntents?: readonly RoutedPlayerIntent[];
+  readonly matchAction?: MatchAction;
+}
+
+export type SimulationInput = RoutedPlayerIntent | readonly RoutedPlayerIntent[] | MatchInput;
+
+export function matchAction(input: SimulationInput | undefined): MatchAction | undefined {
+  return input && !Array.isArray(input) && 'matchAction' in input ? input.matchAction : undefined;
+}
 
 export function routedInputs(input: SimulationInput | undefined): readonly RoutedPlayerIntent[] {
-  return input === undefined ? [] : Array.isArray(input) ? input : [input as RoutedPlayerIntent];
+  if (input === undefined) return [];
+  if (Array.isArray(input)) return input;
+  return 'playerId' in input ? [input] : (input as MatchInput).playerIntents ?? [];
 }
 
 export interface ControlStepResult {

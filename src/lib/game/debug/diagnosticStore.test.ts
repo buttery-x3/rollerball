@@ -12,6 +12,25 @@ import { createGameState } from '../sim/gameState';
 import { stepGame } from '../sim/stepGame';
 
 describe('structured diagnostic store', () => {
+  it('records tick-indexed transition snapshots and clears the previous match on rematch', () => {
+    const diagnostics = createDiagnosticStore();
+    const primitive = { type: 'label' as const, position: { x: 0, y: 0 }, text: 'playing' };
+    const transition = { eventType: 'MatchTransition', from: 'ready', to: 'playing' };
+    diagnostics.beginTick(1);
+    diagnostics.publish({ layer: 'match', source: 'match', entityId: 'match-state', primitive, data: { runRevision: 0 } });
+    diagnostics.publish({ layer: 'match', source: 'match', primitive, data: transition });
+    diagnostics.endTick();
+    transition.to = 'full-time';
+    diagnostics.beginTick(2);
+    diagnostics.endTick();
+    expect(diagnostics.getEvents()).toMatchObject([{ tick: 1, type: 'MatchTransition', data: { to: 'playing' } }]);
+    diagnostics.beginTick(3);
+    diagnostics.publish({ layer: 'match', source: 'match', entityId: 'match-state', primitive, data: { runRevision: 1 } });
+    diagnostics.publish({ layer: 'match', source: 'match', primitive, data: { eventType: 'MatchTransition', from: 'full-time', to: 'ready' } });
+    diagnostics.endTick();
+    expect(diagnostics.getEvents()).toMatchObject([{ tick: 3, data: { to: 'ready' } }]);
+  });
+
   it('keeps action explanations between think ticks and removes them when human control takes over', () => {
     const diagnostics = createDiagnosticStore();
     diagnostics.setLayerEnabled('ai', true);
