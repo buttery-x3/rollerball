@@ -133,7 +133,7 @@ export function stepGame(
     context.diagnostics?.isLayerEnabled(PLAYER_MOVEMENT_DIAGNOSTIC_LAYER)
   ) {
     for (const observation of observations) {
-      for (const record of createPlayerDiagnosticRecords(state.tick, observation)) {
+      for (const record of createPlayerDiagnosticRecords(state.tick, observation, context.tuning)) {
         context.diagnostics.publish(record);
       }
     }

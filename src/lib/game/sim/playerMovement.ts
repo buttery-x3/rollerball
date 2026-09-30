@@ -1,4 +1,5 @@
 import type { PlayerIntent } from '../control/types';
+import { createPlayerTuning, type PlayerAttributes } from '../config/playerAttributes';
 import {
   MOVEMENT_ACCELERATION_KEY,
   MOVEMENT_BRAKING_KEY,
@@ -22,6 +23,7 @@ const DEFAULT_FACING: Vec2 = { x: 0, y: 1 };
 
 export interface PlayerMovementObservation {
   readonly playerId: string;
+  readonly attributes: PlayerAttributes;
   readonly position: Vec2;
   readonly velocity: Vec2;
   readonly facing: Vec2;
@@ -230,7 +232,7 @@ export function integrateFieldPlayer(
 ): PlayerMovementObservation {
   assertFixedStep(fixedStepSeconds);
 
-  const movementTuning = readMovementTuning(tuning);
+  const movementTuning = readMovementTuning(createPlayerTuning(player.definition.attributes, tuning));
   const movement = clampUnitVector(intent?.movement ?? { x: 0, y: 0 });
   const movementMagnitude = vectorLength(movement);
   const movementDirection = normalizeOrUndefined(movement);
@@ -283,6 +285,7 @@ export function integrateFieldPlayer(
 
   return {
     playerId: player.definition.id,
+    attributes: player.definition.attributes,
     position: cloneVector(player.position),
     velocity: cloneVector(player.velocity),
     facing: cloneVector(player.facing),

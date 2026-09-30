@@ -7,6 +7,7 @@ import {
   type TuningReader
 } from '../config/tuning';
 import type { ReceiveIntent, RoutedPlayerIntent } from '../control/types';
+import { createPlayerTuning } from '../config/playerAttributes';
 import {
   createBallThrowLaunch,
   type BallThrowFamily,
@@ -425,7 +426,7 @@ export function resolveLooseBallPlayerInteraction(
     action.family,
     action.direction,
     action.strength,
-    tuning
+    createPlayerTuning(player.definition.attributes, tuning)
   );
   state.ball = createLooseBallState({
     position: contact.position,

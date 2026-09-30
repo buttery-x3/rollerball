@@ -5,6 +5,7 @@ import {
   CONTROLS_THROW_MIN_STRENGTH_KEY,
   type TuningReader
 } from '../config/tuning';
+import { createPlayerTuning } from '../config/playerAttributes';
 import {
   createBallThrowLaunch,
   type BallThrowFamily
@@ -219,7 +220,7 @@ function releaseBall(
     family,
     direction,
     strength,
-    physicsTuning
+    createPlayerTuning(holder.definition.attributes, physicsTuning)
   );
   const origin = cloneVector(holder.position);
 

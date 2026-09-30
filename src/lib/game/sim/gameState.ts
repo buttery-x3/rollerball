@@ -1,5 +1,6 @@
 import type { Vec2 } from '../physics/geometry';
 import type { MatchState } from './match';
+import { createPlayerAttributes, type PlayerAttributes } from '../config/playerAttributes';
 
 export type PlayerRole = 'field' | 'goalkeeper';
 
@@ -7,6 +8,7 @@ export interface PlayerDefinition {
   readonly id: string;
   readonly teamId: string;
   readonly role: PlayerRole;
+  readonly attributes: PlayerAttributes;
 }
 
 export type ThrowChargeFamily = 'low' | 'high';
@@ -78,6 +80,7 @@ export interface CreateFieldPlayerOptions {
   readonly velocity?: Vec2;
   readonly facing?: Vec2;
   readonly throwCharge?: Partial<ThrowChargeState>;
+  readonly attributes?: Partial<PlayerAttributes>;
 }
 
 export interface CreateLooseBallOptions {
@@ -129,11 +132,12 @@ export function createFieldPlayerState(
   options: CreateFieldPlayerOptions = {}
 ): PlayerState {
   return {
-    definition: {
+    definition: Object.freeze({
       id: options.id ?? DEFAULT_PLAYER_ID,
       teamId: options.teamId ?? DEFAULT_TEAM_ID,
-      role: 'field'
-    },
+      role: 'field',
+      attributes: createPlayerAttributes(options.attributes)
+    }),
     position: cloneVector(options.position ?? DEFAULT_POSITION),
     velocity: cloneVector(options.velocity ?? DEFAULT_VELOCITY),
     facing: cloneVector(options.facing ?? DEFAULT_FACING),

@@ -51,8 +51,11 @@ infrastructure. This task-specific exception does not modify AGENTS.md.
   fast human goal shows exactly 1:0 and goal stoppage with crossing diagnostics.
 
 ## Current work / exact next action
-Commit/push validated FLAME-113; integrate independent FLAME-114 and FLAME-115
-work from detached worktrees when ready, then implement FLAME-125.
+FLAME-113 pushed as `19edceb`, Linear In Review. FLAME-114 integrated from
+`cc31b4d`: check 0 errors/warnings, 24 files / 153 tests passed, build passed.
+Browser attribute scenario displays Speed 100 -> 13.75 effective speed from
+base 11 with multiplier 1.25, and explicit default/override/base values.
+Commit/push FLAME-114, then integrate collision `503073f` and implement FLAME-125.
 Receiving owns ball/player interaction after ball
 integration, one-touch state before movement, and structured receive diagnostics;
 the existing tests cover pickup, lockout, contact order, height, all redirects,

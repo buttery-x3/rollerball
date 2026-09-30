@@ -99,6 +99,10 @@ export const DEFAULT_MOVEMENT_BRAKING = 5;
 export const DEFAULT_MOVEMENT_FACING_RESPONSE = 2;
 export const DEFAULT_MOVEMENT_REVERSAL_RESPONSE = 5;
 
+export const ATTRIBUTES_SPEED_SPREAD_KEY = 'attributes.speedSpread';
+export const ATTRIBUTES_AGILITY_SPREAD_KEY = 'attributes.agilitySpread';
+export const ATTRIBUTES_POWER_SPREAD_KEY = 'attributes.powerSpread';
+
 export const DEFAULT_BALL_RADIUS = 0.35;
 export const DEFAULT_BALL_PLANAR_DAMPING = 0.25;
 export const DEFAULT_BALL_GRAVITY = 28;
@@ -119,6 +123,17 @@ export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   { key: 'match.goalStoppageSeconds', domain: 'match', label: 'Goal stoppage duration', defaultValue: 1.5, min: 0, max: 5, step: 0.1 },
+  ...[
+    { key: ATTRIBUTES_SPEED_SPREAD_KEY, label: 'Speed mapping spread', defaultValue: 0.25 },
+    { key: ATTRIBUTES_AGILITY_SPREAD_KEY, label: 'Agility mapping spread', defaultValue: 0.5 },
+    { key: ATTRIBUTES_POWER_SPREAD_KEY, label: 'Power mapping spread', defaultValue: 0.25 }
+  ].map((definition) => ({
+    ...definition,
+    domain: 'attributes',
+    min: 0,
+    max: 0.9,
+    step: 0.05
+  })),
   {
     key: RUNTIME_MAX_CATCH_UP_STEPS_KEY,
     domain: 'runtime',

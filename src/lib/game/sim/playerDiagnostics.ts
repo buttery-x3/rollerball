@@ -3,6 +3,8 @@ import {
   type DiagnosticRecord
 } from './diagnostics';
 import type { PlayerMovementObservation } from './playerMovement';
+import { describePlayerDerivedValues } from '../config/playerAttributes';
+import type { TuningReader } from '../config/tuning';
 
 const COLLISION_COLOR = '#eb6f92';
 const VELOCITY_COLOR = '#f6c177';
@@ -11,11 +13,14 @@ const FACING_COLOR = '#c4a7e7';
 
 export function createPlayerDiagnosticRecords(
   tick: number,
-  observation: PlayerMovementObservation
+  observation: PlayerMovementObservation,
+  tuning: TuningReader
 ): readonly DiagnosticRecord[] {
   const data = {
     tick,
     playerId: observation.playerId,
+    attributes: observation.attributes,
+    derivedValues: describePlayerDerivedValues(observation.attributes, tuning),
     position: observation.position,
     velocity: observation.velocity,
     desiredMovement: observation.desiredMovement,

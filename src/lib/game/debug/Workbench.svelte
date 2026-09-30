@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import type { PlayerDerivedValue } from '$lib/game/config/playerAttributes';
   import type {
     NumericTuningEntry,
     TuningRegistry
@@ -42,6 +43,7 @@
   let subscribedTuning: TuningRegistry | undefined;
   let subscribedDiagnostics: DiagnosticStore | undefined;
   let mounted = false;
+  let focusedPlayerId = '';
 
   const refreshTuning = (): void => {
     tuningEntries = tuning.list();
@@ -128,13 +130,14 @@
       );
   }
 
-  function latestPlayerRecord(frame: DiagnosticFrame): DiagnosticRecord | undefined {
+  function latestPlayerRecord(frame: DiagnosticFrame, playerId: string): DiagnosticRecord | undefined {
     return [...frame.records]
       .reverse()
       .find(
         (record) =>
           record.layer === PLAYER_MOVEMENT_DIAGNOSTIC_LAYER &&
-          record.entityId?.endsWith('-state')
+          record.entityId?.endsWith('-state') &&
+          (!playerId || record.data?.playerId === playerId)
       );
   }
 
@@ -168,7 +171,14 @@
   }
 
   $: controlRecord = latestControlRecord(diagnosticFrame);
-  $: playerRecord = latestPlayerRecord(diagnosticFrame);
+  $: playerRecords = diagnosticFrame.records.filter((record) =>
+    record.layer === PLAYER_MOVEMENT_DIAGNOSTIC_LAYER && record.entityId?.endsWith('-state'));
+  $: playerRecord = latestPlayerRecord(diagnosticFrame, focusedPlayerId);
+  $: playerDerivedValues = (playerRecord?.data?.derivedValues ?? []) as readonly PlayerDerivedValue[];
+  $: derivedRows = playerDerivedValues.map((value) => ({
+    ...value,
+    entry: tuningEntries.find((entry) => entry.key === value.key)
+  }));
   $: ballRecord = latestBallRecord(diagnosticFrame);
   $: throwRecord = latestThrowRecord(diagnosticFrame);
   $: receiveRecord = latestReceiveRecord(diagnosticFrame);
@@ -255,8 +265,8 @@
           </button>
         </div>
         <small>
-          Effective: {entry.effectiveValue}
-          {entry.overrideValue === undefined ? ' · default' : ' · override'}
+          Default: {entry.defaultValue} · Override: {entry.overrideValue ?? 'none'}
+          · Base: {entry.effectiveValue}
         </small>
       </div>
     {/each}
@@ -291,6 +301,34 @@
       <h2 id="player-heading">Player movement</h2>
       <span class="tick">Tick {diagnosticFrame.tick}</span>
     </div>
+    <label for="player-focus">Inspect player</label>
+    <select id="player-focus" bind:value={focusedPlayerId}>
+      <option value="">Latest player</option>
+      {#each playerRecords as record (record.entityId)}
+        <option value={String(record.data?.playerId)}>{String(record.data?.playerId)}</option>
+      {/each}
+    </select>
+    <p class="attribute-note">Attributes: 0–100; baseline 50. Strength and Control are reserved.
+      Effective values use the sampled player's attributes and the base tuning at that tick.</p>
+    {#if derivedRows.length}
+      <div class="derived-values">
+        <table>
+          <thead><tr><th>Value / attribute</th><th>Default</th><th>Override</th><th>Base</th><th>Multiplier</th><th>Effective</th></tr></thead>
+          <tbody>
+            {#each derivedRows as row (row.key)}
+              <tr>
+                <th>{row.entry?.label ?? row.key}<small>{row.attribute}: {row.attributeValue}</small></th>
+                <td>{row.entry?.defaultValue ?? '—'}</td>
+                <td>{row.entry?.overrideValue ?? 'none'}</td>
+                <td>{row.baseValue.toFixed(2)}</td>
+                <td>{row.multiplier.toFixed(2)}</td>
+                <td>{row.effectiveValue.toFixed(2)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
     <pre class="diagnostic-output">{formatDiagnosticData(playerRecord)}</pre>
   </section>
 
@@ -324,6 +362,11 @@
 </aside>
 
 <style>
+  .attribute-note { margin: 0; font-size: 0.75rem; color: #c8d3f5; }
+  .derived-values { overflow-x: auto; font-size: 0.68rem; }
+  .derived-values table { width: 100%; border-collapse: collapse; }
+  .derived-values th, .derived-values td { text-align: left; padding: 5px; border-bottom: 1px solid #263b66; }
+  .derived-values small { display: block; font-weight: normal; }
   .workbench {
     box-sizing: border-box;
     display: grid;
