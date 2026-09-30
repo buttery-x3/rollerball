@@ -56,6 +56,7 @@ export const ARENA_CROSSBAR_HEIGHT_KEY = 'arena.crossbarHeight';
 export const ARENA_CREASE_WIDTH_KEY = 'arena.creaseWidth';
 export const ARENA_CREASE_DEPTH_KEY = 'arena.creaseDepth';
 export const PLAYER_RADIUS_KEY = 'player.radius';
+export const CONTACT_RESTITUTION_KEY = 'contact.restitution';
 
 export const MOVEMENT_MAX_SPEED_KEY = 'movement.maxSpeed';
 export const MOVEMENT_ACCELERATION_KEY = 'movement.acceleration';
@@ -91,6 +92,7 @@ export const DEFAULT_ARENA_CROSSBAR_HEIGHT = 3;
 export const DEFAULT_ARENA_CREASE_WIDTH = 10;
 export const DEFAULT_ARENA_CREASE_DEPTH = 4;
 export const DEFAULT_PLAYER_RADIUS = 0.6;
+export const DEFAULT_CONTACT_RESTITUTION = 0;
 
 export const DEFAULT_MOVEMENT_MAX_SPEED = 11;
 export const DEFAULT_MOVEMENT_ACCELERATION = 60;
@@ -267,6 +269,15 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     defaultValue: DEFAULT_PLAYER_RADIUS,
     min: 0.25,
     max: 2,
+    step: 0.05
+  },
+  {
+    key: CONTACT_RESTITUTION_KEY,
+    domain: 'contact',
+    label: 'Incidental contact restitution',
+    defaultValue: DEFAULT_CONTACT_RESTITUTION,
+    min: 0,
+    max: 0.3,
     step: 0.05
   },
   {

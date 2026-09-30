@@ -55,7 +55,12 @@ FLAME-113 pushed as `19edceb`, Linear In Review. FLAME-114 integrated from
 `cc31b4d`: check 0 errors/warnings, 24 files / 153 tests passed, build passed.
 Browser attribute scenario displays Speed 100 -> 13.75 effective speed from
 base 11 with multiplier 1.25, and explicit default/override/base values.
-Commit/push FLAME-114, then integrate collision `503073f` and implement FLAME-125.
+FLAME-114 pushed as `b3cf941`, Linear In Review. Collision integrated from
+`503073f`: check 0 errors/warnings, 26 files / 162 tests passed, build passed.
+The solver exposes reusable pre-response closing velocities/contact normals;
+Strength/check consequences remain outside physics. Required head-on/glancing/
+stationary-moving/cluster scenarios, boundary and swept contacts pass.
+Commit/push FLAME-115, then implement FLAME-125.
 Receiving owns ball/player interaction after ball
 integration, one-touch state before movement, and structured receive diagnostics;
 the existing tests cover pickup, lockout, contact order, height, all redirects,

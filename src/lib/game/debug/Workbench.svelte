@@ -14,6 +14,7 @@
     BALL_DIAGNOSTIC_LAYER,
     CONTROL_DIAGNOSTIC_LAYER,
     PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+    PLAYER_CONTACT_DIAGNOSTIC_LAYER,
     RECEIVE_DIAGNOSTIC_LAYER,
     THROW_DIAGNOSTIC_LAYER
   } from '$lib/game/sim/diagnostics';
@@ -183,6 +184,9 @@
   $: throwRecord = latestThrowRecord(diagnosticFrame);
   $: receiveRecord = latestReceiveRecord(diagnosticFrame);
   $: matchRecord = diagnosticFrame.records.find(record => record.entityId === 'match-state');
+  $: contactRecord = diagnosticFrame.records.find(
+    (record) => record.layer === PLAYER_CONTACT_DIAGNOSTIC_LAYER && record.entityId === 'contact-state'
+  );
 </script>
 
 <aside class="workbench" aria-label="Development workbench">
@@ -330,6 +334,14 @@
       </div>
     {/if}
     <pre class="diagnostic-output">{formatDiagnosticData(playerRecord)}</pre>
+  </section>
+
+  <section class="workbench-section" aria-labelledby="contact-heading">
+    <div class="section-heading">
+      <h2 id="contact-heading">Player contacts</h2>
+      <span class="tick">Tick {diagnosticFrame.tick}</span>
+    </div>
+    <pre class="diagnostic-output">{formatDiagnosticData(contactRecord)}</pre>
   </section>
 
   <section class="workbench-section" aria-labelledby="ball-heading">

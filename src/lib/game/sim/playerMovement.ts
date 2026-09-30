@@ -13,6 +13,7 @@ import {
 import type { ArenaDefinition } from '../physics/arena';
 import {
   constrainCircleToBounds,
+  removeOutwardVelocity,
   type CircleBoundaryContact,
   type Vec2
 } from '../physics/geometry';
@@ -198,29 +199,6 @@ function selectVelocityResponse(
   }
 
   return tuning.acceleration;
-}
-
-function removeOutwardVelocity(
-  velocity: Vec2,
-  contacts: readonly CircleBoundaryContact[]
-): Vec2 {
-  let x = velocity.x;
-  let y = velocity.y;
-
-  if (contacts.includes('left') && x < 0) {
-    x = 0;
-  }
-  if (contacts.includes('right') && x > 0) {
-    x = 0;
-  }
-  if (contacts.includes('bottom') && y < 0) {
-    y = 0;
-  }
-  if (contacts.includes('top') && y > 0) {
-    y = 0;
-  }
-
-  return { x, y };
 }
 
 export function integrateFieldPlayer(

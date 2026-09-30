@@ -4,6 +4,7 @@ import {
   BALL_DIAGNOSTIC_LAYER,
   ARENA_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+  PLAYER_CONTACT_DIAGNOSTIC_LAYER,
   RECEIVE_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER,
   THROW_DIAGNOSTIC_LAYER,
@@ -20,7 +21,7 @@ import {
   predictLooseBallTrajectory,
   type LooseBallStepResult
 } from '../physics/ballTrajectory';
-import { BALL_RADIUS_KEY } from '../config/tuning';
+import { BALL_RADIUS_KEY, PLAYER_RADIUS_KEY } from '../config/tuning';
 import {
   integrateFieldPlayer,
   type PlayerMovementObservation
@@ -34,6 +35,8 @@ import {
 } from './receiving';
 import { createReceivingDiagnosticRecords } from './receivingDiagnostics';
 import { advanceMatchStoppage, publishMatchDiagnostics, resolveGoal } from './match';
+import { resolvePlayerContacts } from './playerContact';
+import { createContactDiagnosticRecords } from './contactDiagnostics';
 
 export function stepGame(
   state: GameState,
@@ -65,6 +68,9 @@ export function stepGame(
     input
   );
   advanceOneTouchState(state, fixedStepSeconds, context.tuning, input);
+  const previousPlayerPositions = new Map(
+    state.players.map((player) => [player.definition.id, player.position])
+  );
   const observations: PlayerMovementObservation[] = [];
   if (state.players.length > 0) {
     for (const player of state.players) {
@@ -85,6 +91,13 @@ export function stepGame(
       );
     }
   }
+
+  const playerContacts = resolvePlayerContacts(
+    state.players,
+    previousPlayerPositions,
+    context.tuning,
+    context.arena
+  );
 
   let ballStep: LooseBallStepResult | undefined;
   let receiveInteraction: ReceiveInteractionObservation | undefined;
@@ -133,9 +146,25 @@ export function stepGame(
     context.diagnostics?.isLayerEnabled(PLAYER_MOVEMENT_DIAGNOSTIC_LAYER)
   ) {
     for (const observation of observations) {
-      for (const record of createPlayerDiagnosticRecords(state.tick, observation, context.tuning)) {
+      const player = state.players.find((candidate) => candidate.definition.id === observation.playerId)!;
+      for (const record of createPlayerDiagnosticRecords(state.tick, {
+        ...observation,
+        position: player.position,
+        velocity: player.velocity
+      }, context.tuning)) {
         context.diagnostics.publish(record);
       }
+    }
+  }
+
+  if (context.diagnostics?.isLayerEnabled(PLAYER_CONTACT_DIAGNOSTIC_LAYER)) {
+    for (const record of createContactDiagnosticRecords(
+      state.tick,
+      state.players,
+      context.tuning.getNumber(PLAYER_RADIUS_KEY),
+      playerContacts
+    )) {
+      context.diagnostics.publish(record);
     }
   }
 

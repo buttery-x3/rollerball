@@ -34,6 +34,20 @@ export interface SweptCircleCircleInterval {
 
 export type CircleBoundaryContact = 'left' | 'right' | 'bottom' | 'top';
 
+export function removeOutwardVelocity(
+  velocity: Vec2,
+  contacts: readonly CircleBoundaryContact[]
+): Vec2 {
+  return {
+    x:
+      (contacts.includes('left') && velocity.x < 0) ||
+      (contacts.includes('right') && velocity.x > 0) ? 0 : velocity.x,
+    y:
+      (contacts.includes('bottom') && velocity.y < 0) ||
+      (contacts.includes('top') && velocity.y > 0) ? 0 : velocity.y
+  };
+}
+
 function assertFinite(value: number, description: string): void {
   if (!Number.isFinite(value)) {
     throw new RangeError(`${description} must be finite.`);
