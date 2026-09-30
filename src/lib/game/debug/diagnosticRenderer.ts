@@ -127,6 +127,24 @@ function createObject(primitive: DiagnosticPrimitive): THREE.Object3D | undefine
   const color = colorFor(primitive);
 
   switch (primitive.type) {
+    case 'scalarGrid': {
+      const group = new THREE.Group();
+      const finiteCells = primitive.cells.filter(cell => Number.isFinite(cell.value));
+      const min = Math.min(...finiteCells.map(cell => cell.value));
+      const span = Math.max(1e-9, Math.max(...finiteCells.map(cell => cell.value)) - min);
+      for (const cell of finiteCells) {
+        const fraction = (cell.value - min) / span;
+        const material = new THREE.MeshBasicMaterial({
+          color: new THREE.Color().setHSL(fraction * .33, .8, .45),
+          transparent: true, opacity: .28, depthWrite: false, side: THREE.DoubleSide
+        });
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(primitive.cellSize, primitive.cellSize), material);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.copy(toWorldPoint(cell.center));
+        group.add(mesh);
+      }
+      return group;
+    }
     case 'line':
       return createLine(primitive.start, primitive.end, color);
     case 'vector':

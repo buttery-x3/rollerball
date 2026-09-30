@@ -13,6 +13,12 @@ export interface DiagnosticVector {
 
 export type DiagnosticPrimitive =
   | {
+      readonly type: 'scalarGrid';
+      readonly cells: readonly { readonly center: DiagnosticPoint; readonly value: number }[];
+      readonly cellSize: number;
+      readonly color?: string;
+    }
+  | {
       readonly type: 'line';
       readonly start: DiagnosticPoint;
       readonly end: DiagnosticPoint;

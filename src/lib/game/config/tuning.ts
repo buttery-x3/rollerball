@@ -125,6 +125,19 @@ export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   ...[
+    ['candidateRadius', 'AI candidate search radius', 6, 0, 10, 0.5],
+    ['candidateSpacing', 'AI candidate grid spacing', 2, 1, 4, 0.5],
+    ['minSpacing', 'AI candidate minimum player spacing', 1.5, 0, 4, 0.1],
+    ['densityRadius', 'AI local density radius', 4, 0, 10, 0.5],
+    ['progressionWeight', 'AI support progression weight', 2, 0, 5, 0.1],
+    ['spacingWeight', 'AI support crowding penalty', 1, 0, 5, 0.1],
+    ['reachWeight', 'AI travel time penalty', 0.5, 0, 5, 0.1],
+    ['laneWeight', 'AI clear passing lane score', 2, 0, 5, 0.1],
+    ['expensiveCandidateLimit', 'AI maximum detailed lane tests', 6, 1, 24, 1],
+    ['hysteresisMargin', 'AI target replacement score margin', 0.25, 0, 3, 0.05],
+    ['predictionSteps', 'AI hypothetical throw horizon', 120, 10, 240, 1]
+  ].map(([key, label, defaultValue, min, max, step]) => ({ key: `ai.${key}`, domain: 'ai', label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  ...[
     ['receiverClaimLeadSeconds', 'Receiver initial claim lead', 0.12, 0, 1, 0.01],
     ['receiverReplacementMargin', 'Receiver claim replacement margin', 0.2, 0, 1, 0.01],
     ['receiverMaxArrivalSeconds', 'Receiver claim maximum arrival time', 2, 0.1, 4, 0.1],

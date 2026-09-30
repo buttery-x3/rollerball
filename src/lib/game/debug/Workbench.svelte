@@ -35,6 +35,7 @@
   export let scenarios: readonly ScenarioDefinition<GameState, RoutedPlayerIntent>[];
   export let tick: number;
   export let tuning: TuningRegistry;
+  export let focusedPlayerId = '';
 
   let tuningEntries: readonly NumericTuningEntry[] = tuning.list();
   let layerEntries: readonly DiagnosticLayerState[] = diagnostics.listLayers();
@@ -44,7 +45,6 @@
   let subscribedTuning: TuningRegistry | undefined;
   let subscribedDiagnostics: DiagnosticStore | undefined;
   let mounted = false;
-  let focusedPlayerId = '';
 
   const refreshTuning = (): void => {
     tuningEntries = tuning.list();
@@ -226,6 +226,21 @@
     {/if}
   </section>
 
+  <section class="workbench-section" aria-label="AI decisions">
+    <h2>AI candidates and decisions</h2>
+    <label for="player-focus">Inspect player</label>
+    <select id="player-focus" bind:value={focusedPlayerId}>
+      <option value="">Latest player</option>
+      {#each playerRecords as record (record.entityId)}
+        <option value={String(record.data?.playerId)}>{String(record.data?.playerId)}</option>
+      {/each}
+    </select>
+    <p class="attribute-note">Enable AI layers to inspect candidate scores and rejection reasons. The inspected player selects the preview and overlays; green score cells are stronger than red.</p>
+    {#each diagnosticFrame.records.filter(record => record.layer === 'ai' && record.data && (record.source !== 'spatialCandidates' || record.entityId === 'ai-candidates') && (!focusedPlayerId || record.data.playerId === focusedPlayerId)) as decision}
+      <pre class="diagnostic-output">{formatDiagnosticData(decision)}</pre>
+    {/each}
+  </section>
+
   <section class="workbench-section" aria-labelledby="tuning-heading">
     <div class="section-heading">
       <h2 id="tuning-heading">Tuning</h2>
@@ -305,13 +320,6 @@
       <h2 id="player-heading">Player movement</h2>
       <span class="tick">Tick {diagnosticFrame.tick}</span>
     </div>
-    <label for="player-focus">Inspect player</label>
-    <select id="player-focus" bind:value={focusedPlayerId}>
-      <option value="">Latest player</option>
-      {#each playerRecords as record (record.entityId)}
-        <option value={String(record.data?.playerId)}>{String(record.data?.playerId)}</option>
-      {/each}
-    </select>
     <p class="attribute-note">Attributes: 0–100; baseline 50. Contact and receiving panels explain Strength and Control outcomes.
       Effective values use the sampled player's attributes and the base tuning at that tick.</p>
     {#if derivedRows.length}

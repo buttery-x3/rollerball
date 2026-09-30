@@ -36,6 +36,8 @@ export interface DiagnosticStore extends DiagnosticSink {
 }
 
 export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
+  { key: 'ai', label: 'AI candidates and decisions', enabledByDefault: false },
+  { key: 'aiScores', label: 'AI spatial score field', enabledByDefault: false },
   { key: 'keeper', label: 'Goalkeeper saves and targets', enabledByDefault: false },
   { key: 'checking', label: 'Checks, stumble and turnovers', enabledByDefault: false },
   { key: 'match', label: 'Goals and match flow', enabledByDefault: true },

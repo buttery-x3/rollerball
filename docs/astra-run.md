@@ -61,8 +61,24 @@ Release reacquisition exclusion now lasts long enough for minimum throws to exit
 the releasing player's receive envelope (central configured minimum retained),
 including keeper distribution. Bank-return one-touch regression uses a real bank.
 
-Next: commit/push117, update Linear; implement127 shared read-only AI world queries
+FLAME-117 pushed as `6b8f34e`, Linear In Review.
+Current: implement127 shared read-only AI world queries
 and candidate scoring, then128 positioning,118 actions,119 match,129 integrated
 workbench/tuning. AI owns decisions; sim retains authoritative tactical state.
 Physical-controller testing and human feel/balance approval remain unverified.
 No external implementation blocker identified. Dev server port5173.
+
+
+FLAME-127 complete: deeply readonly world query boundary uses one detached query
+snapshot, shared ball prediction/contact/receive paths; bounded generate/filter/
+score/lane-test/select pipeline; explicit prior-target hysteresis. Workbench
+focused candidate records and optional scalar heatmap share three deterministic
+scenes. Check0 errors/warnings,222 tests/31 files,production build pass. Browser
+invalid/occupied candidates skip lane tests, open wins two detailed tests;
+near-equal right target retained. Vite cached an intermediate missing module;
+server restart recovered it. Dev server session77139 port5173.
+Next after127push:128. Simulation owns optional TacticalState; pure AI planner
+returns assignments; runtime applies through sim boundary and generates normal
+movement intents. Existing117 neutral fixtures remain isolated. Agents collision
+owns AI planner/steering/tuning; attributes owns scenarios/tests; root owns sim
+state/apply, runtime and browser integration.

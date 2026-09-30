@@ -32,6 +32,8 @@
     getScenario
   } from '$lib/game/scenarios/defaultScenarios';
   import { teamFreePlayScenario } from '$lib/game/scenarios/teamControlScenario';
+  import { getCandidatePreviewRequest } from '$lib/game/scenarios/aiCandidateScenario';
+  import { evaluateSpatialCandidates } from '$lib/game/ai/tacticalCandidates';
   import {
     createScenarioRun,
     type ScenarioRun
@@ -61,6 +63,7 @@
   }
 
   let browserInput: BrowserInputSource | undefined;
+  let focusedPlayerId = 'player-1';
 
   function createRun(id: string): ControlScenarioRun {
     const definition = getScenario(id);
@@ -68,9 +71,29 @@
     let scenarioState: GameState | undefined;
     let previousMatchPhase: string | undefined;
     let previousRestartCount = 0;
+    const previewSelections = new Map<string, string>();
     const run = createScenarioRun({
       definition,
-      step: scenarioStep,
+      step: (state, seconds, context, input) => {
+        scenarioStep(state, seconds, context, input);
+        // A development query uses the same tactical scorer as gameplay. It
+        // stores only inspection history and cannot drive simulation outcomes.
+        if (context.tuning && context.arena &&
+            (context.diagnostics?.isLayerEnabled('ai') || context.diagnostics?.isLayerEnabled('aiScores'))) {
+          const request = getCandidatePreviewRequest(definition.id);
+          const playerId = request?.playerId ?? state.players.find(player =>
+            player.definition.id === focusedPlayerId && player.definition.role === 'field')?.definition.id ??
+            state.players.find(player => player.definition.role === 'field')?.definition.id;
+          if (playerId) {
+            const result = evaluateSpatialCandidates(state, playerId, {
+              ...request?.options,
+              previousId: previewSelections.get(playerId) ?? request?.options.previousId
+            }, context.arena, context.tuning, context.diagnostics);
+            if (result.selected) previewSelections.set(playerId, result.selected.id);
+            else previewSelections.delete(playerId);
+          }
+        }
+      },
       inputProvider:
         definition.scriptedInputs === undefined
           ? (tick, context) => {
@@ -208,6 +231,7 @@
     diagnostics = activeRun.diagnostics;
     runtime = activeRun.runtime;
     activeScenarioId = activeRun.definition.id;
+    focusedPlayerId = getCandidatePreviewRequest(id)?.playerId ?? 'player-1';
     scenarioError = undefined;
     tick = state.tick;
     paused = runtime.isPaused;
@@ -288,6 +312,7 @@
       {tuning}
       {activeScenarioId}
       {scenarioError}
+      bind:focusedPlayerId
       scenarios={DEFAULT_SCENARIOS}
       onPause={pauseSimulation}
       onResume={resumeSimulation}
