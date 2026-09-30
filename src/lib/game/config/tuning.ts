@@ -125,6 +125,15 @@ export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   ...[
+    ['receiverClaimLeadSeconds', 'Receiver initial claim lead', 0.12, 0, 1, 0.01],
+    ['receiverReplacementMargin', 'Receiver claim replacement margin', 0.2, 0, 1, 0.01],
+    ['receiverMaxArrivalSeconds', 'Receiver claim maximum arrival time', 2, 0.1, 4, 0.1],
+    ['receiverDifficultyWeight', 'Receiver difficulty score weight', 0.15, 0, 1, 0.05],
+    ['receiverPredictionSteps', 'Receiver trajectory prediction horizon', 120, 10, 240, 1],
+    ['defensiveReachWeight', 'Defensive switch pressure/reach weight', 1, 0, 4, 0.1],
+    ['defensiveGoalSideWeight', 'Defensive switch goal-side weight', 0.6, 0, 4, 0.1]
+  ].map(([key, label, defaultValue, min, max, step]) => ({ key: `controls.${key}`, domain: 'controls', label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  ...[
     ['maxSpeed', 'Keeper maximum speed', 5, 0, 12, 0.1],
     ['acceleration', 'Keeper acceleration', 50, 0, 120, 1],
     ['braking', 'Keeper braking', 60, 0, 120, 1],
@@ -522,7 +531,7 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   {
     key: BALL_POST_RELEASE_LOCKOUT_TICKS_KEY,
     domain: 'ball',
-    label: 'Post-release reacquisition lockout',
+    label: 'Minimum release reacquisition lockout',
     defaultValue: DEFAULT_BALL_POST_RELEASE_LOCKOUT_TICKS,
     min: 0,
     max: 30,

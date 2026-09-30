@@ -263,6 +263,11 @@ describe('loose-ball pickup and receiving', () => {
   it('arms and resolves a one-touch through the movement free-play control path', () => {
     const tuning = createTuningRegistry();
     const state = movementFreePlayScenario.createInitialState();
+    // Use a genuine incoming bank return. A minimum throw now leaves the
+    // releaser envelope instead of immediately becoming a self one-touch.
+    state.players[0].position = { x: 7.4, y: 0 };
+    state.players[0].facing = { x: 1, y: 0 };
+    state.ball = createLooseBallState({ position: state.players[0].position });
     const router = createControlRouter({ tuning, initialPlayerId: 'player-1' });
     const arena = createArenaDefinition(tuning);
     const looseActionContexts: string[] = [];
@@ -298,18 +303,21 @@ describe('loose-ball pickup and receiving', () => {
     step(true);
     expect(state.players[0].oneTouch.charge?.family).toBe('low');
 
-    for (let tick = 0; tick < 5; tick += 1) {
+    let sawBankReturn = false;
+    for (let tick = 0; tick < 80 && state.players[0].oneTouch.charge.family; tick += 1) {
       step(true);
+      if (state.ball.mode === 'loose' && state.ball.velocity.x < 0) sawBankReturn = true;
     }
 
-    expect(looseActionContexts).toEqual(Array(7).fill('receiving'));
+    expect(sawBankReturn).toBe(true);
+    expect(looseActionContexts.every(context => context === 'receiving')).toBe(true);
     expect(state.ball.mode).toBe('loose');
     if (state.ball.mode !== 'loose') {
       throw new Error('Free-play one-touch did not redirect the ball.');
     }
     expect(state.ball.release?.releasedById).toBe('player-1');
     expect(state.ball.release?.reacquisitionLockoutTicksRemaining).toBe(6);
-    expect(state.ball.velocity.y).toBeGreaterThan(ordinaryThrowSpeed);
+    expect(state.ball.velocity.x).toBeGreaterThan(ordinaryThrowSpeed);
     expect(state.players[0].oneTouch.charge.family).toBeUndefined();
     expect(state.players[0].oneTouch.buffer).toBeUndefined();
   });

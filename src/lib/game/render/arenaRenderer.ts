@@ -20,7 +20,8 @@ export interface ArenaRenderer {
     diagnostics?: DiagnosticFrame,
     arenaDiagnosticsEnabled?: boolean,
     playerRadius?: number,
-    ballRadius?: number
+    ballRadius?: number,
+    controlledPlayerId?: string
   ): void;
   setArena(arena: ArenaDefinition): void;
   setCameraFraming(framing: ArenaCameraFraming): void;
@@ -56,6 +57,7 @@ interface PlayerPresentation {
   readonly root: THREE.Group;
   readonly radius: number;
   readonly style: string;
+  readonly controlRing: THREE.Mesh;
 }
 
 interface BallPresentation {
@@ -87,6 +89,10 @@ function createPlayerPresentation(
     '#e7ecff'
   );
   root.add(heading);
+  const controlRing = new THREE.Mesh(new THREE.RingGeometry(safeRadius * 1.35, safeRadius * 1.55, 32), new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide }));
+  controlRing.rotation.x = -Math.PI / 2;
+  controlRing.position.y = .02;
+  root.add(controlRing);
 
   if (goalkeeper) {
     const gloves = new THREE.Mesh(new THREE.BoxGeometry(safeRadius * 2.5, .12, .18), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
@@ -94,7 +100,7 @@ function createPlayerPresentation(
     root.add(gloves);
   }
 
-  return { root, radius: safeRadius, style: `${color}:${goalkeeper}` };
+  return { root, radius: safeRadius, style: `${color}:${goalkeeper}`, controlRing };
 }
 
 function createBallPresentation(radius: number): BallPresentation {
@@ -237,7 +243,7 @@ export function createArenaRenderer(
     );
   };
 
-  const syncPlayers = (state: GameState, radius: number): void => {
+  const syncPlayers = (state: GameState, radius: number, controlledPlayerId?: string): void => {
     const activePlayerIds = new Set<string>();
     const safeRadius = Math.max(0, radius);
 
@@ -264,6 +270,7 @@ export function createArenaRenderer(
       }
 
       presentation.root.position.set(player.position.x, 0, -player.position.y);
+      presentation.controlRing.visible = playerId === controlledPlayerId;
       presentation.root.rotation.y = Math.atan2(player.facing.y, player.facing.x);
     }
 
@@ -353,9 +360,10 @@ export function createArenaRenderer(
       diagnostics: DiagnosticFrame = EMPTY_DIAGNOSTIC_FRAME,
       arenaDiagnosticsEnabled = true,
       playerRadius = DEFAULT_PLAYER_RADIUS,
-      ballRadius = DEFAULT_BALL_RADIUS
+      ballRadius = DEFAULT_BALL_RADIUS,
+      controlledPlayerId?: string
     ): void {
-      syncPlayers(state, playerRadius);
+      syncPlayers(state, playerRadius, controlledPlayerId);
       syncBall(state, ballRadius);
       diagnosticRenderer.render(composeDiagnostics(diagnostics, arenaDiagnosticsEnabled));
       renderer.render(scene, camera);

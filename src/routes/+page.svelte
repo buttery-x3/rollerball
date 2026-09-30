@@ -31,7 +31,7 @@
     DEFAULT_SCENARIOS,
     getScenario
   } from '$lib/game/scenarios/defaultScenarios';
-  import { scoringFreePlayScenario } from '$lib/game/scenarios/scoringScenario';
+  import { teamFreePlayScenario } from '$lib/game/scenarios/teamControlScenario';
   import {
     createScenarioRun,
     type ScenarioRun
@@ -88,7 +88,8 @@
                   : definition.interactiveActionContext ?? 'neutral';
               const result = control?.consumeTick(
                 browserInput?.getSnapshot() ?? createNeutralInputSnapshot(),
-                actionContext
+                actionContext,
+                scenarioState?.teams && context.arena ? { state: scenarioState, arena: context.arena, diagnostics: context.diagnostics } : undefined
               );
               if (result) {
                 publishControlDiagnostics(tick, result, context.diagnostics);
@@ -101,6 +102,8 @@
       diagnosticsEnabled: true
     });
     scenarioState = run.state;
+    previousMatchPhase = scenarioState.match?.phase;
+    previousRestartCount = scenarioState.match?.restartCount ?? 0;
 
     control = createControlRouter({
       tuning: run.tuning,
@@ -110,7 +113,7 @@
     return { run, control };
   }
 
-  let activeSession = createRun(scoringFreePlayScenario.id);
+  let activeSession = createRun(teamFreePlayScenario.id);
   let activeRun = activeSession.run;
   let activeControl = activeSession.control;
   let state = activeRun.state;
@@ -122,6 +125,7 @@
   let chargeHudVisible = false;
   let chargeHud: ThrowChargeState | undefined;
   let matchHud = state.match;
+  let controlledPlayerId = activeControl.assignment?.playerId;
 
   let renderer: ArenaRenderer | undefined;
   let loop: BrowserGameLoop | undefined;
@@ -129,7 +133,7 @@
   let paused = runtime.isPaused;
 
   function updateChargeHud(): void {
-    const controlledPlayerId = activeControl.assignment?.playerId;
+    controlledPlayerId = activeControl.assignment?.playerId;
     const controlledPlayer = state.players.find(
       (player) => player.definition.id === controlledPlayerId
     );
@@ -153,7 +157,8 @@
       diagnostics?.getFrame(),
       diagnostics?.isLayerEnabled(ARENA_DIAGNOSTIC_LAYER) ?? false,
       tuning.getNumber(PLAYER_RADIUS_KEY),
-      tuning.getNumber(BALL_RADIUS_KEY)
+      tuning.getNumber(BALL_RADIUS_KEY),
+      activeControl.assignment?.playerId
     );
   }
 
@@ -269,6 +274,11 @@
         <span>{matchHud.phase === 'goal-stoppage' ? 'Goal — restarting' : 'Playing'}</span>
       </div>
     {/if}
+    <div class="control-hud" aria-label="Player controls">
+      <strong>Gold: Human ↑ · Pink: Opponent ↓ · White ring: {controlledPlayerId ?? 'no player'}</strong>
+      <span>Left stick / WASD: move · A / J: low throw or check · B / K: lob · X / L: switch</span>
+      <span>Right stick: immediate low throw · Hold then release a throw button to charge</span>
+    </div>
   </section>
   {#if diagnostics}
     <Workbench
@@ -343,6 +353,7 @@
     white-space: nowrap; pointer-events: none;
   }
   .match-hud span { font-size: 0.8rem; color: #a5b3d6; }
+  .control-hud { position: absolute; bottom: 12px; left: 12px; right: 12px; display: grid; gap: 3px; font-size: .7rem; color: #b8c5df; pointer-events: none; }
 
   @media (max-width: 860px) {
     :global(body) {

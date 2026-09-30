@@ -1,6 +1,7 @@
 import type { Vec2 } from '../physics/geometry';
 import type { ArenaEnd } from '../physics/arena';
 import type { MatchState } from './match';
+import type { TeamDefinition } from './teams';
 import { createPlayerAttributes, type PlayerAttributes } from '../config/playerAttributes';
 
 export type PlayerRole = 'field' | 'goalkeeper';
@@ -97,6 +98,7 @@ export interface GameState {
   ball: BallState;
   /** Isolated subsystem scenarios may deliberately omit match rules. */
   match?: MatchState;
+  readonly teams?: readonly TeamDefinition[];
 }
 
 export interface CreateFieldPlayerOptions {

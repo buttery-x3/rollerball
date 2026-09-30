@@ -45,35 +45,24 @@ while awaiting human review. No issues are marked Done by this run.
 - Keeper extended-save forecast uses committed locomotion capacity, including
   immediate slowdown; it never reads unreleased human input.
 
-## Current work / exact next action
-FLAME-126 production implementation integrated in working tree: keeper crease
-bounds/profile, explicit commitment/recovery, deterministic catch/parry, common
-swept interactions, trajectory/reach queries, runtime keeper controller, role
-presentation, diagnostics and scenarios. Core check clean; boundary smoke passed
-alone. Full suite has195/197 passing: boundary matrix exceeded default5s timeout
-(raised only this test to30s, preserving coverage); rebound scenario being repaired
-to exercise a real one-touch return outside recovering keeper reach. Agent
-attributes owns goalkeeper scenarios/tests, agent collision core is finished.
+## Current checkpoint
+FLAME-126 pushed as `187f08d`, Linear In Review: check clean,197 tests/29 files,
+production build passed. Browser keeper catch/parry/lob goal verified.
+FLAME-117 complete: stable two five-player teams; receiver/defensive/manual/keeper
+routing with hysteresis; shared capability-aware receiver queries; team colors and
+controlled marker. Eight shared scenarios,12 team tests. Full check clean,
+210 tests/30 files pass, production build passes. Browser clear receiver switches
+to player-2 before contact; quick keyboard L switches player-2 to player-3 exactly
+once; keeper possession assigns human-keeper. Earlier intermediate HMR errors were
+recovered; no new runtime errors in these interactions.
 
-Browser verified fresh local tab: easy keeper catch tick1; hard parry tick1
-(outgoing y=-25.8919); advanced keeper beaten by lob scoring tick12 at height2.2481
-below crossbar. Fresh-tab console has no errors. Vite restart recovered a cached
-missing-module error from intermediate file creation. Dev server port5173.
-Next: finish rebound scenario, full check/test/build, commit/push126 and Linear
-comment/status, immediately implement117 full teams/control routing.
+Integration fixes: queued browser button edges preserve quick keyboard taps.
+Release reacquisition exclusion now lasts long enough for minimum throws to exit
+the releasing player's receive envelope (central configured minimum retained),
+including keeper distribution. Bank-return one-touch regression uses a real bank.
 
-## Verification still required
-Physical-controller testing and human feel/balance approval are unverified.
-Remaining planned implementation:117,127,128,118,119,129. Full match browser
-start/gameplay/goals/full-time/rematch and integrated tuning still required.
-No external implementation blocker identified.
-
-FLAME-126 final validation: check0 errors/warnings;197 tests/29 files passed;
-production build passed. Eight shared keeper scenarios and12 keeper tests cover
-actual parry->one-touch->goal during recovery, envelope vulnerability, shared
-source-neutral action parity, diagnostics parity, replay and frame-rate behavior.
-Rebound fixture corrected to a physically placed return; no sporting thresholds
-were weakened. All tuning boundaries still exercised with30s test timeout.
-Ready to commit/push126. Next117 ownership: sim team definitions/setup;
-control receiver claims and routing; runtime controller composition; render team/
-controlled identity. Shared trajectory/reach queries feed receiver claims.
+Next: commit/push117, update Linear; implement127 shared read-only AI world queries
+and candidate scoring, then128 positioning,118 actions,119 match,129 integrated
+workbench/tuning. AI owns decisions; sim retains authoritative tactical state.
+Physical-controller testing and human feel/balance approval remain unverified.
+No external implementation blocker identified. Dev server port5173.

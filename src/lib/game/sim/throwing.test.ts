@@ -97,7 +97,7 @@ describe('throw action simulation', () => {
     expect(ball.velocity.y).toBeGreaterThan(0);
     expect(ball.verticalVelocity).toBe(0);
     expect(ball.release?.releasedById).toBe('player-1');
-    expect(ball.release?.reacquisitionLockoutTicksRemaining).toBe(6);
+    expect(ball.release?.reacquisitionLockoutTicksRemaining).toBe(9);
   });
 
   it('charges low throws to a clamped maximum', () => {
@@ -187,7 +187,7 @@ describe('throw action simulation', () => {
 
     expect(ball.release).toMatchObject({
       releasedById: 'player-1',
-      reacquisitionLockoutTicksRemaining: 5
+      reacquisitionLockoutTicksRemaining: 7
     });
     expect(run.state.players[0].throwCharge).toEqual(createEmptyThrowChargeState());
     expect(ballRecords).toHaveLength(1);

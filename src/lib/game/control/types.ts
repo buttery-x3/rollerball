@@ -103,4 +103,45 @@ export interface ControlStepResult {
   readonly assignment: ControlAssignment | undefined;
   readonly routedIntent: RoutedPlayerIntent | undefined;
   readonly capture: RightStickCaptureState;
+  readonly routing?: ControlRoutingDecision;
+}
+
+export interface ReceiverClaim {
+  readonly playerId: PlayerId;
+  readonly position: Vec2;
+  readonly timeSeconds: number;
+  readonly score: number;
+  readonly createdTick: number;
+}
+
+export interface ReceiverRoutingCandidate {
+  readonly playerId: PlayerId;
+  readonly teamId: string;
+  readonly position: Vec2;
+  readonly timeSeconds: number;
+  readonly arrivalSeconds: number;
+  readonly score: number;
+  readonly difficulty: number;
+  readonly capacity: number;
+  readonly contested: boolean;
+}
+
+export interface DefensiveRoutingCandidate {
+  readonly playerId: PlayerId;
+  readonly position: Vec2;
+  readonly reachSeconds: number;
+  readonly goalSide: boolean;
+  readonly pressureScore: number;
+  readonly goalSideScore: number;
+  readonly score: number;
+}
+
+export interface ControlRoutingDecision {
+  readonly tick: number;
+  readonly reason: string;
+  readonly holderId?: PlayerId;
+  readonly previousPlayerId?: PlayerId;
+  readonly receiverClaim?: ReceiverClaim;
+  readonly receiverCandidates: readonly ReceiverRoutingCandidate[];
+  readonly defensiveCandidates: readonly DefensiveRoutingCandidate[];
 }

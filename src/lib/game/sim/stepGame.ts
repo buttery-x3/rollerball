@@ -163,7 +163,7 @@ export function stepGame(
         ...observation,
         position: player.position,
         velocity: player.velocity
-      }, context.tuning)) {
+      }, context.tuning, player)) {
         context.diagnostics.publish(record);
       }
     }

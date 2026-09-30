@@ -83,8 +83,8 @@ const KEEPER_MOVEMENT_KEYS: Readonly<Record<string, string>> = {
 };
 
 /** Applies the same attribute mappings to the keeper's high-grip base profile. */
-export function createGoalkeeperMovementTuning(player: PlayerState, tuning: TuningReader): TuningReader {
-  const profile: TuningReader = {
+export function createGoalkeeperBaseTuning(player: PlayerState, tuning: TuningReader): TuningReader {
+  return {
     getNumber(key) {
       let value = tuning.getNumber(KEEPER_MOVEMENT_KEYS[key] ?? key);
       if (key === MOVEMENT_MAX_SPEED_KEY && player.goalkeeper &&
@@ -94,7 +94,10 @@ export function createGoalkeeperMovementTuning(player: PlayerState, tuning: Tuni
       return value;
     }
   };
-  return createPlayerTuning(player.definition.attributes, profile);
+}
+
+export function createGoalkeeperMovementTuning(player: PlayerState, tuning: TuningReader): TuningReader {
+  return createPlayerTuning(player.definition.attributes, createGoalkeeperBaseTuning(player, tuning));
 }
 
 export function getGoalkeeperSaveEnvelope(player: PlayerState, tuning: TuningReader): GoalkeeperSaveEnvelope {

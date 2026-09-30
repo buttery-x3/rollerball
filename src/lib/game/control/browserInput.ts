@@ -37,6 +37,7 @@ export interface StandardGamepadLike {
 
 export interface BrowserInputSource {
   poll(): void;
+  /** Consumes at most one sampled button transition for the next fixed tick. */
   getSnapshot(): InputSnapshot;
   reset(): void;
   dispose(): void;
@@ -136,18 +137,34 @@ export function createBrowserInputSource(
         : (navigator.getGamepads() as readonly (StandardGamepadLike | null)[]));
   const keys = new Set<string>();
   let snapshot = createNeutralInputSnapshot();
+  const pendingButtons: InputSnapshot['buttons'][] = [];
   let hadGamepad = false;
 
+  const sample = (gamepad: StandardGamepadLike | undefined): void => {
+    const next = createInputSnapshotFromDevices(gamepad, keys, tuning);
+    if (next.buttons.low !== snapshot.buttons.low || next.buttons.high !== snapshot.buttons.high || next.buttons.switch !== snapshot.buttons.switch) {
+      pendingButtons.push(next.buttons);
+    }
+    snapshot = next;
+  };
+
   const onKeyDown = (event: KeyboardEvent): void => {
+    const element = event.target as HTMLElement | null;
+    if (element && (['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName) || element.isContentEditable)) return;
+    if (!Object.values(DEFAULT_KEY_BINDINGS).some(bindings => (bindings as readonly string[]).includes(event.code))) return;
+    event.preventDefault();
     keys.add(event.code);
+    sample(firstConnectedGamepad(getGamepads()));
   };
 
   const onKeyUp = (event: KeyboardEvent): void => {
     keys.delete(event.code);
+    sample(firstConnectedGamepad(getGamepads()));
   };
 
   const onReset = (): void => {
     keys.clear();
+    pendingButtons.length = 0;
     snapshot = createNeutralInputSnapshot();
     hadGamepad = false;
     options.onReset?.();
@@ -172,14 +189,14 @@ export function createBrowserInputSource(
       }
 
       hadGamepad = gamepad !== undefined;
-      snapshot = createInputSnapshotFromDevices(gamepad, keys, tuning);
+      sample(gamepad);
     },
 
     getSnapshot(): InputSnapshot {
       return {
         movement: { ...snapshot.movement },
         rightStick: { ...snapshot.rightStick },
-        buttons: { ...snapshot.buttons }
+        buttons: { ...(pendingButtons.shift() ?? snapshot.buttons) }
       };
     },
 

@@ -7,6 +7,22 @@ import {
 } from './browserInput';
 
 describe('browser input source', () => {
+  it('preserves a quick switch press/release between render polls and consumes it once', () => {
+    const target = new EventTarget();
+    const tuning = createTuningRegistry();
+    const source = createBrowserInputSource(tuning, { eventTarget: target as unknown as Window, getGamepads: () => [] });
+    const router = createControlRouter({ tuning, initialPlayerId: 'player-1' });
+    for (const type of ['keydown', 'keyup']) {
+      const event = new Event(type);
+      Object.defineProperty(event, 'code', { value: 'KeyL' });
+      target.dispatchEvent(event);
+    }
+    source.poll();
+    expect(router.consumeTick(source.getSnapshot()).input.buttons.switch).toEqual({ held: true, pressed: true, released: false });
+    expect(router.consumeTick(source.getSnapshot()).input.buttons.switch).toEqual({ held: false, pressed: false, released: true });
+    expect(router.consumeTick(source.getSnapshot()).input.buttons.switch.pressed).toBe(false);
+    source.dispose();
+  });
   it('clears sampled input when the active Gamepad disconnects', () => {
     const target = new EventTarget();
     const gamepad: StandardGamepadLike = {

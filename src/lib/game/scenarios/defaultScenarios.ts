@@ -12,6 +12,7 @@ import { PLAYER_CONTACT_SCENARIOS } from './playerContactScenario';
 import { CHECK_SCENARIOS } from './checkScenario';
 import { CONTROL_RECEIVING_SCENARIOS } from './controlReceivingScenario';
 import { GOALKEEPER_SCENARIOS } from './goalkeeperScenario';
+import { TEAM_CONTROL_SCENARIOS } from './teamControlScenario';
 
 export const DETERMINISTIC_TICK_SCENARIO_ID = 'deterministic-tick';
 
@@ -47,7 +48,8 @@ export const DEFAULT_SCENARIOS: readonly ScenarioDefinition<
   ...PLAYER_CONTACT_SCENARIOS,
   ...CHECK_SCENARIOS,
   ...CONTROL_RECEIVING_SCENARIOS,
-  ...GOALKEEPER_SCENARIOS
+  ...GOALKEEPER_SCENARIOS,
+  ...TEAM_CONTROL_SCENARIOS
 ];
 
 export function getScenario(

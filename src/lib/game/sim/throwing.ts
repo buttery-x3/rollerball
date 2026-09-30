@@ -1,11 +1,14 @@
 import {
   BALL_POST_RELEASE_LOCKOUT_TICKS_KEY,
+  BALL_RADIUS_KEY,
+  PLAYER_RADIUS_KEY,
   CONTROLS_THROW_CHARGE_TO_MAX_SECONDS_KEY,
   CONTROLS_THROW_MAX_STRENGTH_KEY,
   CONTROLS_THROW_MIN_STRENGTH_KEY,
   type TuningReader
 } from '../config/tuning';
 import { createPlayerTuning } from '../config/playerAttributes';
+import { getGoalkeeperSaveEnvelope } from './goalkeeping';
 import {
   createBallThrowLaunch,
   type BallThrowFamily
@@ -214,7 +217,8 @@ function releaseBall(
   direction: Vec2,
   strength: number,
   tuning: ThrowChargeTuning,
-  physicsTuning: TuningReader
+  physicsTuning: TuningReader,
+  fixedStepSeconds: number
 ): ThrowReleaseObservation {
   const launch = createBallThrowLaunch(
     family,
@@ -223,6 +227,14 @@ function releaseBall(
     createPlayerTuning(holder.definition.attributes, physicsTuning)
   );
   const origin = cloneVector(holder.position);
+  const envelope = (holder.definition.role === 'goalkeeper'
+    ? getGoalkeeperSaveEnvelope(holder, physicsTuning).radius
+    : physicsTuning.getNumber(PLAYER_RADIUS_KEY)) + physicsTuning.getNumber(BALL_RADIUS_KEY);
+  const launchSpeed = Math.hypot(launch.velocity.x, launch.velocity.y);
+  // The configured duration is a minimum. A soft release must have enough
+  // fixed ticks to leave its own envelope, including the larger keeper reach.
+  const lockoutTicks = Math.max(tuning.lockoutTicks, launchSpeed > 1e-9
+    ? Math.ceil(envelope / (launchSpeed * fixedStepSeconds)) + 1 : tuning.lockoutTicks);
 
   state.ball = createLooseBallState({
     position: origin,
@@ -231,7 +243,7 @@ function releaseBall(
     verticalVelocity: launch.verticalVelocity,
     release: {
       releasedById: holder.definition.id,
-      reacquisitionLockoutTicksRemaining: tuning.lockoutTicks
+      reacquisitionLockoutTicksRemaining: lockoutTicks
     }
   });
   holder.throwCharge = createEmptyThrowChargeState();
@@ -245,7 +257,7 @@ function releaseBall(
     strength: launch.strength,
     velocity: cloneVector(launch.velocity),
     verticalVelocity: launch.verticalVelocity,
-    reacquisitionLockoutTicks: tuning.lockoutTicks
+    reacquisitionLockoutTicks: lockoutTicks
   };
 }
 
@@ -325,7 +337,8 @@ export function advanceThrowState(
         holder.facing,
         activeCharge.strength,
         chargeTuning,
-        tuning
+        tuning,
+        fixedStepSeconds
       );
       return resultFor(state, holder.definition.id, cancelledPlayerIds, release);
     }
@@ -345,7 +358,8 @@ export function advanceThrowState(
       intent.rightStickThrow.direction,
       throwStrengthForRightStick(intent.rightStickThrow, chargeTuning),
       chargeTuning,
-      tuning
+      tuning,
+      fixedStepSeconds
     );
     return resultFor(state, holder.definition.id, cancelledPlayerIds, release);
   }
