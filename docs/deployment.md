@@ -2,6 +2,9 @@
 
 Live URL: <https://buttery.wtf/rollerball/>. Node.js 22+ is required.
 
+The public production build includes the diagnostics workbench and enables the
+structured diagnostic store for every scenario.
+
 ## Ownership
 
 The production transport serves compiled files only. `server/app.mjs` owns HTTP

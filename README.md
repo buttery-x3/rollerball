@@ -19,6 +19,9 @@ npm run build
 
 Use `npm run preview` to serve the production build locally.
 
+The production site includes the diagnostics workbench so hosted scenarios, tuning,
+and structured diagnostic layers remain inspectable outside the Vite development server.
+
 ## Production hosting
 
 See [Deployment](docs/deployment.md) for buttery.wtf hosting, PM2 and manual deployments.

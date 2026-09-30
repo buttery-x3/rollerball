@@ -45,7 +45,6 @@
   import type { ArenaRenderer } from '$lib/game/render/arenaRenderer';
 
   let canvasHost: HTMLDivElement;
-  const developmentMode = import.meta.env.DEV;
 
   const scenarioStep = (
     state: GameState,
@@ -90,7 +89,7 @@
             }
           : undefined,
       getArena: (currentTuning) => createArenaDefinition(currentTuning),
-      diagnosticsEnabled: developmentMode
+      diagnosticsEnabled: true
     });
     scenarioState = run.state;
 
@@ -254,7 +253,7 @@
     <div class="arena-viewport" bind:this={canvasHost}></div>
     <ThrowChargeHud visible={chargeHudVisible} charge={chargeHud} />
   </section>
-  {#if developmentMode && diagnostics}
+  {#if diagnostics}
     <Workbench
       {diagnostics}
       {paused}
