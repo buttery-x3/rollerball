@@ -31,7 +31,7 @@
     DEFAULT_SCENARIOS,
     getScenario
   } from '$lib/game/scenarios/defaultScenarios';
-  import { MOVEMENT_FREE_PLAY_SCENARIO_ID } from '$lib/game/scenarios/playerMovementScenario';
+  import { scoringFreePlayScenario } from '$lib/game/scenarios/scoringScenario';
   import {
     createScenarioRun,
     type ScenarioRun
@@ -66,12 +66,21 @@
     const definition = getScenario(id);
     let control: ControlRouter | undefined;
     let scenarioState: GameState | undefined;
+    let previousMatchPhase: string | undefined;
+    let previousRestartCount = 0;
     const run = createScenarioRun({
       definition,
       step: scenarioStep,
       inputProvider:
         definition.scriptedInputs === undefined
           ? (tick, context) => {
+              const match = scenarioState?.match;
+              if (match && (match.phase !== previousMatchPhase || match.restartCount !== previousRestartCount)) {
+                control?.reset();
+                browserInput?.reset();
+                previousMatchPhase = match.phase;
+                previousRestartCount = match.restartCount;
+              }
               const actionContext: ControlActionContext =
                 scenarioState?.ball.mode === 'possessed' &&
                 control?.assignment?.playerId === scenarioState.ball.holderId
@@ -101,7 +110,7 @@
     return { run, control };
   }
 
-  let activeSession = createRun(MOVEMENT_FREE_PLAY_SCENARIO_ID);
+  let activeSession = createRun(scoringFreePlayScenario.id);
   let activeRun = activeSession.run;
   let activeControl = activeSession.control;
   let state = activeRun.state;
@@ -112,6 +121,7 @@
   let scenarioError: string | undefined;
   let chargeHudVisible = false;
   let chargeHud: ThrowChargeState | undefined;
+  let matchHud = state.match;
 
   let renderer: ArenaRenderer | undefined;
   let loop: BrowserGameLoop | undefined;
@@ -131,6 +141,7 @@
 
   function renderFrame(frame: FixedStepFrame<GameState>): void {
     tick = frame.state.tick;
+    matchHud = frame.state.match ? { ...frame.state.match } : undefined;
     updateChargeHud();
     const arena = activeRun.getArena?.();
     if (arena) {
@@ -252,6 +263,12 @@
   <section class="game-panel" aria-label="Rollerball arena">
     <div class="arena-viewport" bind:this={canvasHost}></div>
     <ThrowChargeHud visible={chargeHudVisible} charge={chargeHud} />
+    {#if matchHud}
+      <div class="match-hud" aria-label="Score">
+        <strong>Human {matchHud.score.human ?? 0} : {matchHud.score.opponent ?? 0} Opponent</strong>
+        <span>{matchHud.phase === 'goal-stoppage' ? 'Goal — restarting' : 'Playing'}</span>
+      </div>
+    {/if}
   </section>
   {#if diagnostics}
     <Workbench
@@ -318,6 +335,14 @@
     min-width: 0;
     min-height: 0;
   }
+
+  .match-hud {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    display: grid; gap: 4px; text-align: center; background: #10182de6;
+    border: 1px solid #2c3d68; padding: 10px 18px; border-radius: 10px;
+    white-space: nowrap; pointer-events: none;
+  }
+  .match-hud span { font-size: 0.8rem; color: #a5b3d6; }
 
   @media (max-width: 860px) {
     :global(body) {

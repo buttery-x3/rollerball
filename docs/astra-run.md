@@ -40,9 +40,19 @@ infrastructure. This task-specific exception does not modify AGENTS.md.
   production build passed. Browser: loaded receiving workbench, stepped low
   one-touch through contact at tick 11; direct loose-to-loose redirect and full
   lockout visible in diagnostics, no console errors. Physical controller pending.
+- FLAME-124 integration checkpoint: `7f3bb9e`, pushed, Linear In Review.
+- FLAME-113: shared swept aperture result drives simulation score/stoppage and
+  restart; player definitions survive resets; action and input state is cleared.
+  Playable scoring scenario is the initial browser scene with a score HUD.
+  Isolated subsystem scenarios deliberately omit optional match rules.
+  Existing aperture convention is preserved: the leading ball extent reaches the
+  end plane, the full width and top must fit; earlier player interaction wins.
+  Check: 0 errors/warnings; tests: 23 files / 144 passed; build passed. Browser
+  fast human goal shows exactly 1:0 and goal stoppage with crossing diagnostics.
 
 ## Current work / exact next action
-Commit/push the validated FLAME-124 integration, then implement FLAME-113.
+Commit/push validated FLAME-113; integrate independent FLAME-114 and FLAME-115
+work from detached worktrees when ready, then implement FLAME-125.
 Receiving owns ball/player interaction after ball
 integration, one-touch state before movement, and structured receive diagnostics;
 the existing tests cover pickup, lockout, contact order, height, all redirects,

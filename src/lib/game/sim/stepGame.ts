@@ -33,6 +33,7 @@ import {
   type ReceiveInteractionObservation
 } from './receiving';
 import { createReceivingDiagnosticRecords } from './receivingDiagnostics';
+import { advanceMatchStoppage, publishMatchDiagnostics, resolveGoal } from './match';
 
 export function stepGame(
   state: GameState,
@@ -49,6 +50,12 @@ export function stepGame(
   }
   if (!context.arena) {
     throw new Error('Simulation requires an arena definition.');
+  }
+
+  if (advanceMatchStoppage(state, context.arena, context.tuning)) {
+    state.tick += 1;
+    publishMatchDiagnostics(state, context.diagnostics);
+    return;
   }
 
   const throwStep = advanceThrowState(
@@ -99,7 +106,9 @@ export function stepGame(
     );
   }
 
+  if (!receiveInteraction) resolveGoal(state, ballStep?.goalAperture, fixedStepSeconds, context.tuning);
   state.tick += 1;
+  publishMatchDiagnostics(state, context.diagnostics);
 
   if (context.diagnostics?.isLayerEnabled(RUNTIME_DIAGNOSTIC_LAYER)) {
     context.diagnostics.publish({

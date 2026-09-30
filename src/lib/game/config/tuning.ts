@@ -118,6 +118,7 @@ export const DEFAULT_RECEIVE_CATCH_HEIGHT = 1.5;
 export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
+  { key: 'match.goalStoppageSeconds', domain: 'match', label: 'Goal stoppage duration', defaultValue: 1.5, min: 0, max: 5, step: 0.1 },
   {
     key: RUNTIME_MAX_CATCH_UP_STEPS_KEY,
     domain: 'runtime',

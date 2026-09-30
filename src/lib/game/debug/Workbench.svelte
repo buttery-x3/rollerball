@@ -172,6 +172,7 @@
   $: ballRecord = latestBallRecord(diagnosticFrame);
   $: throwRecord = latestThrowRecord(diagnosticFrame);
   $: receiveRecord = latestReceiveRecord(diagnosticFrame);
+  $: matchRecord = diagnosticFrame.records.find(record => record.entityId === 'match-state');
 </script>
 
 <aside class="workbench" aria-label="Development workbench">
@@ -315,6 +316,10 @@
       <span class="tick">Tick {diagnosticFrame.tick}</span>
     </div>
     <pre class="diagnostic-output">{formatDiagnosticData(receiveRecord)}</pre>
+  </section>
+  <section class="workbench-section" aria-label="Match flow">
+    <h2>Match flow</h2>
+    <pre class="diagnostic-output">{formatDiagnosticData(matchRecord)}</pre>
   </section>
 </aside>
 

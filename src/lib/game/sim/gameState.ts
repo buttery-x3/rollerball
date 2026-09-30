@@ -1,4 +1,5 @@
 import type { Vec2 } from '../physics/geometry';
+import type { MatchState } from './match';
 
 export type PlayerRole = 'field' | 'goalkeeper';
 
@@ -66,6 +67,8 @@ export interface GameState {
   tick: number;
   players: PlayerState[];
   ball: BallState;
+  /** Isolated subsystem scenarios may deliberately omit match rules. */
+  match?: MatchState;
 }
 
 export interface CreateFieldPlayerOptions {

@@ -331,7 +331,7 @@ function earliestContact(
 
     for (const segment of ballStep.segments) {
       const contact = contactForSegment(segment, player, tuning);
-      if (contact) {
+      if (contact && (!ballStep.goalAperture?.crossed || contact.timeSeconds <= ballStep.goalAperture.timeSeconds)) {
         contacts.push(contact);
         break;
       }

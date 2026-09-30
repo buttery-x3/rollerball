@@ -34,6 +34,7 @@ export interface DiagnosticStore extends DiagnosticSink {
 }
 
 export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
+  { key: 'match', label: 'Goals and match flow', enabledByDefault: true },
   {
     key: RUNTIME_DIAGNOSTIC_LAYER,
     label: 'Runtime',
