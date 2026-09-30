@@ -592,3 +592,8 @@ FLAME-108 establishes the initial runtime/simulation/render structure. Later iss
 Update this file when approved implementation materially changes repository ownership or dependency direction.
 
 Do not use it as a changelog or duplicate detailed Linear subsystem specifications.
+## Production hosting
+
+The standalone HTTP transport in `server/` serves compiled public files only.
+It has no dependency on simulation or presentation modules. Build configuration,
+PM2 process ownership and deployment are documented in [deployment.md](docs/deployment.md).

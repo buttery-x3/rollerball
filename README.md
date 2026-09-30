@@ -18,3 +18,7 @@ npm run build
 ```
 
 Use `npm run preview` to serve the production build locally.
+
+## Production hosting
+
+See [Deployment](docs/deployment.md) for buttery.wtf hosting, PM2 and manual deployments.

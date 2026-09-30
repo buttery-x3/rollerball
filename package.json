@@ -7,13 +7,19 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "start": "node server/static-server.mjs",
+    "test:server": "node --test server/*.test.mjs",
+    "check:production": "npm run check && npm run test && npm run test:server && npm run build",
+    "deploy": "node scripts/deploy-remote.mjs",
+    "deploy:production": "bash scripts/deploy.sh",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:reload": "pm2 startOrReload ecosystem.config.cjs --update-env"
   },
   "dependencies": {
     "three": "^0.185.1"
   },
   "devDependencies": {
-    "@sveltejs/adapter-auto": "^7.0.1",
     "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@types/node": "^24.13.3",
@@ -22,6 +28,10 @@
     "svelte-check": "^4.7.6",
     "typescript": "^6.0.3",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "@sveltejs/adapter-static": "^3.0.10"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
