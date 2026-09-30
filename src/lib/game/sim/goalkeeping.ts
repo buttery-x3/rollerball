@@ -224,7 +224,7 @@ export function publishKeeperDiagnostics(
   }
   sink.publish({ layer: 'keeper', source: 'goalkeeping', entityId: 'keeper-state',
     primitive: { type: 'label', position: observation?.contactPosition ?? { x: 0, y: 0 }, text: observation?.outcome ?? '' },
-    data: { tick: state.tick, players: keepers.map((player) => ({ playerId: player.definition.id, position: player.position,
+    data: { eventType: observation ? 'SaveMade' : undefined, playerId: observation?.playerId, tick: state.tick, players: keepers.map((player) => ({ playerId: player.definition.id, position: player.position,
       velocity: player.velocity, ...player.goalkeeper, envelope: getGoalkeeperSaveEnvelope(player, tuning),
       effectiveMovement: Object.fromEntries(Object.keys(KEEPER_MOVEMENT_KEYS).map((key) =>
         [key, createGoalkeeperMovementTuning(player, tuning).getNumber(key)]))

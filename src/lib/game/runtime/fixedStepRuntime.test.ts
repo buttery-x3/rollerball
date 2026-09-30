@@ -28,6 +28,27 @@ function runSchedule(schedule: number[]): number {
 }
 
 describe('fixed-step runtime', () => {
+  it('runs development speeds at fixed steps across render rates and preserves single stepping', () => {
+    for (const scale of [0.25, 0.5, 1, 2, 4]) {
+      for (const fps of [30, 120]) {
+        const state = createGameState();
+        const tuning = createTuningRegistry();
+        const inputs: number[] = [];
+        const runtime = createFixedStepRuntime({ state, step: stepGame, tuning,
+          getArena: () => createArenaDefinition(tuning), getInput: tick => { inputs.push(tick); return undefined; } });
+        runtime.setTimeScale(scale);
+        for (let frame = 0; frame < fps; frame++) runtime.advance(1 / fps);
+        expect(state.tick).toBe(60 * scale);
+        expect(inputs).toEqual(Array.from({ length: 60 * scale }, (_, index) => index + 1));
+        runtime.pause();
+        runtime.advance(1);
+        runtime.stepOnce();
+        expect(state.tick).toBe(60 * scale + 1);
+        expect(() => runtime.setTimeScale(0)).toThrow();
+      }
+    }
+  });
+
   it('advances the headless simulation exactly once per fixed step', () => {
     const state = createGameState();
     const tuning = createTuningRegistry();

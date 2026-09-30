@@ -79,7 +79,9 @@ export function createControlDiagnosticRecords(
       entityId: 'control-routing',
       primitive: { type: 'label', position: result.routing.receiverClaim?.position ?? { x: 0, y: 0 },
         text: result.routing.reason, color: INPUT_COLOR },
-      data: { ...result.routing, assignment: result.assignment ?? null }
+      data: { ...result.routing, playerId: result.assignment?.playerId, assignment: result.assignment ?? null,
+        eventType: ['receiver-claim-acquired', 'receiver-claim-replaced', 'receiver-claim-invalidated'].includes(result.routing.reason)
+          ? 'ReceiverClaimChanged' : result.assignment?.playerId !== result.routing.previousPlayerId ? 'ControlAssignmentChanged' : undefined }
     });
     for (const candidate of result.routing.receiverCandidates) {
       records.push({

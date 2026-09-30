@@ -103,7 +103,8 @@ function publishPlans(state: ReadonlyGameState, plans: readonly TeamTacticalPlan
       if (!player) continue;
       diagnostics.publish({ layer: 'ai', source: 'teamPlanner', entityId: `${assignment.playerId}-current-role`,
         primitive: { type: 'line', start: player.position, end: assignment.target, color: '#f6c177' },
-        data: { tick: state.tick, context: plan.context, teamPlannedTick: plan.plannedTick,
+        data: { eventType: assignment.assignedTick === state.tick ? 'AiRoleChanged' : undefined,
+          tick: state.tick, context: plan.context, teamPlannedTick: plan.plannedTick,
           teamNextThinkTick: plan.nextThinkTick, ...assignment } });
     }
   }

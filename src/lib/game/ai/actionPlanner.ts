@@ -77,7 +77,8 @@ function throwCandidates(state: ReadonlyGameState, player: ReadonlyPlayerState, 
       generated.push({ id, kind, target: option.target, origin: incoming ? { ...origin } : undefined,
         receiverId: option.receiverId, strength, factors, score: cheapScore,
         rejectedReason: range > tuning.getNumber(option.shot ? 'ai.shotRange' : 'ai.passRange') ? 'outside-action-range'
-          : range < 2 * tuning.getNumber(PLAYER_RADIUS_KEY) ? 'target-too-close' : undefined });
+          : range < Math.max(2 * tuning.getNumber(PLAYER_RADIUS_KEY),
+            option.shot ? 0 : tuning.getNumber('ai.minimumPassDistance')) ? 'target-too-close' : undefined });
     }
   }
   let detailed = 0;
@@ -110,6 +111,8 @@ function throwCandidates(state: ReadonlyGameState, player: ReadonlyPlayerState, 
       keeper: -keeperRisk * tuning.getNumber('ai.keeperRiskWeight'),
       capability: receive ? (receive.capacity - receive.total) * tuning.getNumber('ai.receiveCapacityWeight') : 0 };
     let rejectedReason = travel === undefined ? option.receiverId ? 'receiver-cannot-reach' : 'outside-goal-aperture' : undefined;
+    if (forecast.friendlyKeeperContact && intendedTime !== undefined &&
+        forecast.friendlyKeeperContact.timeSeconds <= intendedTime) rejectedReason = 'friendly-keeper-before-target';
     const launchSpeed = Math.hypot(forecast.launchVelocity.x, forecast.launchVelocity.y);
     const sourceMomentum = player.velocity.x * (forecast.launchVelocity.x / Math.max(1e-9, launchSpeed)) +
       player.velocity.y * (forecast.launchVelocity.y / Math.max(1e-9, launchSpeed));
@@ -237,7 +240,9 @@ export function actionPlayerIntent(state: ReadonlyGameState, playerId: string, b
   const player = state.players.find((entry) => entry.definition.id === playerId);
   if (!decision || !player) return baseIntent;
   let intent = baseIntent;
-  const hasBall = state.ball.mode === 'possessed' && state.ball.holderId === playerId;
+  const holderId = state.ball.mode === 'possessed' ? state.ball.holderId : undefined;
+  const holder = state.players.find((entry) => entry.definition.id === holderId);
+  const hasBall = holderId === playerId;
   const aim = direction(decision.kind.startsWith('one-touch-') && decision.origin ? decision.origin : player.position, decision.target);
   const preparation = !hasBall ? state.aiActions?.decisions.find((entry) => entry.receiverId === playerId &&
     ((state.ball.mode === 'possessed' && entry.playerId === state.ball.holderId && entry.kind.startsWith('pass-')) ||
@@ -271,9 +276,9 @@ export function actionPlayerIntent(state: ReadonlyGameState, playerId: string, b
       ? moveForAction(state, decision, tuning, arena, decision.origin).movement : { x: 0, y: 0 };
     intent = { ...baseIntent, movement, desiredFacing: aim, actionContext: 'receiving', receive: {
       low: high ? RELEASED_BUTTON : button, high: high ? button : RELEASED_BUTTON, rightStickThrow: undefined } };
-  } else if (!hasBall && state.ball.mode === 'possessed' && decision.kind === 'check') {
-    const holderId = state.ball.holderId;
-    const holder = state.players.find((entry) => entry.definition.id === holderId)!;
+  } else if (!hasBall && state.ball.mode === 'possessed' &&
+      (decision.kind === 'check' || player.contact.checkTicksRemaining > 0) &&
+      holder && holder.definition.teamId !== player.definition.teamId) {
     const normal = direction(player.position, holder.position);
     const closingSpeed = Math.max(0, (player.velocity.x - holder.velocity.x) * normal.x + (player.velocity.y - holder.velocity.y) * normal.y);
     const impact = evaluateCheckImpact(player, holder, closingSpeed, normal, tuning);
@@ -281,13 +286,16 @@ export function actionPlayerIntent(state: ReadonlyGameState, playerId: string, b
     const activate = player.contact.checkRecoveryTicksRemaining === 0 && holder.contact.immunityTicksRemaining === 0 &&
       impact.impactScore >= tuning.getNumber('ai.checkMinimumImpact') &&
       gap / Math.max(1e-9, closingSpeed) <= tuning.getNumber('contact.checkWindowTicks') / 60;
-    intent = { ...baseIntent, ...moveForAction(state, decision, tuning, arena, holder.position), desiredFacing: normal,
+    // Contact is the destination of this action, so keep approaching through
+    // the active window instead of applying a position-arrival braking curve.
+    intent = { ...baseIntent, movement: normal, desiredFacing: normal,
       actionContext: 'defending', check: { held: activate, pressed: activate, released: false } };
   }
   if (diagnostics?.isLayerEnabled('ai')) diagnostics.publish({ layer: 'ai', source: 'actionController',
     entityId: `${playerId}-current-action`,
     primitive: { type: 'label', position: player.position, text: `${decision.kind}: ${decision.reason}` },
-    data: { tick: state.tick, ...decision, intent, preparingForPlayerId: preparation?.playerId,
+    data: { eventType: decision.selectedTick === state.tick ? 'AiActionChanged' : undefined,
+      tick: state.tick, ...decision, intent, preparingForPlayerId: preparation?.playerId,
       charge: player.throwCharge, oneTouch: player.oneTouch } });
   return intent;
 }

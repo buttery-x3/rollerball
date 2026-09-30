@@ -22,6 +22,7 @@ export function goalkeeperIntent(state: GameState, player: PlayerState, tuning: 
   const threat = keeperThreat(state, player, tuning, arena, prediction);
   const reachable = threat.ordinary ?? threat.extended;
   if (threat.crossing && reachable) target = { ...reachable.position };
+  else if (threat.crossing) target = { ...threat.crossing.position };
   else if (state.ball.mode === 'loose' && state.ball.height > tuning.getNumber('keeper.ordinaryHeight')) target.y = goal.planeY + inward * tuning.getNumber(PLAYER_RADIUS_KEY);
   target = constrainCircleToBounds(target, tuning.getNumber(PLAYER_RADIUS_KEY), getPlayerMovementBounds(player, arena)).position;
   const delta = { x: target.x - player.position.x, y: target.y - player.position.y };
@@ -41,7 +42,8 @@ export function goalkeeperIntent(state: GameState, player: PlayerState, tuning: 
     diagnostics.publish({ layer: 'keeper', source: 'goalkeeperController', entityId: `${player.definition.id}-decision`,
       primitive: { type: 'line', start: player.position, end: target, color: '#f2d35b' },
       data: { tick: state.tick + 1, playerId: player.definition.id, target, threat, commit, intent,
-        reason: commit ? 'extended-save-needed' : threat.ordinary ? 'ordinary-intercept' : 'track-world-ball' } });
+        reason: commit ? 'extended-save-needed' : threat.ordinary ? 'ordinary-intercept'
+          : threat.crossing && !reachable ? 'cover-goal-crossing' : 'track-world-ball' } });
   }
   return { playerId: player.definition.id, intent };
 }

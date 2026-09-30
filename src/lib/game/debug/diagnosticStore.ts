@@ -190,7 +190,7 @@ export function createDiagnosticStore(
       for (const record of pendingRecords) {
         if (typeof record.data?.eventType !== 'string') continue;
         events.push({ tick: pendingTick, system: record.layer, type: record.data.eventType,
-          entityId: record.entityId, data: structuredClone(record.data) });
+          entityId: String(record.data.playerId ?? record.data.targetId ?? record.entityId ?? ''), data: structuredClone(record.data) });
       }
       events = events.slice(-300);
       const nonPlaying = (match?.data?.phase && match.data.phase !== 'playing') ||

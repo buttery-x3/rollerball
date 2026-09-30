@@ -65,6 +65,28 @@ const THROW_TUNING_RELATIONSHIPS = [
 ] as const;
 
 describe('central tuning registry', () => {
+  it('atomically restores complete override snapshots and resets one category', () => {
+    const tuning = createTuningRegistry();
+    let notifications = 0;
+    tuning.subscribe(() => notifications++);
+    tuning.replaceOverrides([
+      { key: BALL_LOW_THROW_MIN_SPEED_KEY, value: 40 },
+      { key: BALL_LOW_THROW_MAX_SPEED_KEY, value: 50 },
+      { key: MOVEMENT_MAX_SPEED_KEY, value: 9 }
+    ]);
+    expect(notifications).toBe(1);
+    expect(tuning.getNumber(BALL_LOW_THROW_MIN_SPEED_KEY)).toBe(40);
+    const before = tuning.list();
+    expect(() => tuning.replaceOverrides([{ key: BALL_LOW_THROW_MIN_SPEED_KEY, value: 40 }])).toThrow();
+    expect(tuning.list()).toEqual(before);
+    expect(notifications).toBe(1);
+    tuning.resetDomainOverrides('trajectory');
+    expect(tuning.get(BALL_LOW_THROW_MIN_SPEED_KEY).overrideValue).toBeUndefined();
+    expect(tuning.get(BALL_LOW_THROW_MAX_SPEED_KEY).overrideValue).toBeUndefined();
+    expect(tuning.getNumber(MOVEMENT_MAX_SPEED_KEY)).toBe(9);
+    expect(notifications).toBe(2);
+  });
+
   it('exposes defaults as effective values with workbench metadata', () => {
     const registry = createTuningRegistry();
 

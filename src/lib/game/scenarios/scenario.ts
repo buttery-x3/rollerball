@@ -189,9 +189,9 @@ function applyTuningOverrides(
   tuning: TuningRegistry,
   overrides: readonly ScenarioTuningOverride[]
 ): void {
-  for (const override of overrides) {
-    tuning.setOverride(override.key, override.value);
-  }
+  // Later scenario/run overrides replace earlier values for the same key.
+  const effective = new Map(overrides.map(override => [override.key, override.value]));
+  tuning.replaceOverrides([...effective].map(([key, value]) => ({ key, value })));
 }
 
 function applyDiagnosticLayerOverrides(

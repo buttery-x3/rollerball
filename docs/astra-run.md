@@ -1,193 +1,146 @@
-# Autonomous completion run
+# Autonomous Rollerball completion run
 
 ## Authorization and baseline
-User request (2026-09-30) authorizes all remaining approved milestones on
-`astra/rollerball-completion`, issue-scoped commits, regular pushes, existing
-branch reuse, Linear progress comments and In Review statuses. Continue between
-issues without approval. Do not merge main, force-push, rewrite pushed history,
-delete existing branches, deploy or change infrastructure. AGENTS.md is unchanged.
 
-Repository: https://github.com/buttery-x3/rollerball. Started clean on the existing
-FLAME-124 branch; integration branch created from fetched origin/main `037a460`.
-Merged receiving commits `4306370`/`39da7cf`, preserving production configuration.
-Read AGENTS.md, ARCHITECTURE.md, project/milestones, full remaining issues and all
-eight linked design documents. Linear remains authoritative; full specifications
-are cached outside the repository in `D:/dev/rollerball-run-context`.
-`npm ci` passed. Baseline check: 0 errors/warnings; 118 tests/21 files; build passed.
-Existing non-failing build warning: client chunk exceeds 500 kB.
+The user's 2026-09-30 request authorizes the remaining five-milestone plan on
+`astra/rollerball-completion`, issue-scoped commits/pushes, bounded subagents,
+and Linear comments/In Review statuses without stopping between issues.
+Do not merge main, deploy, force-push, rewrite pushed history, or delete branches.
+AGENTS.md and the authoritative Linear design remain unchanged.
 
-## Dependency queue
-124 -> 113; independent 114 + 115 -> 125; 124 + 114 + 125 -> 116;
-113 + 114 + 116 -> 126 -> 117 -> 127 -> 128 -> 118 -> 119 -> 129.
-All prerequisite implementations on this branch satisfy technical dependencies
-while awaiting human review. No issues are marked Done by this run.
+Repository: https://github.com/buttery-x3/rollerball. Started from fetched
+origin/main `037a460`; integrated receiving commits `4306370`/`39da7cf` and
+preserved production hosting. Read AGENTS.md, ARCHITECTURE.md, project/milestones,
+full issues/comments/dependencies and all eight referenced design documents.
+Specification caches and tuning investigations live outside the repository at
+`D:/dev/rollerball-run-context`. Existing attribute/collision worktrees preserved.
 
-## Pushed checkpoints (all Linear In Review)
-| Issue | Commit | Validation and observed behavior |
-|---|---|---|
-| FLAME-124 | `7f3bb9e` | Integrated receiving; check clean, 137 tests/22 files, build passed. Browser low one-touch tick11 redirects loose-to-loose with lockout. |
-| FLAME-113 | `19edceb` | Goals/restarts; check clean,144 tests/23 files,build passed. Browser score1:0, stoppage then restart. |
-| FLAME-114 | `b3cf941` | Attributes; check clean,153 tests/24 files,build passed. Browser Speed100 maps base11 to13.75. |
-| FLAME-115 | `db6e7f8` | Incidental swept contact; check clean,162 tests/26 files,build passed. Head-on,glance,stationary/moving,cluster,bounds covered. |
-| FLAME-125 | `9159cdf` | Checks/stumble/turnover; check clean,172 tests/27 files,build passed. Browser impact10.9167 produces turnover,24tick stumble,69 combined immunity. |
-| FLAME-116 | `b448fab` | Control receiving/redirect/retention; check clean,185 tests/28 files,build passed. 17 scenarios/13 new tests. Browser difficulty1.0741 deflects at Control0 capacity.55, catches at Control100 capacity1.85. |
+`npm ci` passed. Baseline: check clean;118 tests/21 files;production build passed.
+The existing client-chunk-over-500kB warning remains non-failing.
 
-## Decisions
-- Simulation owns outcomes, timers, possession, match flow and stable definitions.
-- Subsystem scenarios may omit optional match rules; playable scenes enable them.
-- Existing goal convention preserved: leading extent meets end plane, full ball
-  width/top fit aperture. Earlier player interactions take precedence over goal.
-- Failed difficult low receives deflect through shared reflection physics;
-  high failed catches may continue. Severe check impacts always release carriers.
-- Runtime composes human/keeper intents; simulation accepts one or multiple
-  source-neutral intents, advances action timers once, then uses shared locomotion,
-  contact and swept ball-player resolution in documented phase order.
-- Keeper extended-save forecast uses committed locomotion capacity, including
-  immediate slowdown; it never reads unreleased human input.
+## Issue checkpoints
 
-## Current checkpoint
-FLAME-126 pushed as `187f08d`, Linear In Review: check clean,197 tests/29 files,
-production build passed. Browser keeper catch/parry/lob goal verified.
-FLAME-117 complete: stable two five-player teams; receiver/defensive/manual/keeper
-routing with hysteresis; shared capability-aware receiver queries; team colors and
-controlled marker. Eight shared scenarios,12 team tests. Full check clean,
-210 tests/30 files pass, production build passes. Browser clear receiver switches
-to player-2 before contact; quick keyboard L switches player-2 to player-3 exactly
-once; keeper possession assigns human-keeper. Earlier intermediate HMR errors were
-recovered; no new runtime errors in these interactions.
+All pushed issues below are Linear **In Review**, not Done. The integration branch
+satisfies technical dependencies while awaiting human review.
 
-Integration fixes: queued browser button edges preserve quick keyboard taps.
-Release reacquisition exclusion now lasts long enough for minimum throws to exit
-the releasing player's receive envelope (central configured minimum retained),
-including keeper distribution. Bank-return one-touch regression uses a real bank.
+| Issue | Commit | Implemented scope | Required validation at checkpoint |
+|---|---|---|---|
+| FLAME-124 | 7f3bb9e | Receiving/one-touch integration | check/build pass;137 tests/22 files |
+| FLAME-113 | 19edceb | Goals, scoring, stoppage/restart | check/build pass;144/23 |
+| FLAME-114 | b3cf941 | Speed/agility/power/strength/control | check/build pass;153/24 |
+| FLAME-115 | db6e7f8 | Swept incidental player contact | check/build pass;162/26 |
+| FLAME-125 | 9159cdf | Active checks, stumble, retention/turnover | check/build pass;172/27 |
+| FLAME-116 | b448fab | Capability-aware receiving/redirect/retention | check/build pass;185/28 |
+| FLAME-126 | 187f08d | Keeper locomotion, catch/parry/commit/recovery | check/build pass;197/29 |
+| FLAME-117 | 6b8f34e | Two 5-player teams and control routing | check/build pass;210/30 |
+| FLAME-127 | f87fbab | Shared readonly AI world queries/candidates | check/build pass;222/31 |
+| FLAME-128 | a57005a | Stable team roles and field positioning | check/build pass;234/32 |
+| FLAME-118 | 591b0f5 | Possession-aware AI actions/shared execution | check/build pass;408/33 |
+| FLAME-119 | 259f504 | Match clock, full-time, start/rematch | check/build pass;422/34 |
+| FLAME-129 | this checkpoint commit | Integrated tuning, workbench, replay/regressions | check/build pass;457 tests/36 files |
 
-FLAME-117 pushed as `6b8f34e`, Linear In Review.
-Current: implement127 shared read-only AI world queries
-and candidate scoring, then128 positioning,118 actions,119 match,129 integrated
-workbench/tuning. AI owns decisions; sim retains authoritative tactical state.
-Physical-controller testing and human feel/balance approval remain unverified.
-No external implementation blocker identified. Dev server port5173.
+Dependency order:124→113;114+115→125;116→126→117→127→128→118→119→129.
+All gameplay flows through fixed-step simulation and shared human/AI intents.
 
+## Consequential implementation decisions
 
-FLAME-127 complete: deeply readonly world query boundary uses one detached query
-snapshot, shared ball prediction/contact/receive paths; bounded generate/filter/
-score/lane-test/select pipeline; explicit prior-target hysteresis. Workbench
-focused candidate records and optional scalar heatmap share three deterministic
-scenes. Check0 errors/warnings,222 tests/31 files,production build pass. Browser
-invalid/occupied candidates skip lane tests, open wins two detailed tests;
-near-equal right target retained. Vite cached an intermediate missing module;
-server restart recovered it. Dev server session77139 port5173.
-Next after127push:128. Simulation owns optional TacticalState; pure AI planner
-returns assignments; runtime applies through sim boundary and generates normal
-movement intents. Existing117 neutral fixtures remain isolated. Agents collision
-owns AI planner/steering/tuning; attributes owns scenarios/tests; root owns sim
-state/apply, runtime and browser integration.
+- Simulation owns ball, contact, keeper, tactical/action memory and match state.
+  AI returns decisions/intents; query snapshots are detached and deeply readonly.
+  No gameplay state moved to UI, physics or AI; no new runtime dependencies.
+- Existing goal convention retained: ball leading extent reaches the end plane,
+  full ball width/top fit the aperture; earlier swept interactions take precedence.
+- Check outcomes reuse shared physical impact evaluation; receiving, routing and AI
+  reuse common trajectory/reach/capability queries. Severe checks release carriers.
+- Normal throws and one-touch redirects share geometric envelope-escape release
+  exclusion, preventing cross-body redirects from immediately self-catching.
+- Ready/start/rematch commands are recorded outside PlayerIntent. Final active tick
+  resolves scoring before full-time; stoppages pause the clock. Rematch clears
+  score/transients/tactics/input/history and returns Ready without a page refresh.
+- Core subsystem fixtures may omit match rules; the default playable scenario
+  enables the complete five-minute human-versus-AI match.
 
-FLAME-127 pushed f87fbab, Linear In Review. FLAME-128 complete: sim-owned optional
-tactical memory, pure AI planner with separate6-tick team/player cadence and
-possession/restart/trajectory events; support/width/depth and one pressure plus
-coverage, shared stable spatial scoring and inertia-aware ordinary intents.
-Diagnostics retain last candidate/role-choice explanations between think ticks
-and focus overlays on the inspected player. Five shared scenes/11 planner tests.
-Full check0 errors/warnings;234 tests/32 files passed;build passed. Expanded tuning
-matrix includes AI runtime for tactical scenes; ran37s, so timeout increased from
-30s to120s without dropping cases. Earlier neutral test explicitly retains its
-isolated no-tactics setup rather than asserting pre-AI behavior of freeplay.
-Browser production preview verified support roles/normal movement, retained
-explanations between thinkticks, and single-pressure+3cover shape. Preview server
-must start AFTER build (Vite caches asset listing); now session57224 port4173.
-Dev session77139 port5173 remains but may cache intermediate missing modules.
-Next: commit/push128+Linear, then118 action decisions. Proposed sim-owned optional
-aiActions memory enabled in freeplay/118 scenes;128 isolated positioning fixtures
-remain actionless. Root owns state/runtime, collision AIactions/tuning/query use,
-attributes118 scenarios/tests. No external blockers; hardware/feel unverified.
+## FLAME-129 integrated evidence
 
-FLAME-128 push confirmed a57005a, Linear In Review. FLAME-118 in progress.
-Root added sim/actionState.ts (AiActionDecision/AiActionState/create/apply),
-GameState.aiActions optional; match action reset clears it; freeplay enables it.
-Runtime now calls planActions after team planning and overlays actionPlayerIntent
-on ordinary field/keeper/neutral intents for players without external control.
-Both imports expected from ai/actionPlanner.ts, currently being written by
-collision agent. Root extracted evaluateCheckImpact from checking.ts so AI and
-real contact share Strength/alignment/retention math unchanged. Checking test
-attempt cannot load until pending actionPlanner module exists; not a pass.
-Attributes agent owns aiActionsScenario.ts + actionPlanner.test.ts + registrations.
-Collision owns action planner/executor, world query extensions and tuning.
-No118commit yet. Next: finish core, verify/fix scenarios, full validation, rebuild
-then restart production preview (asset listing cache), browser actions/exchange,
-commit/push118 and Linear. Then119 complete match and129 integrated tuning.
-Dev server77139 stopped intentionally; preview57224 currently serves128 on4173.
+Owning regions:debug/workbench;scenarios/replay;runtime playback speed;config;
+bounded AI query/controller fixes. Gameplay phase ordering is unchanged.
 
-FLAME-118 implementation complete, final validation in progress. Eleven action
-scenarios and17 outcome tests pass: real advance/low pass/lob/shot, ordinary and
-low/high one-touch receiving, check turnover, keeper distribution/recovery and
-15-second unrestricted5v5 exchanges. AI decisions and execution use the normal
-intent path; persistent decisions remain sim-owned. Shared world queries reuse
-the physical forecast/receive/keeper/contact paths. Planner prepares intended
-receivers through normal movement while a pass or one-touch is being prepared.
-High one-touch exposed early self-reacquisition across the receiver's body;
-normal throws and redirects now share geometric envelope-escape lockout using
-the existing physics sweep. Existing receiving/throwing27 tests pass unchanged.
-Action explanations persist between think ticks and clear on human takeover.
-Check0 errors/warnings; production build passed. Full test session40326 running
-the entire parameter-boundary matrix (each boundary still runs every scenario).
-Browser verified actual lob flight, high one-touch tick16 with10-tick lockout,
-and ordinary check impact/turnover tick12. Preview65541 on4173. Run check/build
-sequentially: concurrent SvelteKit sync/build caused one startup artifact error;
-sequential rebuild/restarted preview recovered it. No new browser errors since.
-Next: finish test40326, record results, commit/push118 and update Linear;119 may
-be prepared after118 files are staged, but its edits must stay out of118 commit.
+Workbench supports exact one/N-tick stepping,0.25/0.5/1/2/4x, stable entity focus,
+independent layers, typed event filtering, atomic category resets and override
+export. Replay captures actual mapped external inputs, initial simulation state,
+live tuning snapshots, interval hashes and final hash. Incremental playback uses
+the real runtime, verifies checkpoints, pauses at the final tick and surfaces
+configuration/divergence errors. Compact JSON preserves undefined/-0; large JSON
+editors default collapsed. Legacy v1 replay transport remains accepted.
 
-FLAME-119 implementation now also complete but UNSTAGED. All118 code is staged
-in the Git index; do not use git add-all before118 commit.119 adds sim-owned
-ready/playing/goal-stoppage/full-time, activeTicks/durationTicks/fixedStepSeconds,
-matchTimeRemaining, runRevision and typed transition events. MatchInput envelope
-keeps start/rematch outside PlayerIntent and records them as external inputs.
-Start/rematch consume one tick; last active tick scores then ends the match;
-rematch returns ready, global tick/restartCount stay monotonic. UI queues commands
-and resets browser/control immediately after phase/restart transitions. Typed
-event history clears on rematch. README includes play instructions.
-Six shared match scenes;11 new tests plus existing7 match tests pass. New input/
-diagnostic log tests pass; latest check initially0 then finalcheck23189 pending.
-119 fulltest88377 running. Production build passed and preview95137 serves119
-on4173. Browser verified defaultReady5:00→StartPlaying, exact60-active-tick draw,
-rematchReady0:01 with cleared events, keyboardEnterstart, finaltickgoal1:0 then
-FullTime and both ordered transitions. No refresh required.
-118 fulltest40326 still running its exhaustive boundary matrix (~15min CPU);
-no result yet, do not claim passed. Need finish118→commit only staged118→push
-and Linear; then stage119, finish its fullvalidation→commit/push/Linear. Avoid
-overwriting unstaged119 when finalizing118 checkpoint.
-129 read-only full300s autonomous audit by collision reproduces26:0 repeating
-identical restart sequence:140 throws per673-active-tick episode,125 within2m,
-74 backwards. Opponent wins centre pickup, so cause is pass value dominating
-advance and causing pass spam; deterministic repeat itself is expected. Details
-outside repo D:/dev/rollerball-run-context/ai-match-audit.json and .mjs. Collision
-is probing central override vectors read-only; root must exercise selected
-values in actual workbench before promoting defaults. Attributes currentlyidle.
+Three concrete AI defects found in full-match investigation were repaired:
+1. Friendly keeper obstruction was omitted from throw forecasts. It now uses the
+   existing swept contact/save envelope and rejects a pass blocked before its receiver.
+2. Check approach used arrival braking despite forecasting a committed impact.
+   Normal movement now continues through contact; a from-rest turnover regresses it.
+3. An unreachable released corner threat made the keeper track the current ball
+   instead of its predicted crossing. It now makes the best physical movement
+   toward that crossing without forcing a save.
 
-118 final result: fulltest40326 PASS408tests/33files (948s), check0errors/warnings,
-production build pass and browser evidence above. Committing staged118 only.
-119 finalcheck23189 also PASS0errors/warnings; fulltest88377 remains running.
+Central overrides were exercised/exported in the actual workbench before promotion:
+`ai.minimumPassDistance=2` and `ai.keeperRiskWeight=6`.
 
-118 pushed591b0f5, LinearInReview. All119 files now staged separately; keep129
-edits unstaged until119 fulltest88377 completes, then commit staged119 only.
-119 build passed and browser flow verified; no code changes pending for119.
-129 begins workbench/replay completion and real central-override tuning pass:
-root owns stepN/speed/tuning export-category UI and event log integrations;
-attributes will own replay serialization+real-run recorder/import mechanics;
-collision owns measured tuning investigation (no defaults promoted until root
-has exercised the chosen vector through the workbench). No simulation phase or
-ownership changes planned. Existing deterministic100%scenario/boundary coverage
-must remain; full boundary suite takes about16min after118 expansion.
+| Same deterministic 300-active-second all-AI setup | Releases | Shots | Notes |
+|---|---:|---:|---|
+| Original defaults | 3716 | — | contact-distance/backward passing loop |
+| Physical fixes +2m only | 1185 | 879 | repeated forecast-covered shots |
+| Physical fixes +2m/risk6 | 655 | 50 | 605 passes,403 completed;no holder stalls |
 
-FLAME-119 final validation PASS: 422 tests/34 files (982.53s), check0errors/warnings,
-production build pass. Browser ready/start, exact clock/full-time, goal on final
-active tick, and rematch without refresh verified. Committing staged119 only;
-129 work remains unstaged. Next push119 and update LinearInReview.
-129 replay UI now wired to real input recording, live tuning snapshots, lossless
-JSON/import and incremental state-hash playback. StepN/speed/category reset/export
-and typed event filters implemented. Nine integrated scoring scenarios registered;
-21 tests show six scoring paths, centre-shot saves, keeper recovery and stable
-mapped receiver control/replay. Collision agent repairing friendly keeper pass
-obstruction and premature check braking; current min pass1.2 awaiting actual
-workbench2m trial. Check passes0errors/warnings on integration as of00:48.
+The final all-AI run ended25:0 from the repeated symmetric restart setup. This
+is evidence of reduced pathological decisions, **not approval of competitive
+balance or enjoyment**. All11 original action scenes preserve their physical
+outcomes; the900-tick exchange now has release/shot ceilings plus diagnostics-off
+replay parity. Movement11m/s was compared against10m/s in the workbench (tick30:
+4.583m versus4.250m), then reset; existing movement/throw/receive/contact/keeper
+baselines are retained with shared regression coverage.
+
+Nine integrated scoring fixtures demonstrate six real goal approaches at baseline
+attributes/default tuning:placed low,power,lob,lateral pass plus immediate shot,
+one-touch and board rebound. Centre low/power shots are saved; delaying the lateral
+shot allows keeper recovery.21 tests cover these outcomes, stable receiver claims,
+control through acquisition and exact mapped-input replay with diagnostics off.
+Three AI regression fixtures are also browser-loadable.
+
+Browser evidence on production preview:
+- All six scoring approaches produce goals; centre power shot is saved.
+- Full five-minute interactive run:keyboard start/switch/throw/lob/movement path,
+  real goals/restarts,18000 active ticks,full-time0:2,rematchReady5:00.
+- Final-build full match:18000 active ticks,full-time0:1,rematchReady5:00.
+  Recorded18603 ticks/10.45MB mapped input; imported and replayed to identical
+  `fnv1a32:e9e838e4`, with controls stopped exactly at the final tick.
+- Tuned900-tick workbench recording replayed to `fnv1a32:cb00ea53` before promotion.
+- Final-build tab console has no errors. Earlier intermediate HMR/manifest and
+  oversized-editor tool timeouts were recovered; build/check are run sequentially.
+- Screenshot:`D:/dev/rollerball-run-context/rollerball-final-browser.jpg`.
+  Download-event capture is unavailable in the in-app browser; JSON export/import
+  and full playback are verified, file download requires a normal-browser check.
+
+## Current checkpoint and next action
+
+All thirteen planned implementation issues are complete on the integration branch.
+Final `npm run check`:0 errors/warnings. Final `npm run build`:passed.
+Final `npm run test`:457 tests/36 files passed (808.65 seconds), including every
+registered min/max boundary against every shared scenario; no cases skipped.
+FLAME-129 is the commit containing this checkpoint (parent259f504); its commit
+subject is `FLAME-129 complete integrated tuning workbench and replay regressions`.
+Push this validated checkpoint and record its SHA/validation in Linear In Review.
+Then report completion and the human checks below. Do not merge,deploy,delete
+branches or mark issues Done. Preview session41423 serves the final build at
+http://127.0.0.1:4173/;browser2/tab3 is left Running/Ready for local play.
+
+## Launch and remaining human checks
+
+From `D:/dev/rollerball`: `npm install`, `npm run dev`;open the printed local URL.
+Or `npm run build` then `npm run preview` for the production build.
+Choose Start match/Enter/controller Menu. Move:WASD/arrows or left stick;
+low/check:J orA;lob:K orB;switch:L orX;immediate throw:right stick.
+Hold/release throw buttons to charge;use the same buttons for prepared one-touch.
+README.md contains full play and workbench instructions.
+
+Physical-controller hardware,subjective feel and competitive balance remain
+unverified. Automated input mapping/scenarios and browser keyboard operation do
+not establish those human criteria. No external implementation blocker remains.

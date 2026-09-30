@@ -67,6 +67,7 @@ export function createThrowDiagnosticRecords(
         color: RELEASE_COLOR
       },
       data: {
+        eventType: 'BallReleased',
         tick,
         ...release
       }

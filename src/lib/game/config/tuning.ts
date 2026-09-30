@@ -22,7 +22,9 @@ export interface TuningRegistry extends TuningReader {
   get(key: string): NumericTuningEntry;
   list(): readonly NumericTuningEntry[];
   setOverride(key: string, value: number): void;
+  replaceOverrides(values: readonly { readonly key: string; readonly value: number }[]): void;
   resetOverride(key: string): void;
+  resetDomainOverrides(domain: string): void;
   resetAllOverrides(): void;
   subscribe(listener: () => void): () => void;
 }
@@ -133,6 +135,7 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     ['actionCommitTicks', 'AI minimum action commitment (ticks)', 12, 0, 60, 1],
     ['actionCandidateLimit', 'AI detailed throw candidate budget', 18, 1, 36, 1],
     ['passRange', 'AI pass candidate range', 20, 2, 35, 1],
+    ['minimumPassDistance', 'AI minimum useful pass distance', 2, 0, 8, 0.1],
     ['shotRange', 'AI shot candidate range', 15, 2, 30, 1],
     ['goalAimWidth', 'AI goal aperture aiming width fraction', 0.75, 0, 1, 0.05],
     ['advanceDistance', 'AI carrier advance distance', 3, 1, 8, 0.5],
@@ -145,7 +148,7 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     ['shotDistanceWeight', 'AI shot distance cost', 0.2, 0, 1, 0.05],
     ['interceptionWeight', 'AI interception risk cost', 6, 0, 12, 0.5],
     ['interceptionTimeMargin', 'AI contested receive arrival margin', 0.2, 0.05, 1, 0.05],
-    ['keeperRiskWeight', 'AI keeper save risk cost', 5, 0, 12, 0.5],
+    ['keeperRiskWeight', 'AI keeper save risk cost', 6, 0, 12, 0.5],
     ['extendedKeeperRisk', 'AI extended save risk scale', 0.6, 0, 1, 0.1],
     ['receiveCapacityWeight', 'AI receiver capability margin value', 0.1, 0, 1, 0.05],
     ['lobCost', 'AI lob preparation cost', 0.4, 0, 3, 0.1],
@@ -827,6 +830,20 @@ export function createTuningRegistry(
       notify();
     },
 
+    replaceOverrides(values): void {
+      const next = new Map<string, number>();
+      for (const { key, value } of values) {
+        assertValidValue(getDefinition(key), value);
+        if (next.has(key)) throw new RangeError(`Duplicate tuning override '${key}'.`);
+        next.set(key, value);
+      }
+      assertValidThrowTuningRelationships(key => next.get(key) ?? registered.get(key)?.defaultValue);
+      if (next.size === overrides.size && [...next].every(([key, value]) => overrides.get(key) === value)) return;
+      overrides.clear();
+      for (const [key, value] of next) overrides.set(key, value);
+      notify();
+    },
+
     resetOverride(key: string): void {
       const definition = getDefinition(key);
       if (!overrides.has(key)) {
@@ -838,6 +855,14 @@ export function createTuningRegistry(
       );
       overrides.delete(key);
       notify();
+    },
+
+    resetDomainOverrides(domain: string): void {
+      const keys = [...registered.values()].filter(entry => entry.domain === domain).map(entry => entry.key);
+      assertValidThrowTuningRelationships(key => keys.includes(key) ? registered.get(key)?.defaultValue : getEffectiveValue(key));
+      let changed = false;
+      for (const key of keys) changed = overrides.delete(key) || changed;
+      if (changed) notify();
     },
 
     resetAllOverrides(): void {

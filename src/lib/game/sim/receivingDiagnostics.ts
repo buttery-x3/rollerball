@@ -155,7 +155,8 @@ export function createReceivingDiagnosticRecords(
         radius: Math.max(tuning.getNumber(BALL_RADIUS_KEY) * 0.65, 0.08),
         color: interaction.outcome === 'one-touch' ? ONE_TOUCH_COLOR : PICKUP_COLOR
       },
-      data: { tick, ...interaction }
+      data: { eventType: interaction.outcome === 'one-touch' ? 'OneTouchExecuted'
+        : interaction.outcome === 'possession' ? 'PossessionAcquired' : 'ReceiveResolved', tick, ...interaction }
     });
     if (interaction.outcome === 'one-touch') {
       records.push({

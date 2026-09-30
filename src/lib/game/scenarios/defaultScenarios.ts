@@ -17,6 +17,8 @@ import { AI_CANDIDATE_SCENARIOS } from './aiCandidateScenario';
 import { TEAM_TACTICS_SCENARIOS } from './teamTacticsScenario';
 import { AI_ACTION_SCENARIOS } from './aiActionsScenario';
 import { MATCH_FLOW_SCENARIOS } from './matchFlowScenario';
+import { INTEGRATED_SCORING_SCENARIOS } from './integratedScoringScenario';
+import { INTEGRATED_AI_SCENARIOS } from './integratedAiScenario';
 
 export const DETERMINISTIC_TICK_SCENARIO_ID = 'deterministic-tick';
 
@@ -57,7 +59,9 @@ export const DEFAULT_SCENARIOS: readonly ScenarioDefinition<
   ...AI_CANDIDATE_SCENARIOS,
   ...TEAM_TACTICS_SCENARIOS,
   ...AI_ACTION_SCENARIOS,
-  ...MATCH_FLOW_SCENARIOS
+  ...MATCH_FLOW_SCENARIOS,
+  ...INTEGRATED_SCORING_SCENARIOS,
+  ...INTEGRATED_AI_SCENARIOS
 ];
 
 export function getScenario(

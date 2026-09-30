@@ -54,6 +54,7 @@ export interface ThrowOpportunity {
   readonly receiver?: ReceiveOpportunity;
   readonly receiverContact?: { readonly timeSeconds: number; readonly difficulty: ReceiveDifficulty };
   readonly opposingReceiver?: ReceiveOpportunity;
+  readonly friendlyKeeperContact?: LaneContact;
   readonly goalCrossing?: LooseBallTrajectoryPrediction['goalApertures'][number];
   readonly keeperThreats: readonly { readonly playerId: string; readonly ordinaryTime?: number;
     readonly extendedTime?: number; readonly recovering: boolean }[];
@@ -200,11 +201,29 @@ export function createWorldQueries(state: ReadonlyGameState, arena: ArenaDefinit
           break;
         }
       }
+      // Friendly keepers resolve the same physical save contact as opponents.
+      // A field pass through that envelope cannot promise the later receiver.
+      let friendlyKeeperContact: LaneContact | undefined;
+      for (const keeper of snapshot.players.filter((candidate) => candidate.definition.role === 'goalkeeper' &&
+          candidate.definition.teamId === source.definition.teamId && candidate.definition.id !== id)) {
+        const envelope = getGoalkeeperSaveEnvelope(keeper, tuning);
+        for (const segment of path.segments) {
+          const contact = findPlayerBallContact(segment, keeper, { ballRadius: tuning.getNumber(BALL_RADIUS_KEY),
+            playerRadius: envelope.radius, catchHeight: envelope.height });
+          if (!contact) continue;
+          if (!friendlyKeeperContact || contact.timeSeconds < friendlyKeeperContact.timeSeconds) {
+            friendlyKeeperContact = { playerId: keeper.definition.id, position: contact.position,
+              timeSeconds: contact.timeSeconds, height: contact.height };
+          }
+          break;
+        }
+      }
       return {
         launchVelocity: { ...launch.velocity },
         lane: queries.lane(from, target, source.definition.teamId, { family, strength, sourcePlayerId: id, originHeight }),
         receiver: receivers.find((candidate) => candidate.playerId === receiverId),
         receiverContact,
+        friendlyKeeperContact,
         opposingReceiver: receivers.find((candidate) => candidate.teamId !== source.definition.teamId),
         goalCrossing: path.goalApertures.find((crossing) => crossing.crossed && crossing.end === goal(source.definition.teamId).end),
         keeperThreats: snapshot.players.filter((candidate) => candidate.definition.role === 'goalkeeper' &&

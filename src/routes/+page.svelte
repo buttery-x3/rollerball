@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Workbench from '$lib/game/debug/Workbench.svelte';
+  import ReplayWorkbench from '$lib/game/debug/ReplayWorkbench.svelte';
   import ThrowChargeHud from '$lib/game/debug/ThrowChargeHud.svelte';
   import { createArenaDefinition } from '$lib/game/physics/arena';
   import { createArenaRenderer } from '$lib/game/render/arenaRenderer';
@@ -42,6 +43,10 @@
     type ScenarioRun
   } from '$lib/game/scenarios/scenario';
   import { stepControlledGame } from '$lib/game/runtime/stepControlledGame';
+  import {
+    createReplayRecorder, serializeReplay, parseReplay, prepareReplayRun,
+    type ReplayRecorder, type PreparedReplayRun
+  } from '$lib/game/scenarios/replay';
   import { ARENA_DIAGNOSTIC_LAYER, type DiagnosticFrame } from '$lib/game/sim/diagnostics';
   import type {
     GameState,
@@ -68,6 +73,14 @@
   let browserInput: BrowserInputSource | undefined;
   let focusedPlayerId = 'player-1';
   let pendingMatchAction: MatchAction | undefined;
+  let recorder: ReplayRecorder<GameState, SimulationInput> | undefined;
+  let unsubscribeRecordingTuning: (() => void) | undefined;
+  let recording = false;
+  let replaying = false;
+  let replayFinished = false;
+  let replayStatus = 'Record the current run, including inputs and live tuning edits.';
+  let replayJson = '';
+  let playback: PreparedReplayRun<GameState, SimulationInput> | undefined;
 
   function createRun(id: string): ControlScenarioRun {
     const definition = getScenario(id);
@@ -93,7 +106,7 @@
         synchronizeMatchControl(state);
         // A development query uses the same tactical scorer as gameplay. It
         // stores only inspection history and cannot drive simulation outcomes.
-        if (!state.tactics && context.tuning && context.arena &&
+        if (!state.tactics && focusedPlayerId !== 'ball' && context.tuning && context.arena &&
             (context.diagnostics?.isLayerEnabled('ai') || context.diagnostics?.isLayerEnabled('aiScores'))) {
           const request = getCandidatePreviewRequest(definition.id);
           const playerId = request?.playerId ?? state.players.find(player =>
@@ -139,7 +152,8 @@
               return command ? { playerIntents: routedInputs(result?.routedIntent), matchAction: command } : result?.routedIntent;
             },
       getArena: (currentTuning) => createArenaDefinition(currentTuning),
-      diagnosticsEnabled: true
+      diagnosticsEnabled: true,
+      onStep: (current, tick, input) => recorder?.recordStep(tick, input, current)
     });
     scenarioState = run.state;
     previousMatchPhase = scenarioState.match?.phase;
@@ -171,6 +185,7 @@
   let loop: BrowserGameLoop | undefined;
   let tick = state.tick;
   let paused = runtime.isPaused;
+  let timeScale = runtime.timeScale;
   let diagnosticSourceFrame: DiagnosticFrame | undefined;
   let focusedDiagnosticFrame: DiagnosticFrame | undefined;
   let diagnosticFocus = '';
@@ -188,6 +203,7 @@
 
   function renderFrame(frame: FixedStepFrame<GameState>): void {
     tick = frame.state.tick;
+    paused = runtime.isPaused;
     matchHud = frame.state.match ? { ...frame.state.match } : undefined;
     updateChargeHud();
     const arena = activeRun.getArena?.();
@@ -220,18 +236,37 @@
   }
 
   function resumeSimulation(): void {
+    if (replayFinished) return;
     runtime.resume();
     paused = runtime.isPaused;
   }
 
   function stepSimulationOnce(): void {
+    if (replayFinished) return;
     if (!runtime.isPaused) {
       runtime.pause();
     }
 
     browserInput?.poll();
-    renderFrame(runtime.stepOnce());
+    try { renderFrame(runtime.stepOnce()); }
+    catch (error) { reportRuntimeError(error); }
     paused = runtime.isPaused;
+  }
+
+  function stepSimulationMany(count: number): void {
+    if (replayFinished || !Number.isInteger(count) || count < 1 || count > 600) return;
+    runtime.pause();
+    browserInput?.poll();
+    try {
+      for (let index = 0; index < count && !replayFinished; index++) runtime.stepOnce();
+    } catch (error) { reportRuntimeError(error); }
+    renderFrame(runtime.advance(0));
+    paused = true;
+  }
+
+  function setTimeScale(scale: number): void {
+    runtime.setTimeScale(scale);
+    timeScale = runtime.timeScale;
   }
 
   function loadScenario(id: string): void {
@@ -248,6 +283,15 @@
     if (wasPaused) {
       nextSession.run.runtime.pause();
     }
+    if (recording) stopRecording();
+    playback = undefined;
+    replaying = false;
+    replayFinished = false;
+    installSession(nextSession);
+  }
+
+  function installSession(nextSession: ControlScenarioRun): void {
+    nextSession.run.runtime.setTimeScale(timeScale);
 
     const hadBrowserInput = browserInput !== undefined;
     browserInput?.dispose();
@@ -261,7 +305,7 @@
     runtime = activeRun.runtime;
     activeScenarioId = activeRun.definition.id;
     pendingMatchAction = undefined;
-    focusedPlayerId = getCandidatePreviewRequest(id)?.playerId ?? 'player-1';
+    focusedPlayerId = getCandidatePreviewRequest(activeScenarioId)?.playerId ?? 'player-1';
     scenarioError = undefined;
     tick = state.tick;
     paused = runtime.isPaused;
@@ -276,7 +320,8 @@
 
     if (loop) {
       loop = createBrowserGameLoop(runtime, renderFrame, {
-        beforeAdvance: () => browserInput?.poll()
+        beforeAdvance: () => browserInput?.poll(),
+        onError: reportRuntimeError
       });
       loop.start();
     }
@@ -287,6 +332,7 @@
   }
 
   function requestMatchAction(action: MatchAction): void {
+    if (replaying) return;
     pendingMatchAction = action;
     if (runtime.isPaused) stepSimulationOnce();
   }
@@ -294,6 +340,71 @@
   function formatTime(seconds: number): string {
     const total = Math.max(0, Math.ceil(seconds - 1e-9));
     return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  }
+
+  function reportRuntimeError(error: unknown): void {
+    runtime.pause();
+    paused = true;
+    const message = error instanceof Error ? error.message : String(error);
+    if (replaying) {
+      replayFinished = true;
+      replayStatus = message;
+    } else scenarioError = message;
+  }
+
+  function startRecording(): void {
+    if (replaying || recording) return;
+    recorder = createReplayRecorder<GameState, SimulationInput>({
+      scenarioId: activeScenarioId, initialState: state, tuning,
+      checkpointIntervalTicks: 60, includeInitialState: true
+    });
+    unsubscribeRecordingTuning = tuning.subscribe(() => recorder?.recordTuningChange(
+      state.tick + 1,
+      tuning.list().filter(entry => entry.overrideValue !== undefined)
+        .map(entry => ({ key: entry.key, value: entry.overrideValue! }))
+    ));
+    recording = true;
+    replayStatus = `Recording from tick ${state.tick}.`;
+  }
+
+  function stopRecording(): void {
+    if (!recorder) return;
+    unsubscribeRecordingTuning?.();
+    unsubscribeRecordingTuning = undefined;
+    const record = recorder.finish(state);
+    replayJson = serializeReplay(record);
+    replayStatus = `Recorded ticks ${record.initialTick}–${record.finalTick}; final ${record.finalStateHash}.`;
+    recorder = undefined;
+    recording = false;
+  }
+
+  function importReplay(json: string): void {
+    try {
+      const replay = parseReplay<SimulationInput>(json);
+      const prepared = prepareReplayRun<GameState, SimulationInput>({
+        scenario: getScenario(replay.scenarioId), replay, step: scenarioStep,
+        getArena: createArenaDefinition, diagnosticsEnabled: true,
+        onStep: (_current, _tick, input) => {
+          const playerId = routedInputs(input)[0]?.playerId;
+          if (playerId) activeControl.assignPlayer(playerId);
+          else activeControl.clearAssignment();
+          if (playback?.complete) {
+            replayFinished = true;
+            replayStatus = `Verified through tick ${replay.finalTick}: ${playback.verifyFinal()}.`;
+          }
+        }
+      });
+      if (recording) stopRecording();
+      playback = prepared;
+      replaying = true;
+      replayFinished = prepared.complete;
+      replayJson = json;
+      replayStatus = prepared.complete ? `Verified: ${prepared.verifyFinal()}.`
+        : `Replay loaded at tick ${replay.initialTick}; resume or step to ${replay.finalTick}.`;
+      installSession({ run: prepared.run, control: createControlRouter({ tuning: prepared.run.tuning }) });
+    } catch (error) {
+      replayStatus = error instanceof Error ? error.message : String(error);
+    }
   }
 
   onMount(() => {
@@ -307,12 +418,14 @@
     });
     renderer = createArenaRenderer(canvasHost, arena);
     loop = createBrowserGameLoop(runtime, renderFrame, {
-      beforeAdvance: () => browserInput?.poll()
+      beforeAdvance: () => browserInput?.poll(),
+      onError: reportRuntimeError
     });
 
     loop.start();
 
     return () => {
+      unsubscribeRecordingTuning?.();
       loop?.stop();
       loop = undefined;
       browserInput?.dispose();
@@ -338,11 +451,11 @@
         <strong aria-label="Match clock">{formatTime(matchTimeRemaining(matchHud))}</strong>
         <span>{matchHud.phase === 'goal-stoppage' ? 'Goal — restarting' : matchHud.phase === 'ready' ? 'Ready' : matchHud.phase === 'full-time' ? 'Full time' : 'Playing'}</span>
         {#if matchHud.phase === 'ready'}
-          <button type="button" onclick={() => requestMatchAction('start')}>Start match</button>
+          <button type="button" disabled={replaying} onclick={() => requestMatchAction('start')}>Start match</button>
           <small>Enter / controller Menu</small>
         {:else if matchHud.phase === 'full-time'}
           <span>{matchHud.score.human === matchHud.score.opponent ? 'Draw' : matchHud.score.human > matchHud.score.opponent ? 'Human wins' : 'Opponent wins'}</span>
-          <button type="button" onclick={() => requestMatchAction('rematch')}>Rematch</button>
+          <button type="button" disabled={replaying} onclick={() => requestMatchAction('rematch')}>Rematch</button>
           <small>Enter / controller Menu</small>
         {/if}
       </div>
@@ -358,17 +471,26 @@
       {diagnostics}
       {paused}
       {tick}
+      {timeScale}
       {tuning}
       {activeScenarioId}
       {scenarioError}
+      {replayFinished}
+      readonlyTuning={replaying}
       bind:focusedPlayerId
+      playerIds={state.players.map(player => player.definition.id)}
       scenarios={DEFAULT_SCENARIOS}
       onPause={pauseSimulation}
       onResume={resumeSimulation}
       onStepOnce={stepSimulationOnce}
+      onStepMany={stepSimulationMany}
+      onTimeScale={setTimeScale}
       onLoadScenario={loadScenario}
       onResetScenario={resetScenario}
-    />
+    >
+      <ReplayWorkbench {recording} {replaying} status={replayStatus} json={replayJson}
+        onStart={startRecording} onStop={stopRecording} onImport={importReplay} />
+    </Workbench>
   {/if}
 </main>
 

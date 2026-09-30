@@ -8,6 +8,7 @@ export interface BrowserGameLoop {
 
 export interface BrowserGameLoopOptions {
   readonly beforeAdvance?: () => void;
+  readonly onError?: (error: unknown) => void;
 }
 
 export function createBrowserGameLoop<TState extends GameState, TInput = unknown>(
@@ -30,8 +31,14 @@ export function createBrowserGameLoop<TState extends GameState, TInput = unknown
         : Math.max(0, (timestamp - previousTimestamp) / 1000);
 
     previousTimestamp = timestamp;
-    options.beforeAdvance?.();
-    render(runtime.advance(frameDeltaSeconds));
+    try {
+      options.beforeAdvance?.();
+      render(runtime.advance(frameDeltaSeconds));
+    } catch (error) {
+      runtime.pause();
+      if (!options.onError) throw error;
+      options.onError(error);
+    }
     animationFrame = requestAnimationFrame(frame);
   };
 

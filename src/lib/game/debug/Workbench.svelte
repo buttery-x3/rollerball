@@ -27,6 +27,9 @@
   export let onPause: () => void;
   export let onResume: () => void;
   export let onStepOnce: () => void;
+  export let onStepMany: (count: number) => void;
+  export let onTimeScale: (scale: number) => void;
+  export let timeScale: number;
   export let onLoadScenario: (id: string) => void;
   export let onResetScenario: () => void;
   export let paused: boolean;
@@ -36,12 +39,19 @@
   export let tick: number;
   export let tuning: TuningRegistry;
   export let focusedPlayerId = '';
+  export let playerIds: readonly string[] = [];
+  export let replayFinished = false;
+  export let readonlyTuning = false;
 
   let tuningEntries: readonly NumericTuningEntry[] = tuning.list();
   let layerEntries: readonly DiagnosticLayerState[] = diagnostics.listLayers();
   let diagnosticFrame: DiagnosticFrame = diagnostics.getFrame();
   let events: readonly DiagnosticEvent[] = diagnostics.getEvents();
   let eventFilter = '';
+  let stepCount = 60;
+  let tuningDomain = '';
+  let tuningExport = '';
+  let tuningError = '';
   let unsubscribeTuning: (() => void) | undefined;
   let unsubscribeDiagnostics: (() => void) | undefined;
   let subscribedTuning: TuningRegistry | undefined;
@@ -106,13 +116,26 @@
 
     try {
       tuning.setOverride(key, value);
-    } catch {
+      tuningError = '';
+    } catch (error) {
+      tuningError = error instanceof Error ? error.message : String(error);
       input.value = String(tuning.getNumber(key));
     }
   }
 
   function resetTuning(key: string): void {
-    tuning.resetOverride(key);
+    try { tuning.resetOverride(key); tuningError = ''; }
+    catch (error) { tuningError = error instanceof Error ? error.message : String(error); }
+  }
+
+  function resetCategory(): void {
+    try { tuning.resetDomainOverrides(tuningDomain); tuningError = ''; }
+    catch (error) { tuningError = error instanceof Error ? error.message : String(error); }
+  }
+
+  function exportTuning(): void {
+    tuningExport = JSON.stringify(tuning.list().filter(entry => entry.overrideValue !== undefined)
+      .map(entry => ({ key: entry.key, value: entry.overrideValue })), null, 2);
   }
 
   function updateLayer(key: string, event: Event): void {
@@ -203,11 +226,18 @@
 
   <div class="controls" aria-label="Simulation controls">
     {#if paused}
-      <button type="button" onclick={onResume}>Resume</button>
+      <button type="button" onclick={onResume} disabled={replayFinished}>Resume</button>
     {:else}
       <button type="button" onclick={onPause}>Pause</button>
     {/if}
-    <button type="button" onclick={onStepOnce} disabled={!paused}>Step one tick</button>
+    <button type="button" onclick={onStepOnce} disabled={!paused || replayFinished}>Step one tick</button>
+    <label for="step-count">Ticks</label>
+    <input id="step-count" class="small-input" type="number" min="1" max="600" step="1" bind:value={stepCount} />
+    <button type="button" onclick={() => onStepMany(stepCount)} disabled={!paused || replayFinished || !Number.isInteger(stepCount) || stepCount < 1 || stepCount > 600}>Step N ticks</button>
+    <label for="time-scale">Speed</label>
+    <select id="time-scale" value={timeScale} onchange={event => onTimeScale(Number(event.currentTarget.value))}>
+      {#each [0.25, 0.5, 1, 2, 4] as scale}<option value={scale}>{scale}×</option>{/each}
+    </select>
     <span class="tick">Tick {tick}</span>
   </div>
 
@@ -229,13 +259,16 @@
     {/if}
   </section>
 
+  <slot />
+
   <section class="workbench-section" aria-label="AI decisions">
     <h2>AI candidates and decisions</h2>
-    <label for="player-focus">Inspect player</label>
+    <label for="player-focus">Inspect entity</label>
     <select id="player-focus" bind:value={focusedPlayerId}>
       <option value="">Latest player</option>
-      {#each playerRecords as record (record.entityId)}
-        <option value={String(record.data?.playerId)}>{String(record.data?.playerId)}</option>
+      <option value="ball">Ball</option>
+      {#each playerIds as playerId (playerId)}
+        <option value={playerId}>{playerId}</option>
       {/each}
     </select>
     <p class="attribute-note">Enable AI layers to inspect candidate scores and rejection reasons. The inspected player selects the preview and overlays; green score cells are stronger than red.</p>
@@ -247,12 +280,23 @@
   <section class="workbench-section" aria-labelledby="tuning-heading">
     <div class="section-heading">
       <h2 id="tuning-heading">Tuning</h2>
-      <button type="button" class="subtle-button" onclick={() => tuning.resetAllOverrides()}>
+      <button type="button" class="subtle-button" disabled={readonlyTuning} onclick={() => tuning.resetAllOverrides()}>
         Reset all
       </button>
     </div>
 
-    {#each tuningEntries as entry (entry.key)}
+    <label for="tuning-category">Tuning category</label>
+    <select id="tuning-category" bind:value={tuningDomain}>
+      <option value="">All categories</option>
+      {#each [...new Set(tuningEntries.map(entry => entry.domain))] as domain}<option value={domain}>{domain}</option>{/each}
+    </select>
+    <div class="controls">
+      <button type="button" onclick={resetCategory} disabled={readonlyTuning || !tuningDomain}>Reset category</button>
+      <button type="button" onclick={exportTuning}>Export overrides</button>
+    </div>
+    {#if tuningError}<p class="scenario-error" role="alert">{tuningError}</p>{/if}
+    {#if tuningExport}<textarea aria-label="Exported tuning overrides" readonly rows="8" value={tuningExport}></textarea>{/if}
+    {#each tuningEntries.filter(entry => !tuningDomain || entry.domain === tuningDomain) as entry (entry.key)}
       <div class="tuning-entry">
         <div class="tuning-label">
           <label for={entry.key}>{entry.label}</label>
@@ -261,6 +305,7 @@
         <div class="tuning-controls">
           <input
             id={entry.key}
+            disabled={readonlyTuning}
             type="range"
             min={entry.min}
             max={entry.max}
@@ -270,6 +315,7 @@
           />
           <input
             aria-label={`${entry.label} value`}
+            disabled={readonlyTuning}
             type="number"
             min={entry.min}
             max={entry.max}
@@ -281,7 +327,7 @@
             type="button"
             class="subtle-button"
             onclick={() => resetTuning(entry.key)}
-            disabled={entry.overrideValue === undefined}
+            disabled={readonlyTuning || entry.overrideValue === undefined}
           >
             Reset
           </button>
@@ -488,6 +534,8 @@
     flex-wrap: wrap;
     gap: 8px;
   }
+  .small-input { width: 58px; }
+  select, textarea, input[type='search'], .small-input { box-sizing: border-box; max-width: 100%; color: #e7ecff; background: #0b1020; border: 1px solid #394e7a; border-radius: 5px; padding: 5px; }
 
   button {
     border: 1px solid #5573ad;

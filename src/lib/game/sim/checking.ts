@@ -110,6 +110,9 @@ export function resolveActiveChecks(state: GameState, contacts: readonly PlayerC
 
 export function publishCheckingDiagnostics(state: GameState, impacts: readonly CheckImpact[], sink?: DiagnosticSink): void {
   if (!sink?.isLayerEnabled('checking')) return;
+  for (const impact of impacts) sink.publish({ layer: 'checking', source: 'checking', entityId: impact.targetId,
+    primitive: { type: 'label', position: state.players.find(player => player.definition.id === impact.targetId)!.position, text: impact.outcome },
+    data: { eventType: 'PlayerChecked', tick: state.tick, ...impact } });
   for (const player of state.players) {
     sink.publish({ layer: 'checking', source: 'checking', entityId: player.definition.id,
       primitive: { type: 'label', position: player.position,
