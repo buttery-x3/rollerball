@@ -50,6 +50,8 @@ export interface PlayerIntent {
   readonly check: ButtonState;
   readonly rightStickThrow: RightStickThrowPulse | undefined;
   readonly receive: ReceiveIntent;
+  /** Explicit keeper commitment; physical rules are independent of controller. */
+  readonly save?: ButtonState;
 }
 
 export type ControlAssignmentReason =
@@ -88,6 +90,12 @@ export interface ProcessedInputSnapshot {
 export interface RoutedPlayerIntent {
   readonly playerId: PlayerId;
   readonly intent: PlayerIntent;
+}
+
+export type SimulationInput = RoutedPlayerIntent | readonly RoutedPlayerIntent[];
+
+export function routedInputs(input: SimulationInput | undefined): readonly RoutedPlayerIntent[] {
+  return input === undefined ? [] : Array.isArray(input) ? input : [input as RoutedPlayerIntent];
 }
 
 export interface ControlStepResult {

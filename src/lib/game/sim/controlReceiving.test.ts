@@ -34,8 +34,10 @@ function sample(definition: ControlScenario, diagnosticsEnabled = true) {
 }
 
 function interaction(run: ReturnType<typeof sample>) {
-  return run.diagnostics?.getFrame().records.find((record) =>
+  const observation = run.diagnostics?.getFrame().records.find((record) =>
     record.entityId === 'receive-interaction')?.data as unknown as ReceiveInteractionObservation;
+  if (!observation || !('difficulty' in observation)) throw new Error('Expected a field-player interaction.');
+  return observation;
 }
 
 function impact(run: ReturnType<typeof sample>) {

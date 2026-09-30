@@ -1,4 +1,5 @@
 import type { Vec2 } from '../physics/geometry';
+import type { ArenaEnd } from '../physics/arena';
 import type { MatchState } from './match';
 import { createPlayerAttributes, type PlayerAttributes } from '../config/playerAttributes';
 
@@ -9,6 +10,7 @@ export interface PlayerDefinition {
   readonly teamId: string;
   readonly role: PlayerRole;
   readonly attributes: PlayerAttributes;
+  readonly defendingEnd?: ArenaEnd;
 }
 
 export type ThrowChargeFamily = 'low' | 'high';
@@ -43,6 +45,16 @@ export function createEmptyContactState(): PlayerContactState {
   return { checkTicksRemaining: 0, checkRecoveryTicksRemaining: 0, stumbleTicksRemaining: 0, immunityTicksRemaining: 0, hitPlayerIds: [] };
 }
 
+export interface GoalkeeperState {
+  commitTicksRemaining: number;
+  recoveryTicksRemaining: number;
+  saveDirection: Vec2;
+}
+
+export function createEmptyGoalkeeperState(): GoalkeeperState {
+  return { commitTicksRemaining: 0, recoveryTicksRemaining: 0, saveDirection: { x: 0, y: 0 } };
+}
+
 export interface PlayerState {
   readonly definition: PlayerDefinition;
   position: Vec2;
@@ -51,6 +63,7 @@ export interface PlayerState {
   throwCharge: ThrowChargeState;
   oneTouch: OneTouchState;
   contact: PlayerContactState;
+  goalkeeper?: GoalkeeperState;
 }
 
 export interface BallReleaseMetadata {
@@ -160,6 +173,22 @@ export function createFieldPlayerState(
       ...options.throwCharge
     },
     oneTouch: createEmptyOneTouchState()
+  };
+}
+
+export interface CreateGoalkeeperOptions extends CreateFieldPlayerOptions {
+  readonly defendingEnd: ArenaEnd;
+}
+
+export function createGoalkeeperState(options: CreateGoalkeeperOptions): PlayerState {
+  const player = createFieldPlayerState({
+    ...options,
+    facing: options.facing ?? { x: 0, y: options.defendingEnd === 'negativeY' ? 1 : -1 }
+  });
+  return {
+    ...player,
+    definition: Object.freeze({ ...player.definition, role: 'goalkeeper', defendingEnd: options.defendingEnd }),
+    goalkeeper: createEmptyGoalkeeperState()
   };
 }
 

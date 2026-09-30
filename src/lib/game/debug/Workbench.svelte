@@ -375,6 +375,13 @@
     <h2>Checking</h2>
     <pre class="diagnostic-output">{formatDiagnosticData(diagnosticFrame.records.find(record => record.entityId === 'checking-state'))}</pre>
   </section>
+  <section class="workbench-section" aria-label="Goalkeeper">
+    <h2>Goalkeeper</h2>
+    <pre class="diagnostic-output">{formatDiagnosticData(diagnosticFrame.records.find(record => record.entityId === 'keeper-state'))}</pre>
+    {#each diagnosticFrame.records.filter(record => record.layer === 'keeper' && record.entityId?.endsWith('-decision')) as decision}
+      <pre class="diagnostic-output">{formatDiagnosticData(decision)}</pre>
+    {/each}
+  </section>
 </aside>
 
 <style>

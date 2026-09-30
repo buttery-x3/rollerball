@@ -36,7 +36,7 @@
     createScenarioRun,
     type ScenarioRun
   } from '$lib/game/scenarios/scenario';
-  import { stepGame } from '$lib/game/sim/stepGame';
+  import { stepControlledGame } from '$lib/game/runtime/stepControlledGame';
   import { ARENA_DIAGNOSTIC_LAYER } from '$lib/game/sim/diagnostics';
   import type {
     GameState,
@@ -52,7 +52,7 @@
     context: FixedStepStepContext,
     input: RoutedPlayerIntent | undefined
   ): void => {
-    stepGame(state, fixedStepSeconds, context, input);
+    stepControlledGame(state, fixedStepSeconds, context, input);
   };
 
   interface ControlScenarioRun {

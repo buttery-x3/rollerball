@@ -55,6 +55,7 @@ function createLine(
 interface PlayerPresentation {
   readonly root: THREE.Group;
   readonly radius: number;
+  readonly style: string;
 }
 
 interface BallPresentation {
@@ -68,7 +69,8 @@ function playerColor(teamId: string): string {
 
 function createPlayerPresentation(
   radius: number,
-  color: string
+  color: string,
+  goalkeeper: boolean
 ): PlayerPresentation {
   const safeRadius = Math.max(0, radius);
   const root = new THREE.Group();
@@ -86,7 +88,13 @@ function createPlayerPresentation(
   );
   root.add(heading);
 
-  return { root, radius: safeRadius };
+  if (goalkeeper) {
+    const gloves = new THREE.Mesh(new THREE.BoxGeometry(safeRadius * 2.5, .12, .18), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+    gloves.position.y = .32;
+    root.add(gloves);
+  }
+
+  return { root, radius: safeRadius, style: `${color}:${goalkeeper}` };
 }
 
 function createBallPresentation(radius: number): BallPresentation {
@@ -237,8 +245,10 @@ export function createArenaRenderer(
       const playerId = player.definition.id;
       activePlayerIds.add(playerId);
       let presentation = playerObjects.get(playerId);
+      const color = playerColor(player.definition.teamId);
+      const goalkeeper = player.definition.role === 'goalkeeper';
 
-      if (!presentation || presentation.radius !== safeRadius) {
+      if (!presentation || presentation.radius !== safeRadius || presentation.style !== `${color}:${goalkeeper}`) {
         if (presentation) {
           playerGroup.remove(presentation.root);
           disposeObject(presentation.root);
@@ -246,7 +256,8 @@ export function createArenaRenderer(
 
         presentation = createPlayerPresentation(
           safeRadius,
-          playerColor(player.definition.teamId)
+          color,
+          goalkeeper
         );
         playerObjects.set(playerId, presentation);
         playerGroup.add(presentation.root);

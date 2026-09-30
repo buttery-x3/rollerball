@@ -10,6 +10,7 @@ import {
   type PlayerContact
 } from '../physics/playerContact';
 import type { PlayerState } from './gameState';
+import { getPlayerMovementBounds } from './goalkeeping';
 
 export function resolvePlayerContacts(
   players: readonly PlayerState[],
@@ -24,7 +25,7 @@ export function resolvePlayerContacts(
       position: player.position,
       velocity: player.velocity,
       radius: tuning.getNumber(PLAYER_RADIUS_KEY),
-      bounds: arena.bounds
+      bounds: getPlayerMovementBounds(player, arena)
     })),
     tuning.getNumber(CONTACT_RESTITUTION_KEY)
   );

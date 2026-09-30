@@ -1,4 +1,4 @@
-import type { RoutedPlayerIntent } from '../control/types';
+import { routedInputs, type SimulationInput } from '../control/types';
 import type { GameState } from './gameState';
 import {
   BALL_DIAGNOSTIC_LAYER,
@@ -23,7 +23,7 @@ import {
 } from '../physics/ballTrajectory';
 import { BALL_RADIUS_KEY, PLAYER_RADIUS_KEY } from '../config/tuning';
 import {
-  integrateFieldPlayer,
+  integratePlayer,
   type PlayerMovementObservation
 } from './playerMovement';
 import { createThrowDiagnosticRecords } from './throwDiagnostics';
@@ -38,12 +38,13 @@ import { advanceMatchStoppage, publishMatchDiagnostics, resolveGoal } from './ma
 import { resolvePlayerContacts } from './playerContact';
 import { createContactDiagnosticRecords } from './contactDiagnostics';
 import { advanceCheckState, resolveActiveChecks, publishCheckingDiagnostics } from './checking';
+import { advanceGoalkeeperState, publishKeeperDiagnostics } from './goalkeeping';
 
 export function stepGame(
   state: GameState,
   fixedStepSeconds: number,
   context: SimulationStepContext = {},
-  input?: RoutedPlayerIntent
+  input?: SimulationInput
 ): void {
   if (!Number.isFinite(fixedStepSeconds) || fixedStepSeconds <= 0) {
     throw new RangeError('The simulation step must be a finite positive duration.');
@@ -63,28 +64,31 @@ export function stepGame(
   }
 
   advanceCheckState(state, context.tuning, input);
-  if (state.players.find(p => p.definition.id === input?.playerId)?.contact.stumbleTicksRemaining) input = undefined;
+  const inputs = routedInputs(input).filter((entry) =>
+    !state.players.find((player) => player.definition.id === entry.playerId)?.contact.stumbleTicksRemaining
+  );
+  advanceGoalkeeperState(state, context.tuning, inputs);
+  const ball = state.ball;
+  const throwInput = ball.mode === 'possessed'
+    ? inputs.find((entry) => entry.playerId === ball.holderId)
+    : inputs[0];
   const throwStep = advanceThrowState(
     state,
     fixedStepSeconds,
     context.tuning,
-    input
+    throwInput
   );
-  advanceOneTouchState(state, fixedStepSeconds, context.tuning, input);
+  advanceOneTouchState(state, fixedStepSeconds, context.tuning, inputs);
   const previousPlayerPositions = new Map(
     state.players.map((player) => [player.definition.id, player.position])
   );
   const observations: PlayerMovementObservation[] = [];
   if (state.players.length > 0) {
     for (const player of state.players) {
-      if (player.definition.role !== 'field') {
-        continue;
-      }
-
       const playerInput =
-        input?.playerId === player.definition.id ? input.intent : undefined;
+        inputs.find((entry) => entry.playerId === player.definition.id)?.intent;
       observations.push(
-        integrateFieldPlayer(
+        integratePlayer(
           player,
           playerInput,
           fixedStepSeconds,
@@ -127,6 +131,9 @@ export function stepGame(
   state.tick += 1;
   publishMatchDiagnostics(state, context.diagnostics);
   publishCheckingDiagnostics(state, checkImpacts, context.diagnostics);
+  publishKeeperDiagnostics(state, context.tuning, context.arena,
+    receiveInteraction?.outcome === 'keeper-catch' || receiveInteraction?.outcome === 'keeper-parry'
+      ? receiveInteraction : undefined, context.diagnostics);
 
   if (context.diagnostics?.isLayerEnabled(RUNTIME_DIAGNOSTIC_LAYER)) {
     context.diagnostics.publish({

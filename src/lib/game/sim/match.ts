@@ -3,7 +3,8 @@ import type { ArenaDefinition, ArenaEnd } from '../physics/arena';
 import type { BallGoalApertureEvaluation } from '../physics/ballTrajectory';
 import { constrainCircleToBounds, type Vec2 } from '../physics/geometry';
 import { PLAYER_RADIUS_KEY } from '../config/tuning';
-import { createEmptyContactState, createEmptyOneTouchState, createEmptyThrowChargeState, createLooseBallState, type GameState, type PlayerState } from './gameState';
+import { createEmptyContactState, createEmptyGoalkeeperState, createEmptyOneTouchState, createEmptyThrowChargeState, createLooseBallState, type GameState, type PlayerState } from './gameState';
+import { getPlayerMovementBounds } from './goalkeeping';
 import { MATCH_DIAGNOSTIC_LAYER, type DiagnosticSink } from './diagnostics';
 
 export const MATCH_STOPPAGE_SECONDS_KEY = 'match.goalStoppageSeconds';
@@ -48,6 +49,7 @@ export function clearMatchActions(state: GameState): void {
     player.throwCharge = createEmptyThrowChargeState();
     player.oneTouch = createEmptyOneTouchState();
     player.contact = createEmptyContactState();
+    if (player.goalkeeper) player.goalkeeper = createEmptyGoalkeeperState();
     player.velocity = { x: 0, y: 0 };
   }
   if (state.ball.mode === 'loose') state.ball.release = undefined;
@@ -60,7 +62,7 @@ export function resetMatchPositions(state: GameState, arena: ArenaDefinition, tu
   for (const spawn of match.restartPlayers) {
     const player = state.players.find(candidate => candidate.definition.id === spawn.playerId);
     if (!player) continue;
-    player.position = constrainCircleToBounds(spawn.position, tuning.getNumber(PLAYER_RADIUS_KEY), arena.bounds).position;
+    player.position = constrainCircleToBounds(spawn.position, tuning.getNumber(PLAYER_RADIUS_KEY), getPlayerMovementBounds(player, arena)).position;
     player.facing = { ...spawn.facing };
   }
   state.ball = createLooseBallState({ position: arena.restartSpawns.center });

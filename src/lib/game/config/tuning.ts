@@ -125,6 +125,37 @@ export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   ...[
+    ['maxSpeed', 'Keeper maximum speed', 5, 0, 12, 0.1],
+    ['acceleration', 'Keeper acceleration', 50, 0, 120, 1],
+    ['braking', 'Keeper braking', 60, 0, 120, 1],
+    ['turningResponse', 'Keeper direction response', 70, 0, 120, 1],
+    ['reversalResponse', 'Keeper reversal response', 70, 0, 120, 1],
+    ['facingResponse', 'Keeper facing response', 12, 0, 60, 1],
+    ['ordinaryReach', 'Keeper ordinary reach', 1.05, 0.3, 3, 0.05],
+    ['ordinaryHeight', 'Keeper ordinary save height', 1.3, 0, 3, 0.1],
+    ['committedReach', 'Keeper committed reach', 1.8, 0.5, 4, 0.05],
+    ['committedHeight', 'Keeper committed save height', 2, 0, 4, 0.1],
+    ['commitTicks', 'Keeper save commitment', 12, 1, 60, 1],
+    ['recoveryTicks', 'Keeper save recovery', 36, 1, 120, 1],
+    ['recoveryReachScale', 'Keeper recovery reach scale', 0.6, 0.1, 1, 0.05],
+    ['recoveryMovementScale', 'Keeper recovery movement scale', 0.25, 0, 1, 0.05],
+    ['catchSpeed', 'Keeper controlled catch speed', 12, 1, 40, 1],
+    ['catchCapacity', 'Keeper baseline catch capacity', 1, 0.1, 3, 0.1],
+    ['controlSpread', 'Keeper Control catch spread', 0.4, 0, 0.9, 0.05],
+    ['heightDifficulty', 'Keeper save height difficulty', 0.4, 0, 2, 0.05],
+    ['stretchDifficulty', 'Keeper save stretch difficulty', 0.5, 0, 2, 0.05],
+    ['commitDifficulty', 'Keeper committed catch difficulty', 0.35, 0, 2, 0.05],
+    ['alignmentDifficulty', 'Keeper save alignment difficulty', 0.5, 0, 2, 0.05],
+    ['parryRestitution', 'Keeper parry restitution', 0.65, 0, 1, 0.05],
+    ['parryLift', 'Keeper parry vertical speed', 1.5, 0, 6, 0.1],
+    ['setDepth', 'Keeper set-position depth', 1.6, 0, 5, 0.1],
+    ['stepOutDistance', 'Keeper step-out ball distance', 10, 1, 30, 1],
+    ['trackingWidth', 'Keeper lateral tracking fraction', 0.7, 0, 1, 0.05],
+    ['steeringTime', 'Keeper target steering time', 0.15, 0.05, 1, 0.05],
+    ['commitLeadSeconds', 'Keeper commitment lead time', 0.18, 0.02, 1, 0.01],
+    ['predictionSteps', 'Keeper prediction horizon', 120, 10, 240, 1]
+  ].map(([key, label, defaultValue, min, max, step]) => ({ key: `keeper.${key}`, domain: 'keeper', label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  ...[
     ['receive', 'easySpeed', 'Dependable receive speed', 16, 0, 40, 1],
     ['receive', 'easyHeight', 'Dependable receive height', 0.8, 0, 3, 0.1],
     ['receive', 'bodyHeight', 'Body block height', 1, 0, 3, 0.1],
@@ -563,7 +594,17 @@ function assertValidValue(definition: NumericTuningDefinition, value: number): v
 function assertValidThrowTuningRelationships(
   getEffectiveValue: (key: string) => number | undefined
 ): void {
+  const diameter = (getEffectiveValue(PLAYER_RADIUS_KEY) ?? 0) * 2;
+  for (const dimension of [ARENA_CREASE_WIDTH_KEY, ARENA_CREASE_DEPTH_KEY]) {
+    const size = getEffectiveValue(dimension);
+    if (size !== undefined && diameter > size) {
+      throw new RangeError(`Tuning relationship invalid: player diameter must fit '${dimension}'.`);
+    }
+  }
   for (const [lowKey, highKey] of [
+    ['keeper.ordinaryReach', 'keeper.committedReach'],
+    ['keeper.ordinaryHeight', 'keeper.committedHeight'],
+    ['keeper.controlSpread', 'keeper.catchCapacity'],
     ['contact.minimumImpact', 'contact.stumbleThreshold'],
     ['contact.stumbleThreshold', 'contact.turnoverThreshold'],
     ['receive.bodyHeight', 'receive.catchHeight'],

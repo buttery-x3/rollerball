@@ -58,7 +58,7 @@ describe('Workbench tuning boundaries', () => {
         }
       }
     }
-  });
+  }, 30_000); // Full registry × scenario matrix grows as gameplay systems arrive.
 });
 
 function expectUnchanged<T>(actual: T, expected: T): void {

@@ -6,7 +6,7 @@ import {
   RECEIVE_ONE_TOUCH_BUFFER_TICKS_KEY,
   type TuningReader
 } from '../config/tuning';
-import type { ReceiveIntent, RoutedPlayerIntent } from '../control/types';
+import { routedInputs, type ReceiveIntent, type RoutedPlayerIntent, type SimulationInput } from '../control/types';
 import { createPlayerTuning } from '../config/playerAttributes';
 import {
   createBallThrowLaunch,
@@ -36,6 +36,7 @@ import {
   throwStrengthForRightStick
 } from './throwing';
 import { evaluateReceiveDifficulty, type ReceiveDifficulty } from './receiveDifficulty';
+import { getGoalkeeperSaveEnvelope, resolveGoalkeeperSave, type GoalkeeperSaveObservation } from './goalkeeping';
 
 const EPSILON = 1e-9;
 
@@ -49,7 +50,7 @@ interface ReceiveTuning {
   readonly releaseLockoutTicks: number;
 }
 
-interface ReceiveContactCandidate {
+export interface ReceiveContactCandidate {
   readonly player: PlayerState;
   readonly timeSeconds: number;
   readonly position: Vec2;
@@ -85,6 +86,7 @@ export interface OneTouchInteractionObservation extends ReceiveInteractionBase {
 export type ReceiveInteractionObservation =
   | PickupInteractionObservation
   | OneTouchInteractionObservation
+  | GoalkeeperSaveObservation
   | (ReceiveInteractionBase & { readonly outcome: 'deflection' | 'miss' });
 
 function cloneVector(vector: Vec2): Vec2 {
@@ -188,7 +190,7 @@ export function advanceOneTouchState(
   state: GameState,
   fixedStepSeconds: number,
   tuning: TuningReader,
-  input: RoutedPlayerIntent | undefined
+  input: SimulationInput | undefined
 ): void {
   if (!Number.isFinite(fixedStepSeconds) || fixedStepSeconds <= 0) {
     throw new RangeError('The simulation step must be a finite positive duration.');
@@ -202,6 +204,7 @@ export function advanceOneTouchState(
     return;
   }
 
+  const inputs = routedInputs(input);
   for (const player of state.players) {
     if (player.definition.role !== 'field') {
       clearOneTouchState(player);
@@ -209,11 +212,11 @@ export function advanceOneTouchState(
     }
 
     decayOneTouchBuffer(player);
-    const receive = receiveIntentFor(player, input);
+    const playerInput = inputs.find((entry) => entry.playerId === player.definition.id);
+    const receive = receiveIntentFor(player, playerInput);
 
     if (
-      input?.playerId === player.definition.id &&
-      input.intent.actionContext !== 'receiving'
+      playerInput && playerInput.intent.actionContext !== 'receiving'
     ) {
       player.oneTouch.buffer = undefined;
     }
@@ -263,10 +266,10 @@ function earliestCatchableRatio(
     : undefined;
 }
 
-function contactForSegment(
+export function findPlayerBallContact(
   segment: BallTrajectorySegment,
   player: PlayerState,
-  tuning: ReceiveTuning
+  tuning: Pick<ReceiveTuning, 'ballRadius' | 'playerRadius' | 'catchHeight'>
 ): ReceiveContactCandidate | undefined {
   const displacement = {
     x: segment.end.x - segment.start.x,
@@ -327,17 +330,24 @@ function compareContacts(
 function receiveContacts(
   state: GameState,
   ballStep: LooseBallStepResult,
-  tuning: ReceiveTuning
+  tuning: ReceiveTuning,
+  reader: TuningReader
 ): readonly ReceiveContactCandidate[] {
   const contacts: ReceiveContactCandidate[] = [];
 
   for (const player of state.players) {
-    if (player.definition.role !== 'field' || player.contact.stumbleTicksRemaining > 0 || isLockedOut(state, player.definition.id)) {
+    if (player.contact.stumbleTicksRemaining > 0 || isLockedOut(state, player.definition.id)) {
       continue;
     }
 
+    const keeperEnvelope = player.definition.role === 'goalkeeper' ? getGoalkeeperSaveEnvelope(player, reader) : undefined;
+    const envelope = keeperEnvelope ? {
+      ballRadius: tuning.ballRadius,
+      playerRadius: keeperEnvelope.radius,
+      catchHeight: keeperEnvelope.height
+    } : tuning;
     for (const segment of ballStep.segments) {
-      const contact = contactForSegment(segment, player, tuning);
+      const contact = findPlayerBallContact(segment, player, envelope);
       if (contact && (!ballStep.goalAperture?.crossed || contact.timeSeconds <= ballStep.goalAperture.timeSeconds)) {
         contacts.push(contact);
         break;
@@ -402,8 +412,11 @@ export function resolveLooseBallPlayerInteraction(
 
   const receiveTuning = readReceiveTuning(tuning);
   let missed: ReceiveInteractionObservation | undefined;
-  for (const contact of receiveContacts(state, ballStep, receiveTuning)) {
+  for (const contact of receiveContacts(state, ballStep, receiveTuning, tuning)) {
   const player = contact.player;
+  if (player.definition.role === 'goalkeeper') {
+    return resolveGoalkeeperSave(state, player, contact, tuning);
+  }
   const action = oneTouchAction(player, tuning);
   const difficulty = evaluateReceiveDifficulty(player, state.players, contact.incomingVelocity, contact.height, tuning, action?.direction);
   const base = {

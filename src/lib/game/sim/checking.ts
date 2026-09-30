@@ -1,7 +1,7 @@
 import type { TuningReader } from '../config/tuning';
 import { playerStrengthRatio, playerRetentionThreshold } from '../config/playerAttributes';
 import { BALL_POST_RELEASE_LOCKOUT_TICKS_KEY } from '../config/tuning';
-import type { RoutedPlayerIntent } from '../control/types';
+import { routedInputs, type SimulationInput } from '../control/types';
 import type { PlayerContact } from '../physics/playerContact';
 import { createEmptyOneTouchState, createEmptyThrowChargeState, createLooseBallState, type GameState, type PlayerState } from './gameState';
 import type { DiagnosticSink } from './diagnostics';
@@ -18,8 +18,9 @@ export interface CheckImpact {
   readonly outcome: 'weak' | 'knockback' | 'stumble' | 'turnover' | 'immune';
 }
 
-export function advanceCheckState(state: GameState, tuning: TuningReader, input?: RoutedPlayerIntent): void {
+export function advanceCheckState(state: GameState, tuning: TuningReader, input?: SimulationInput): void {
   for (const player of state.players) {
+    const playerInput = routedInputs(input).find(candidate => candidate.playerId === player.definition.id);
     const contact = player.contact;
     contact.checkTicksRemaining = Math.max(0, contact.checkTicksRemaining - 1);
     contact.checkRecoveryTicksRemaining = Math.max(0, contact.checkRecoveryTicksRemaining - 1);
@@ -28,7 +29,7 @@ export function advanceCheckState(state: GameState, tuning: TuningReader, input?
     if (contact.checkTicksRemaining === 0) contact.hitPlayerIds = [];
     const hasBall = state.ball.mode === 'possessed' && state.ball.holderId === player.definition.id;
     if (hasBall) contact.checkTicksRemaining = 0;
-    if (!hasBall && input?.playerId === player.definition.id && input.intent.check.pressed &&
+    if (!hasBall && playerInput?.intent.check.pressed &&
         contact.checkRecoveryTicksRemaining === 0 && contact.stumbleTicksRemaining === 0) {
       contact.checkTicksRemaining = tuning.getNumber('contact.checkWindowTicks');
       contact.checkRecoveryTicksRemaining = contact.checkTicksRemaining + tuning.getNumber('contact.checkRecoveryTicks');
