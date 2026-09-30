@@ -36,6 +36,7 @@ export interface DiagnosticStore extends DiagnosticSink {
 }
 
 export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
+  { key: 'checking', label: 'Checks, stumble and turnovers', enabledByDefault: false },
   { key: 'match', label: 'Goals and match flow', enabledByDefault: true },
   {
     key: RUNTIME_DIAGNOSTIC_LAYER,

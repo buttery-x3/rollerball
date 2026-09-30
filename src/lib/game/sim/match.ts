@@ -3,7 +3,7 @@ import type { ArenaDefinition, ArenaEnd } from '../physics/arena';
 import type { BallGoalApertureEvaluation } from '../physics/ballTrajectory';
 import { constrainCircleToBounds, type Vec2 } from '../physics/geometry';
 import { PLAYER_RADIUS_KEY } from '../config/tuning';
-import { createEmptyOneTouchState, createEmptyThrowChargeState, createLooseBallState, type GameState, type PlayerState } from './gameState';
+import { createEmptyContactState, createEmptyOneTouchState, createEmptyThrowChargeState, createLooseBallState, type GameState, type PlayerState } from './gameState';
 import { MATCH_DIAGNOSTIC_LAYER, type DiagnosticSink } from './diagnostics';
 
 export const MATCH_STOPPAGE_SECONDS_KEY = 'match.goalStoppageSeconds';
@@ -47,6 +47,7 @@ export function clearMatchActions(state: GameState): void {
   for (const player of state.players) {
     player.throwCharge = createEmptyThrowChargeState();
     player.oneTouch = createEmptyOneTouchState();
+    player.contact = createEmptyContactState();
     player.velocity = { x: 0, y: 0 };
   }
   if (state.ball.mode === 'loose') state.ball.release = undefined;

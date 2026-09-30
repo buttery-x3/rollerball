@@ -31,6 +31,18 @@ export interface OneTouchState {
   buffer: OneTouchBufferState | undefined;
 }
 
+export interface PlayerContactState {
+  checkTicksRemaining: number;
+  checkRecoveryTicksRemaining: number;
+  stumbleTicksRemaining: number;
+  immunityTicksRemaining: number;
+  hitPlayerIds: string[];
+}
+
+export function createEmptyContactState(): PlayerContactState {
+  return { checkTicksRemaining: 0, checkRecoveryTicksRemaining: 0, stumbleTicksRemaining: 0, immunityTicksRemaining: 0, hitPlayerIds: [] };
+}
+
 export interface PlayerState {
   readonly definition: PlayerDefinition;
   position: Vec2;
@@ -38,6 +50,7 @@ export interface PlayerState {
   facing: Vec2;
   throwCharge: ThrowChargeState;
   oneTouch: OneTouchState;
+  contact: PlayerContactState;
 }
 
 export interface BallReleaseMetadata {
@@ -138,6 +151,7 @@ export function createFieldPlayerState(
       role: 'field',
       attributes: createPlayerAttributes(options.attributes)
     }),
+    contact: createEmptyContactState(),
     position: cloneVector(options.position ?? DEFAULT_POSITION),
     velocity: cloneVector(options.velocity ?? DEFAULT_VELOCITY),
     facing: cloneVector(options.facing ?? DEFAULT_FACING),

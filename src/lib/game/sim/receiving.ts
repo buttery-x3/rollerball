@@ -326,7 +326,7 @@ function earliestContact(
   const contacts: ReceiveContactCandidate[] = [];
 
   for (const player of state.players) {
-    if (player.definition.role !== 'field' || isLockedOut(state, player.definition.id)) {
+    if (player.definition.role !== 'field' || player.contact.stumbleTicksRemaining > 0 || isLockedOut(state, player.definition.id)) {
       continue;
     }
 

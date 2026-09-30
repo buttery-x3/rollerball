@@ -9,6 +9,7 @@ import { RECEIVING_SCENARIOS } from './receivingScenario';
 import { SCORING_SCENARIOS } from './scoringScenario';
 import { PLAYER_ATTRIBUTE_SCENARIOS } from './playerAttributesScenario';
 import { PLAYER_CONTACT_SCENARIOS } from './playerContactScenario';
+import { CHECK_SCENARIOS } from './checkScenario';
 
 export const DETERMINISTIC_TICK_SCENARIO_ID = 'deterministic-tick';
 
@@ -41,7 +42,8 @@ export const DEFAULT_SCENARIOS: readonly ScenarioDefinition<
   ...RECEIVING_SCENARIOS,
   ...SCORING_SCENARIOS,
   ...PLAYER_ATTRIBUTE_SCENARIOS,
-  ...PLAYER_CONTACT_SCENARIOS
+  ...PLAYER_CONTACT_SCENARIOS,
+  ...CHECK_SCENARIOS
 ];
 
 export function getScenario(

@@ -60,7 +60,16 @@ FLAME-114 pushed as `b3cf941`, Linear In Review. Collision integrated from
 The solver exposes reusable pre-response closing velocities/contact normals;
 Strength/check consequences remain outside physics. Required head-on/glancing/
 stationary-moving/cluster scenarios, boundary and swept contacts pass.
-Commit/push FLAME-115, then implement FLAME-125.
+FLAME-115 pushed as `db6e7f8`, Linear In Review.
+FLAME-125 implementation complete pending final checks/commit: simulation owns
+check/recovery/stumble/immunity timers, one impact per target per window, impact
+uses closing speed * alignment * bounded relative Strength, strong carrier hits
+release once. Physics stays unchanged. Restart clears contact timers. Eight
+registered scenarios include interactive free play. Browser tick-1 strong check
+shows impact 10.9167, turnover, 24-tick stumble and 69-tick combined immunity.
+Final FLAME-125 checks: 0 errors/warnings, 27 files / 172 tests passed, build passed.
+No new browser errors after clean reload (earlier HMR errors were transient merge
+markers during integration). Next: commit/push FLAME-125, then FLAME-116.
 Receiving owns ball/player interaction after ball
 integration, one-touch state before movement, and structured receive diagnostics;
 the existing tests cover pickup, lockout, contact order, height, all redirects,

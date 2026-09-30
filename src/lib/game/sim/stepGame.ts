@@ -37,6 +37,7 @@ import { createReceivingDiagnosticRecords } from './receivingDiagnostics';
 import { advanceMatchStoppage, publishMatchDiagnostics, resolveGoal } from './match';
 import { resolvePlayerContacts } from './playerContact';
 import { createContactDiagnosticRecords } from './contactDiagnostics';
+import { advanceCheckState, resolveActiveChecks, publishCheckingDiagnostics } from './checking';
 
 export function stepGame(
   state: GameState,
@@ -61,6 +62,8 @@ export function stepGame(
     return;
   }
 
+  advanceCheckState(state, context.tuning, input);
+  if (state.players.find(p => p.definition.id === input?.playerId)?.contact.stumbleTicksRemaining) input = undefined;
   const throwStep = advanceThrowState(
     state,
     fixedStepSeconds,
@@ -98,6 +101,7 @@ export function stepGame(
     context.tuning,
     context.arena
   );
+  const checkImpacts = resolveActiveChecks(state, playerContacts, context.tuning);
 
   let ballStep: LooseBallStepResult | undefined;
   let receiveInteraction: ReceiveInteractionObservation | undefined;
@@ -122,6 +126,7 @@ export function stepGame(
   if (!receiveInteraction) resolveGoal(state, ballStep?.goalAperture, fixedStepSeconds, context.tuning);
   state.tick += 1;
   publishMatchDiagnostics(state, context.diagnostics);
+  publishCheckingDiagnostics(state, checkImpacts, context.diagnostics);
 
   if (context.diagnostics?.isLayerEnabled(RUNTIME_DIAGNOSTIC_LAYER)) {
     context.diagnostics.publish({

@@ -371,6 +371,10 @@
     <h2>Match flow</h2>
     <pre class="diagnostic-output">{formatDiagnosticData(matchRecord)}</pre>
   </section>
+  <section class="workbench-section" aria-label="Checking">
+    <h2>Checking</h2>
+    <pre class="diagnostic-output">{formatDiagnosticData(diagnosticFrame.records.find(record => record.entityId === 'checking-state'))}</pre>
+  </section>
 </aside>
 
 <style>

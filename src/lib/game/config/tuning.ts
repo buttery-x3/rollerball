@@ -124,6 +124,18 @@ export const DEFAULT_RECEIVE_CATCH_HEIGHT = 1.5;
 export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
+  ...[
+    ['checkWindowTicks', 'Check active window', 12, 1, 60, 1],
+    ['checkRecoveryTicks', 'Check recovery', 24, 0, 120, 1],
+    ['strengthSpread', 'Strength impact spread', 0.4, 0, 0.8, 0.05],
+    ['minimumImpact', 'Minimum authored impact', 2, 0, 10, 0.1],
+    ['stumbleThreshold', 'Stumble impact threshold', 6, 0, 30, 0.1],
+    ['turnoverThreshold', 'Severe turnover threshold', 9, 0, 40, 0.1],
+    ['knockbackScale', 'Check knockback scale', 0.6, 0, 2, 0.05],
+    ['turnoverSpeedScale', 'Turnover ball speed scale', 0.8, 0, 2, 0.05],
+    ['stumbleTicks', 'Stumble duration', 24, 1, 120, 1],
+    ['immunityTicks', 'Post-stumble immunity', 45, 1, 180, 1]
+  ].map(([key, label, defaultValue, min, max, step]) => ({ key: `contact.${key}`, domain: 'contact', label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
   { key: 'match.goalStoppageSeconds', domain: 'match', label: 'Goal stoppage duration', defaultValue: 1.5, min: 0, max: 5, step: 0.1 },
   ...[
     { key: ATTRIBUTES_SPEED_SPREAD_KEY, label: 'Speed mapping spread', defaultValue: 0.25 },
@@ -535,6 +547,16 @@ function assertValidValue(definition: NumericTuningDefinition, value: number): v
 function assertValidThrowTuningRelationships(
   getEffectiveValue: (key: string) => number | undefined
 ): void {
+  for (const [lowKey, highKey] of [
+    ['contact.minimumImpact', 'contact.stumbleThreshold'],
+    ['contact.stumbleThreshold', 'contact.turnoverThreshold']
+  ]) {
+    const low = getEffectiveValue(lowKey);
+    const high = getEffectiveValue(highKey);
+    if (low !== undefined && high !== undefined && low > high) {
+      throw new RangeError(`Tuning relationship invalid: '${lowKey}' must not exceed '${highKey}'.`);
+    }
+  }
   const minimumStrength = getEffectiveValue(CONTROLS_THROW_MIN_STRENGTH_KEY);
   const maximumStrength = getEffectiveValue(CONTROLS_THROW_MAX_STRENGTH_KEY);
   if (

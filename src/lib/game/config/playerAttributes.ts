@@ -37,6 +37,13 @@ export const DEFAULT_PLAYER_ATTRIBUTES: PlayerAttributes = Object.freeze({
   control: ATTRIBUTE_BASELINE
 });
 
+/** Strength affects authored impact/resistance, never equal-mass geometry. */
+export function playerStrengthRatio(checker: PlayerAttributes, target: PlayerAttributes, tuning: TuningReader): number {
+  const spread = tuning.getNumber('contact.strengthSpread');
+  return (1 + spread * (checker.strength - ATTRIBUTE_BASELINE) / ATTRIBUTE_BASELINE) /
+    (1 + spread * (target.strength - ATTRIBUTE_BASELINE) / ATTRIBUTE_BASELINE);
+}
+
 export function createPlayerAttributes(
   values: Partial<PlayerAttributes> = {}
 ): PlayerAttributes {
