@@ -10,6 +10,7 @@ import type { ReceiveIntent, RoutedPlayerIntent } from '../control/types';
 import { createPlayerTuning } from '../config/playerAttributes';
 import {
   createBallThrowLaunch,
+  reflectVelocity,
   type BallThrowFamily,
   type BallTrajectorySegment,
   type LooseBallStepResult
@@ -34,6 +35,7 @@ import {
   startThrowCharge,
   throwStrengthForRightStick
 } from './throwing';
+import { evaluateReceiveDifficulty, type ReceiveDifficulty } from './receiveDifficulty';
 
 const EPSILON = 1e-9;
 
@@ -52,6 +54,7 @@ interface ReceiveContactCandidate {
   readonly timeSeconds: number;
   readonly position: Vec2;
   readonly height: number;
+  readonly incomingVelocity: Vec2;
 }
 
 interface ReceiveInteractionBase {
@@ -60,6 +63,7 @@ interface ReceiveInteractionBase {
   readonly contactTimeSeconds: number;
   readonly contactPosition: Vec2;
   readonly contactHeight: number;
+  readonly difficulty: ReceiveDifficulty;
 }
 
 export interface PickupInteractionObservation extends ReceiveInteractionBase {
@@ -80,7 +84,8 @@ export interface OneTouchInteractionObservation extends ReceiveInteractionBase {
 
 export type ReceiveInteractionObservation =
   | PickupInteractionObservation
-  | OneTouchInteractionObservation;
+  | OneTouchInteractionObservation
+  | (ReceiveInteractionBase & { readonly outcome: 'deflection' | 'miss' });
 
 function cloneVector(vector: Vec2): Vec2 {
   return { x: vector.x, y: vector.y };
@@ -292,7 +297,8 @@ function contactForSegment(
       x: segment.start.x + displacement.x * ratio,
       y: segment.start.y + displacement.y * ratio
     },
-    height: heightAtRatio(segment, ratio)
+    height: heightAtRatio(segment, ratio),
+    incomingVelocity: segmentDuration > EPSILON ? { x: displacement.x / segmentDuration, y: displacement.y / segmentDuration } : { x: 0, y: 0 }
   };
 }
 
@@ -318,11 +324,11 @@ function compareContacts(
   return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
 }
 
-function earliestContact(
+function receiveContacts(
   state: GameState,
   ballStep: LooseBallStepResult,
   tuning: ReceiveTuning
-): ReceiveContactCandidate | undefined {
+): readonly ReceiveContactCandidate[] {
   const contacts: ReceiveContactCandidate[] = [];
 
   for (const player of state.players) {
@@ -340,7 +346,7 @@ function earliestContact(
   }
 
   contacts.sort(compareContacts);
-  return contacts[0];
+  return contacts;
 }
 
 function oneTouchAction(
@@ -395,20 +401,37 @@ export function resolveLooseBallPlayerInteraction(
   }
 
   const receiveTuning = readReceiveTuning(tuning);
-  const contact = earliestContact(state, ballStep, receiveTuning);
-  if (!contact) {
-    return undefined;
-  }
-
+  let missed: ReceiveInteractionObservation | undefined;
+  for (const contact of receiveContacts(state, ballStep, receiveTuning)) {
   const player = contact.player;
   const action = oneTouchAction(player, tuning);
+  const difficulty = evaluateReceiveDifficulty(player, state.players, contact.incomingVelocity, contact.height, tuning, action?.direction);
   const base = {
     playerId: player.definition.id,
     teamId: player.definition.teamId,
     contactTimeSeconds: contact.timeSeconds,
     contactPosition: cloneVector(contact.position),
-    contactHeight: contact.height
+    contactHeight: contact.height,
+    difficulty
   };
+
+  if (!difficulty.succeeds) {
+    clearOneTouchState(player);
+    if (contact.height > tuning.getNumber('receive.bodyHeight')) {
+      missed = { ...base, outcome: 'miss' };
+      continue;
+    }
+    const delta = { x: contact.position.x - player.position.x, y: contact.position.y - player.position.y };
+    const distance = Math.hypot(delta.x, delta.y);
+    const speed = Math.hypot(contact.incomingVelocity.x, contact.incomingVelocity.y);
+    const normal = distance > EPSILON ? { x: delta.x / distance, y: delta.y / distance } :
+      speed > EPSILON ? { x: -contact.incomingVelocity.x / speed, y: -contact.incomingVelocity.y / speed } : { x: 1, y: 0 };
+    state.ball = createLooseBallState({ position: contact.position, height: contact.height,
+      velocity: reflectVelocity(contact.incomingVelocity, normal, tuning.getNumber('receive.deflectionRestitution')),
+      verticalVelocity: state.ball.mode === 'loose' ? state.ball.verticalVelocity : 0,
+      release: { releasedById: player.definition.id, reacquisitionLockoutTicksRemaining: receiveTuning.releaseLockoutTicks } });
+    return { ...base, outcome: 'deflection' };
+  }
 
   if (!action) {
     state.ball = createPossessedBallState(player.definition.id);
@@ -451,4 +474,6 @@ export function resolveLooseBallPlayerInteraction(
     verticalVelocity: launch.verticalVelocity,
     reacquisitionLockoutTicks: receiveTuning.releaseLockoutTicks
   };
+  }
+  return missed;
 }

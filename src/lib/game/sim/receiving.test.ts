@@ -219,7 +219,13 @@ describe('loose-ball pickup and receiving', () => {
     });
     const overhead = runReceivingScenario(receiveAboveCatchHeightScenario);
 
-    expect(pickupState.ball).toEqual({ mode: 'possessed', holderId: 'receiver' });
+    // FLAME-116: an extreme-speed ball is too difficult to catch, but the
+    // continuous body contact must still stop it tunnelling through the player.
+    expect(pickupState.ball.mode).toBe('loose');
+    if (pickupState.ball.mode === 'loose') {
+      expect(pickupState.ball.velocity.y).toBeLessThan(0);
+      expect(pickupState.ball.position.y).toBeLessThan(0);
+    }
     expect(overhead.state.ball.mode).toBe('loose');
     if (overhead.state.ball.mode === 'loose') {
       expect(overhead.state.ball.position.y).toBeGreaterThan(0);

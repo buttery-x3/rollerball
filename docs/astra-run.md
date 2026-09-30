@@ -78,3 +78,17 @@ cancel and retained control. No changed architecture contract is required.
 ## Verification and blockers
 Physical-controller feel/balance approval requires a human and is not claimed.
 Browser receiving smoke passed. No external implementation blocker identified.
+
+FLAME-125 pushed as `9159cdf`, Linear In Review.
+FLAME-116: deterministic receive difficulty now accounts for speed, height,
+approach, contention and redirect angle; Control maps to central capacity.
+Easy uncontested catches remain reliable. Failed low contacts deflect through
+shared reflection physics; failed high contacts can continue past the receiver.
+Marginal check retention uses Control after contact; severe checks always release.
+17 shared scenarios and 13 targeted tests cover these outcomes, diagnostics,
+team/input parity, replay and frame-rate independence. Check: 0 errors/warnings;
+tests: 28 files / 185 passed; build passed (existing chunk warning only).
+Browser: identical difficult receive at tick 1 yields low-Control deflection
+(capacity .55) and high-Control possession (capacity 1.85), difficulty 1.0741.
+Next: FLAME-126 goalkeeper implementation. Existing shared swept receive geometry
+will be extended for keeper envelopes so player interactions remain time-ordered.

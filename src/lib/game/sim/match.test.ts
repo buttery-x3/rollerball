@@ -38,6 +38,10 @@ describe('goals and restart ownership', () => {
     const before = createScenarioRun(setup('goal-positive'));
     before.runtime.pause();
     before.state.players.push(createFieldPlayerState({ id: 'blocker', position: { x: 0, y: 14 } }));
+    if (before.state.ball.mode === 'loose') {
+      before.state.ball.position = { x: 0, y: 14.3 };
+      before.state.ball.velocity = { x: 0, y: 30 };
+    }
     before.runtime.stepOnce();
     expect(before.state.match?.score.human).toBe(0);
     expect(before.state.ball).toEqual({ mode: 'possessed', holderId: 'blocker' });

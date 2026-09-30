@@ -312,7 +312,7 @@
         <option value={String(record.data?.playerId)}>{String(record.data?.playerId)}</option>
       {/each}
     </select>
-    <p class="attribute-note">Attributes: 0–100; baseline 50. Strength and Control are reserved.
+    <p class="attribute-note">Attributes: 0–100; baseline 50. Contact and receiving panels explain Strength and Control outcomes.
       Effective values use the sampled player's attributes and the base tuning at that tick.</p>
     {#if derivedRows.length}
       <div class="derived-values">

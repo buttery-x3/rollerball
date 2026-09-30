@@ -1,5 +1,5 @@
 import type { TuningReader } from '../config/tuning';
-import { playerStrengthRatio } from '../config/playerAttributes';
+import { playerStrengthRatio, playerRetentionThreshold } from '../config/playerAttributes';
 import { BALL_POST_RELEASE_LOCKOUT_TICKS_KEY } from '../config/tuning';
 import type { RoutedPlayerIntent } from '../control/types';
 import type { PlayerContact } from '../physics/playerContact';
@@ -13,6 +13,8 @@ export interface CheckImpact {
   readonly alignment: number;
   readonly strengthFactor: number;
   readonly impactScore: number;
+  readonly control: number;
+  readonly retentionThreshold: number;
   readonly outcome: 'weak' | 'knockback' | 'stumble' | 'turnover' | 'immune';
 }
 
@@ -62,6 +64,7 @@ export function resolveActiveChecks(state: GameState, contacts: readonly PlayerC
       const alignment = Math.max(0, checker.facing.x * normal.x + checker.facing.y * normal.y);
       const strengthFactor = playerStrengthRatio(checker.definition.attributes, target.definition.attributes, tuning);
       const impactScore = geometry.closingSpeed * alignment * strengthFactor;
+      const retentionThreshold = playerRetentionThreshold(target.definition.attributes, tuning);
       let outcome: CheckImpact['outcome'] = 'weak';
       if (target.contact.immunityTicksRemaining > 0) {
         outcome = 'immune';
@@ -78,13 +81,14 @@ export function resolveActiveChecks(state: GameState, contacts: readonly PlayerC
           outcome = 'stumble';
         }
         if (state.ball.mode === 'possessed' && state.ball.holderId === target.definition.id &&
-            impactScore >= tuning.getNumber('contact.turnoverThreshold')) {
+            (impactScore >= tuning.getNumber('contact.turnoverThreshold') || impactScore >= retentionThreshold)) {
           forceContactTurnover(state, target, normal, impactScore, tuning);
           outcome = 'turnover';
         }
       }
       impacts.push({ checkerId: checker.definition.id, targetId: target.definition.id,
-        closingSpeed: geometry.closingSpeed, alignment, strengthFactor, impactScore, outcome });
+        closingSpeed: geometry.closingSpeed, alignment, strengthFactor, impactScore, outcome,
+        control: target.definition.attributes.control, retentionThreshold });
     }
   }
   return impacts;

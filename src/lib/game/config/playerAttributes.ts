@@ -56,6 +56,16 @@ export function createPlayerAttributes(
   return Object.freeze(attributes);
 }
 
+export function playerControlCapacity(attributes: PlayerAttributes, tuning: TuningReader): number {
+  return tuning.getNumber('receive.controlCapacity') + tuning.getNumber('receive.controlSpread') *
+    (attributes.control - ATTRIBUTE_BASELINE) / ATTRIBUTE_BASELINE;
+}
+
+export function playerRetentionThreshold(attributes: PlayerAttributes, tuning: TuningReader): number {
+  return tuning.getNumber('contact.retentionBase') + tuning.getNumber('contact.retentionControlSpread') *
+    (attributes.control - ATTRIBUTE_BASELINE) / ATTRIBUTE_BASELINE;
+}
+
 type MappedAttribute = 'speed' | 'agility' | 'power';
 
 const SPREAD_KEYS: Record<MappedAttribute, string> = {
@@ -64,7 +74,7 @@ const SPREAD_KEYS: Record<MappedAttribute, string> = {
   power: ATTRIBUTES_POWER_SPREAD_KEY
 };
 
-// Strength and Control deliberately have no effects until contact/receive issues.
+// Strength and Control use the authored impact/receive/retention mappings above.
 const VALUE_ATTRIBUTES: Readonly<Record<string, MappedAttribute>> = {
   [MOVEMENT_MAX_SPEED_KEY]: 'speed',
   [MOVEMENT_ACCELERATION_KEY]: 'agility',

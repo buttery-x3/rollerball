@@ -125,6 +125,22 @@ export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   ...[
+    ['receive', 'easySpeed', 'Dependable receive speed', 16, 0, 40, 1],
+    ['receive', 'easyHeight', 'Dependable receive height', 0.8, 0, 3, 0.1],
+    ['receive', 'bodyHeight', 'Body block height', 1, 0, 3, 0.1],
+    ['receive', 'speedDifficultyScale', 'Receive speed difficulty scale', 14, 1, 50, 1],
+    ['receive', 'heightWeight', 'Receive height difficulty', 0.25, 0, 2, 0.05],
+    ['receive', 'approachWeight', 'Receive approach difficulty', 0.2, 0, 2, 0.05],
+    ['receive', 'contentionRadius', 'Receive contention radius', 2, 0, 5, 0.1],
+    ['receive', 'contentionWeight', 'Receive contention difficulty', 0.25, 0, 2, 0.05],
+    ['receive', 'redirectWeight', 'One-touch direction change difficulty', 0.6, 0, 2, 0.05],
+    ['receive', 'controlCapacity', 'Baseline receive Control capacity', 1.2, 0.1, 5, 0.05],
+    ['receive', 'controlSpread', 'Receive Control capacity spread', 0.65, 0, 2, 0.05],
+    ['receive', 'deflectionRestitution', 'Failed catch body restitution', 0.5, 0, 1, 0.05],
+    ['contact', 'retentionBase', 'Baseline marginal retention threshold', 6, 0, 20, 0.1],
+    ['contact', 'retentionControlSpread', 'Control retention threshold spread', 2, 0, 5, 0.1]
+  ].map(([domain, key, label, defaultValue, min, max, step]) => ({ key: `${domain}.${key}`, domain: String(domain), label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  ...[
     ['checkWindowTicks', 'Check active window', 12, 1, 60, 1],
     ['checkRecoveryTicks', 'Check recovery', 24, 0, 120, 1],
     ['strengthSpread', 'Strength impact spread', 0.4, 0, 0.8, 0.05],
@@ -549,7 +565,11 @@ function assertValidThrowTuningRelationships(
 ): void {
   for (const [lowKey, highKey] of [
     ['contact.minimumImpact', 'contact.stumbleThreshold'],
-    ['contact.stumbleThreshold', 'contact.turnoverThreshold']
+    ['contact.stumbleThreshold', 'contact.turnoverThreshold'],
+    ['receive.bodyHeight', 'receive.catchHeight'],
+    ['receive.easyHeight', 'receive.catchHeight'],
+    ['receive.controlSpread', 'receive.controlCapacity'],
+    ['contact.retentionControlSpread', 'contact.retentionBase']
   ]) {
     const low = getEffectiveValue(lowKey);
     const high = getEffectiveValue(highKey);

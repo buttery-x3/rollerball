@@ -123,7 +123,7 @@ export function stepGame(
     );
   }
 
-  if (!receiveInteraction) resolveGoal(state, ballStep?.goalAperture, fixedStepSeconds, context.tuning);
+  if (!receiveInteraction || receiveInteraction.outcome === 'miss') resolveGoal(state, ballStep?.goalAperture, fixedStepSeconds, context.tuning);
   state.tick += 1;
   publishMatchDiagnostics(state, context.diagnostics);
   publishCheckingDiagnostics(state, checkImpacts, context.diagnostics);
