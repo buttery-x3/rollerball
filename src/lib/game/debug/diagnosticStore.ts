@@ -92,6 +92,12 @@ export function createDiagnosticStore(
   let visibleFrame: DiagnosticFrame = currentFrame;
   let pendingTick: number | undefined;
   let pendingRecords: DiagnosticRecord[] = [];
+  // Tactical decisions run more slowly than physics. Preserve their last
+  // sampled explanation between updates without recalculating gameplay queries.
+  const spatialDecisions = new Map<string, readonly DiagnosticRecord[]>();
+  const isDecision = (record: DiagnosticRecord) =>
+    record.source === 'spatialCandidates' || record.source === 'teamRoleSelection';
+  const decisionKey = (record: DiagnosticRecord) => `${record.source}:${record.data?.playerId}`;
 
   const notify = (): void => {
     for (const listener of listeners) {
@@ -164,9 +170,23 @@ export function createDiagnosticStore(
         return;
       }
 
+      const match = pendingRecords.find(record => record.entityId === 'match-state');
+      const nonPlaying = (match?.data?.phase && match.data.phase !== 'playing') ||
+        pendingRecords.some(record => record.layer === 'ai' && record.data?.context === 'non-playing');
+      if (nonPlaying) spatialDecisions.clear();
+      for (const record of pendingRecords.filter(record => record.entityId?.endsWith('-current-role'))) {
+        const key = `teamRoleSelection:${record.data?.playerId}`;
+        if (spatialDecisions.get(key)?.[0].data?.role !== record.data?.role) spatialDecisions.delete(key);
+      }
+      const updatedDecisions = new Set(pendingRecords.filter(record => !nonPlaying && isDecision(record))
+        .map(decisionKey));
+      for (const key of updatedDecisions) {
+        spatialDecisions.set(key, pendingRecords.filter(record => isDecision(record) && decisionKey(record) === key));
+      }
       currentFrame = {
         tick: pendingTick,
-        records: pendingRecords.slice()
+        records: [...pendingRecords.filter(record => !isDecision(record)),
+          ...Array.from(spatialDecisions.values()).flat()]
       };
       rebuildVisibleFrame();
       pendingTick = undefined;

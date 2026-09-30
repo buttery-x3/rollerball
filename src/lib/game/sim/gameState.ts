@@ -2,6 +2,7 @@ import type { Vec2 } from '../physics/geometry';
 import type { ArenaEnd } from '../physics/arena';
 import type { MatchState } from './match';
 import type { TeamDefinition } from './teams';
+import type { TacticalState } from './tactics';
 import { createPlayerAttributes, type PlayerAttributes } from '../config/playerAttributes';
 
 export type PlayerRole = 'field' | 'goalkeeper';
@@ -99,6 +100,8 @@ export interface GameState {
   /** Isolated subsystem scenarios may deliberately omit match rules. */
   match?: MatchState;
   readonly teams?: readonly TeamDefinition[];
+  /** Absent in isolated subsystem scenes that deliberately use neutral teammates. */
+  tactics?: TacticalState;
 }
 
 export interface CreateFieldPlayerOptions {

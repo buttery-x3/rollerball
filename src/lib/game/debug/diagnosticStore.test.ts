@@ -12,6 +12,26 @@ import { createGameState } from '../sim/gameState';
 import { stepGame } from '../sim/stepGame';
 
 describe('structured diagnostic store', () => {
+  it('retains the latest spatial decision between think ticks and clears it at stoppage', () => {
+    const diagnostics = createDiagnosticStore();
+    diagnostics.setLayerEnabled('ai', true);
+    diagnostics.beginTick(1);
+    diagnostics.publish({ layer: 'ai', source: 'spatialCandidates', entityId: 'ai-candidates',
+      primitive: { type: 'label', position: { x: 0, y: 0 }, text: 'support' },
+      data: { playerId: 'player-2', tick: 1, selected: 'left' } });
+    diagnostics.endTick();
+    diagnostics.beginTick(2);
+    diagnostics.endTick();
+    expect(diagnostics.getFrame().tick).toBe(2);
+    expect(diagnostics.getFrame().records[0].data).toMatchObject({ tick: 1, selected: 'left' });
+    diagnostics.beginTick(3);
+    diagnostics.publish({ layer: 'match', source: 'match', entityId: 'match-state',
+      primitive: { type: 'label', position: { x: 0, y: 0 }, text: 'goal-stoppage' },
+      data: { phase: 'goal-stoppage' } });
+    diagnostics.endTick();
+    expect(diagnostics.getFrame().records.some(record => record.source === 'spatialCandidates')).toBe(false);
+  });
+
   it('collects simulation primitives by fixed tick', () => {
     const diagnostics = createDiagnosticStore();
     diagnostics.setLayerEnabled(BALL_DIAGNOSTIC_LAYER, false);

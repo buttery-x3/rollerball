@@ -5,6 +5,7 @@ import { stepControlledGame } from '../runtime/stepControlledGame';
 import { createLooseBallState, createPossessedBallState, type GameState } from '../sim/gameState';
 import { createMatchState } from '../sim/match';
 import { createTeamGameState } from '../sim/teams';
+import { createTacticalState } from '../sim/tactics';
 import { inputSnapshot } from './controlScenario';
 import type { ScenarioDefinition, ScenarioStep } from './scenario';
 
@@ -86,7 +87,7 @@ function teamControlScenario(setup: TeamControlSetup, label: string): ScenarioDe
 
 export const teamFreePlayScenario: ScenarioDefinition<GameState, RoutedPlayerIntent> = {
   id: 'team-free-play', name: 'Teams · 5v5 free play', automatedRunTicks: 60,
-  createInitialState: createTeamGameState,
+  createInitialState: () => ({ ...createTeamGameState(), tactics: createTacticalState() }),
   interactiveActionContext: 'receiving',
   diagnosticLayerOverrides: [{ key: 'control', enabled: true }, { key: 'receive', enabled: true }],
   assertions

@@ -82,3 +82,22 @@ returns assignments; runtime applies through sim boundary and generates normal
 movement intents. Existing117 neutral fixtures remain isolated. Agents collision
 owns AI planner/steering/tuning; attributes owns scenarios/tests; root owns sim
 state/apply, runtime and browser integration.
+
+FLAME-127 pushed f87fbab, Linear In Review. FLAME-128 complete: sim-owned optional
+tactical memory, pure AI planner with separate6-tick team/player cadence and
+possession/restart/trajectory events; support/width/depth and one pressure plus
+coverage, shared stable spatial scoring and inertia-aware ordinary intents.
+Diagnostics retain last candidate/role-choice explanations between think ticks
+and focus overlays on the inspected player. Five shared scenes/11 planner tests.
+Full check0 errors/warnings;234 tests/32 files passed;build passed. Expanded tuning
+matrix includes AI runtime for tactical scenes; ran37s, so timeout increased from
+30s to120s without dropping cases. Earlier neutral test explicitly retains its
+isolated no-tactics setup rather than asserting pre-AI behavior of freeplay.
+Browser production preview verified support roles/normal movement, retained
+explanations between thinkticks, and single-pressure+3cover shape. Preview server
+must start AFTER build (Vite caches asset listing); now session57224 port4173.
+Dev session77139 port5173 remains but may cache intermediate missing modules.
+Next: commit/push128+Linear, then118 action decisions. Proposed sim-owned optional
+aiActions memory enabled in freeplay/118 scenes;128 isolated positioning fixtures
+remain actionless. Root owns state/runtime, collision AIactions/tuning/query use,
+attributes118 scenarios/tests. No external blockers; hardware/feel unverified.

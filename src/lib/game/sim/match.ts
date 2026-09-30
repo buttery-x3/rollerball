@@ -6,6 +6,7 @@ import { PLAYER_RADIUS_KEY } from '../config/tuning';
 import { createEmptyContactState, createEmptyGoalkeeperState, createEmptyOneTouchState, createEmptyThrowChargeState, createLooseBallState, type GameState, type PlayerState } from './gameState';
 import { getPlayerMovementBounds } from './goalkeeping';
 import { MATCH_DIAGNOSTIC_LAYER, type DiagnosticSink } from './diagnostics';
+import { createTacticalState } from './tactics';
 
 export const MATCH_STOPPAGE_SECONDS_KEY = 'match.goalStoppageSeconds';
 
@@ -45,6 +46,7 @@ export function createMatchState(players: readonly PlayerState[], humanTeamId = 
 }
 
 export function clearMatchActions(state: GameState): void {
+  if (state.tactics) state.tactics = createTacticalState();
   for (const player of state.players) {
     player.throwCharge = createEmptyThrowChargeState();
     player.oneTouch = createEmptyOneTouchState();

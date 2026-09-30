@@ -125,6 +125,22 @@ export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   ...[
+    ['teamThinkTicks', 'AI team planning cadence (ticks)', 6, 1, 30, 1],
+    ['playerThinkTicks', 'AI player target cadence (ticks)', 6, 1, 30, 1],
+    ['roleHysteresisMargin', 'AI role retention reach margin (seconds)', 0.15, 0, 1, 0.05],
+    ['roleGoalSideBonus', 'AI pressure goal-side reach bonus (seconds)', 0.25, 0, 1, 0.05],
+    ['ballVelocityReplanThreshold', 'AI ball velocity event threshold', 4, 0.5, 20, 0.5],
+    ['supportForward', 'AI forward support distance', 3, 0, 8, 0.5],
+    ['supportWidth', 'AI attacking width', 4, 1, 8, 0.5],
+    ['depthOffset', 'AI attacking depth distance', 4, 1, 8, 0.5],
+    ['defenseDepth', 'AI defensive cover depth', 4, 1, 8, 0.5],
+    ['laneCoverWidth', 'AI defensive lane width', 4, 1, 8, 0.5],
+    ['targetSearchRadius', 'AI assigned target search radius', 2, 0, 4, 0.5],
+    ['anchorWeight', 'AI assigned target proximity weight', 3, 0, 6, 0.1],
+    ['goalSideWeight', 'AI defensive goal-side weight', 2, 0, 6, 0.1],
+    ['steeringTime', 'AI field steering time (seconds)', 0.25, 0.05, 1, 0.05],
+    ['inertiaLookahead', 'AI field momentum lookahead (seconds)', 0.1, 0, 0.5, 0.05],
+    ['arrivalRadius', 'AI target arrival radius', 0.25, 0.05, 1, 0.05],
     ['candidateRadius', 'AI candidate search radius', 6, 0, 10, 0.5],
     ['candidateSpacing', 'AI candidate grid spacing', 2, 1, 4, 0.5],
     ['minSpacing', 'AI candidate minimum player spacing', 1.5, 0, 4, 0.1],

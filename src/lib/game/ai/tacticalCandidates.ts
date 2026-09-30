@@ -13,6 +13,10 @@ export interface SpatialCandidateOptions {
   readonly candidates?: readonly SpatialCandidate[];
   readonly previousId?: string;
   readonly origin?: Vec2;
+  readonly purpose?: 'support' | 'defense' | 'pressure' | 'intercept' | 'hold';
+  readonly anchor?: Vec2;
+  readonly previousTarget?: Vec2;
+  readonly reservedPositions?: readonly Vec2[];
 }
 
 export interface CandidateEvaluation extends SpatialCandidate {
@@ -23,6 +27,8 @@ export interface CandidateEvaluation extends SpatialCandidate {
     readonly spacing: number;
     readonly reach: number;
     readonly lane: number;
+    readonly anchor: number;
+    readonly goalSide: number;
   };
   readonly cheapScore: number;
   readonly score: number;
@@ -70,33 +76,47 @@ export function evaluateSpatialCandidates(
   if (!player) throw new Error(`Cannot evaluate spatial candidates for missing player '${playerId}'.`);
   const bounds = world.movementBounds(playerId);
   const origin = options.origin ?? world.ballPosition();
-  const candidates = options.candidates ?? generateCandidates(origin, tuning);
+  const generated = options.candidates ?? generateCandidates(origin, tuning);
+  const candidates = options.previousTarget
+    ? [...generated.filter((candidate) => candidate.id !== 'previous-target'),
+      { id: 'previous-target', position: options.previousTarget }]
+    : generated;
+  const previousId = options.previousTarget ? 'previous-target' : options.previousId;
   if (new Set(candidates.map((candidate) => candidate.id)).size !== candidates.length) {
     throw new Error('Spatial candidate IDs must be unique.');
   }
   const attackSign = world.goal(player.definition.teamId).end === 'positiveY' ? 1 : -1;
   const scores: CandidateEvaluation[] = candidates.map((candidate) => {
     const base = { id: candidate.id, position: { ...candidate.position },
-      factors: { progression: 0, spacing: 0, reach: 0, lane: 0 },
+      factors: { progression: 0, spacing: 0, reach: 0, lane: 0, anchor: 0, goalSide: 0 },
       cheapScore: 0, score: 0, laneTested: false };
     if (!Number.isFinite(candidate.position.x) || !Number.isFinite(candidate.position.y) ||
         !isCircleWithinBounds(candidate.position, tuning.getNumber(PLAYER_RADIUS_KEY), bounds)) {
       return { ...base, rejectedReason: 'outside-bounds' };
     }
     const density = world.density(candidate.position, undefined, playerId);
-    if (density.nearestDistance !== undefined && density.nearestDistance < tuning.getNumber('ai.minSpacing')) {
+    const spacing = options.purpose === 'pressure' || options.purpose === 'intercept'
+      ? 2 * tuning.getNumber(PLAYER_RADIUS_KEY) : tuning.getNumber('ai.minSpacing');
+    if ((density.nearestDistance !== undefined && density.nearestDistance < spacing - 1e-8) ||
+        options.reservedPositions?.some((position) =>
+          Math.hypot(position.x - candidate.position.x, position.y - candidate.position.y) < spacing)) {
       return { ...base, rejectedReason: 'spacing' };
     }
     const reach = world.reachSeconds(playerId, candidate.position);
     if (!Number.isFinite(reach)) return { ...base, rejectedReason: 'unreachable' };
     const factors = {
-      progression: (candidate.position.y - player.position.y) * attackSign /
-        Math.max(1, tuning.getNumber('ai.candidateRadius')) * tuning.getNumber('ai.progressionWeight'),
+      progression: !options.purpose || options.purpose === 'support'
+        ? (candidate.position.y - player.position.y) * attackSign /
+          Math.max(1, tuning.getNumber('ai.candidateRadius')) * tuning.getNumber('ai.progressionWeight') : 0,
       spacing: -density.weightedDensity * tuning.getNumber('ai.spacingWeight'),
       reach: -reach * tuning.getNumber('ai.reachWeight'),
-      lane: 0
+      lane: 0,
+      anchor: options.anchor ? -Math.hypot(candidate.position.x - options.anchor.x,
+        candidate.position.y - options.anchor.y) * tuning.getNumber('ai.anchorWeight') : 0,
+      goalSide: options.purpose === 'defense' && world.goalSide(candidate.position, player.definition.teamId)
+        ? tuning.getNumber('ai.goalSideWeight') : 0
     };
-    const cheapScore = factors.progression + factors.spacing + factors.reach;
+    const cheapScore = factors.progression + factors.spacing + factors.reach + factors.anchor + factors.goalSide;
     return { ...base, factors, cheapScore, score: cheapScore };
   });
 
@@ -104,7 +124,7 @@ export function evaluateSpatialCandidates(
   const valid = scores.filter((candidate) => !candidate.rejectedReason).sort(compareCandidates);
   const limit = tuning.getNumber('ai.expensiveCandidateLimit');
   const shortlist = valid.slice(0, limit);
-  const previous = valid.find((candidate) => candidate.id === options.previousId);
+  const previous = valid.find((candidate) => candidate.id === previousId);
   const margin = tuning.getNumber('ai.hysteresisMargin');
   if (previous && !shortlist.includes(previous) && shortlist.length > 0 &&
       (limit > 1 || shortlist[0].score - previous.score <= margin)) {
@@ -120,6 +140,8 @@ export function evaluateSpatialCandidates(
       scores[index] = { ...candidate, rejectedReason: 'shortlisted-out' };
       continue;
     }
+    // Defensive and interception destinations are locomotion targets, not proposed passes.
+    if (options.purpose && options.purpose !== 'support') continue;
     const ball = state.ball;
     const lane = world.lane(world.ballPosition(), candidate.position, player.definition.teamId,
       { sourcePlayerId: ball.mode === 'possessed' ? ball.holderId : undefined });
@@ -131,13 +153,13 @@ export function evaluateSpatialCandidates(
   }
   const survivors = scores.filter((candidate) => !candidate.rejectedReason).sort(compareCandidates);
   const best = survivors[0];
-  const prior = survivors.find((candidate) => candidate.id === options.previousId);
+  const prior = survivors.find((candidate) => candidate.id === previousId);
   const retained = !!(prior && best && best.score - prior.score <= margin);
   const selected = retained ? prior : best;
   const result: SpatialEvaluation = {
     playerId, candidates: scores,
     selected: selected ? { id: selected.id, position: { ...selected.position } } : undefined,
-    previousId: options.previousId, retained,
+    previousId, retained,
     reason: !selected ? 'no-valid-candidate' : retained ? 'hysteresis-retained' : 'best-score',
     expensiveTests
   };

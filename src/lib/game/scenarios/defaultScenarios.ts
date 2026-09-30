@@ -14,6 +14,7 @@ import { CONTROL_RECEIVING_SCENARIOS } from './controlReceivingScenario';
 import { GOALKEEPER_SCENARIOS } from './goalkeeperScenario';
 import { TEAM_CONTROL_SCENARIOS } from './teamControlScenario';
 import { AI_CANDIDATE_SCENARIOS } from './aiCandidateScenario';
+import { TEAM_TACTICS_SCENARIOS } from './teamTacticsScenario';
 
 export const DETERMINISTIC_TICK_SCENARIO_ID = 'deterministic-tick';
 
@@ -51,7 +52,8 @@ export const DEFAULT_SCENARIOS: readonly ScenarioDefinition<
   ...CONTROL_RECEIVING_SCENARIOS,
   ...GOALKEEPER_SCENARIOS,
   ...TEAM_CONTROL_SCENARIOS,
-  ...AI_CANDIDATE_SCENARIOS
+  ...AI_CANDIDATE_SCENARIOS,
+  ...TEAM_TACTICS_SCENARIOS
 ];
 
 export function getScenario(

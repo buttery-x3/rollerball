@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RoutedPlayerIntent } from '../control/types';
 import { createTuningRegistry } from '../config/tuning';
 import { createArenaDefinition } from '../physics/arena';
+import { stepControlledGame } from '../runtime/stepControlledGame';
 import { stepGame } from '../sim/stepGame';
 import type { GameState } from '../sim/gameState';
 import { DEFAULT_SCENARIOS } from './defaultScenarios';
@@ -22,7 +23,8 @@ function runBoundaryScenarios(
   try {
     runScenario({
       definition,
-      step: stepGame,
+      step: (state, seconds, context, input) =>
+        (state.tactics ? stepControlledGame : stepGame)(state, seconds, context, input),
       getArena: (tuning) => createArenaDefinition(tuning),
       tuningOverrides,
       diagnosticsEnabled: false,
@@ -58,7 +60,7 @@ describe('Workbench tuning boundaries', () => {
         }
       }
     }
-  }, 30_000); // Full registry × scenario matrix grows as gameplay systems arrive.
+  }, 120_000); // Full registry × scenario matrix includes tactical planning and physical execution.
 });
 
 function expectUnchanged<T>(actual: T, expected: T): void {

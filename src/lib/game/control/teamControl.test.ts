@@ -170,9 +170,10 @@ describe('5v5 team control routing', () => {
     expect(result.controls.at(-1)?.assignment?.playerId).toBe('player-2');
   });
 
-  it('keeps ten players stable and uncontrolled field players neutral before tactical AI', () => {
-    const initial = teamFreePlayScenario.createInitialState();
-    const result = sample(teamFreePlayScenario, [], 120);
+  it('keeps uncontrolled field players neutral in isolated scenes without tactical AI', () => {
+    const neutralScene = { ...teamFreePlayScenario, createInitialState: createTeamGameState };
+    const initial = neutralScene.createInitialState();
+    const result = sample(neutralScene, [], 120);
     for (const original of initial.players.filter((player) => player.definition.role === 'field')) {
       const current = result.run.state.players.find((player) => player.definition.id === original.definition.id)!;
       expect(current.definition).toEqual(original.definition);

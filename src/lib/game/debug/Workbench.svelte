@@ -236,7 +236,7 @@
       {/each}
     </select>
     <p class="attribute-note">Enable AI layers to inspect candidate scores and rejection reasons. The inspected player selects the preview and overlays; green score cells are stronger than red.</p>
-    {#each diagnosticFrame.records.filter(record => record.layer === 'ai' && record.data && (record.source !== 'spatialCandidates' || record.entityId === 'ai-candidates') && (!focusedPlayerId || record.data.playerId === focusedPlayerId)) as decision}
+    {#each diagnosticFrame.records.filter(record => record.layer === 'ai' && record.data && (record.source !== 'spatialCandidates' || record.entityId === 'ai-candidates') && (!focusedPlayerId || record.data.playerId === focusedPlayerId || (Array.isArray(record.data.assignments) && record.data.assignments.some(assignment => assignment.playerId === focusedPlayerId)))) as decision}
       <pre class="diagnostic-output">{formatDiagnosticData(decision)}</pre>
     {/each}
   </section>

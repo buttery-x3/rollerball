@@ -39,7 +39,7 @@
     type ScenarioRun
   } from '$lib/game/scenarios/scenario';
   import { stepControlledGame } from '$lib/game/runtime/stepControlledGame';
-  import { ARENA_DIAGNOSTIC_LAYER } from '$lib/game/sim/diagnostics';
+  import { ARENA_DIAGNOSTIC_LAYER, type DiagnosticFrame } from '$lib/game/sim/diagnostics';
   import type {
     GameState,
     ThrowChargeState
@@ -78,7 +78,7 @@
         scenarioStep(state, seconds, context, input);
         // A development query uses the same tactical scorer as gameplay. It
         // stores only inspection history and cannot drive simulation outcomes.
-        if (context.tuning && context.arena &&
+        if (!state.tactics && context.tuning && context.arena &&
             (context.diagnostics?.isLayerEnabled('ai') || context.diagnostics?.isLayerEnabled('aiScores'))) {
           const request = getCandidatePreviewRequest(definition.id);
           const playerId = request?.playerId ?? state.players.find(player =>
@@ -154,6 +154,9 @@
   let loop: BrowserGameLoop | undefined;
   let tick = state.tick;
   let paused = runtime.isPaused;
+  let diagnosticSourceFrame: DiagnosticFrame | undefined;
+  let focusedDiagnosticFrame: DiagnosticFrame | undefined;
+  let diagnosticFocus = '';
 
   function updateChargeHud(): void {
     controlledPlayerId = activeControl.assignment?.playerId;
@@ -174,10 +177,19 @@
     if (arena) {
       renderer?.setArena(arena);
     }
+    const source = diagnostics?.getFrame();
+    const focus = focusedPlayerId || controlledPlayerId || '';
+    if (source !== diagnosticSourceFrame || focus !== diagnosticFocus) {
+      diagnosticSourceFrame = source;
+      diagnosticFocus = focus;
+      focusedDiagnosticFrame = source ? { ...source, records: source.records.filter(record =>
+        !['ai', 'aiScores'].includes(record.layer) || !record.data?.playerId || record.data.playerId === focus)
+      } : undefined;
+    }
     renderer?.render(
       frame.state,
       frame.alpha,
-      diagnostics?.getFrame(),
+      focusedDiagnosticFrame,
       diagnostics?.isLayerEnabled(ARENA_DIAGNOSTIC_LAYER) ?? false,
       tuning.getNumber(PLAYER_RADIUS_KEY),
       tuning.getNumber(BALL_RADIUS_KEY),
