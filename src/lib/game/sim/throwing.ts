@@ -1,15 +1,19 @@
 import {
   BALL_POST_RELEASE_LOCKOUT_TICKS_KEY,
+  BALL_RADIUS_KEY,
+  PLAYER_RADIUS_KEY,
   CONTROLS_THROW_CHARGE_TO_MAX_SECONDS_KEY,
   CONTROLS_THROW_MAX_STRENGTH_KEY,
   CONTROLS_THROW_MIN_STRENGTH_KEY,
   type TuningReader
 } from '../config/tuning';
+import { createPlayerTuning } from '../config/playerAttributes';
+import { getGoalkeeperSaveEnvelope } from './goalkeeping';
 import {
   createBallThrowLaunch,
   type BallThrowFamily
 } from '../physics/ballTrajectory';
-import type { Vec2 } from '../physics/geometry';
+import { sweepCircleAgainstCircle, type Vec2 } from '../physics/geometry';
 import type {
   PlayerIntent,
   RightStickThrowPulse,
@@ -47,7 +51,7 @@ export interface ThrowStepResult {
   readonly release: ThrowReleaseObservation | undefined;
 }
 
-interface ThrowChargeTuning {
+export interface ThrowChargeTuning {
   readonly minStrength: number;
   readonly maxStrength: number;
   readonly chargeToMaxSeconds: number;
@@ -71,7 +75,7 @@ function cloneVector(vector: Vec2): Vec2 {
   return { x: vector.x, y: vector.y };
 }
 
-function readThrowChargeTuning(tuning: TuningReader): ThrowChargeTuning {
+export function readThrowChargeTuning(tuning: TuningReader): ThrowChargeTuning {
   const values = {
     minStrength: tuning.getNumber(CONTROLS_THROW_MIN_STRENGTH_KEY),
     maxStrength: tuning.getNumber(CONTROLS_THROW_MAX_STRENGTH_KEY),
@@ -124,14 +128,14 @@ function chargeState(
   };
 }
 
-function startCharge(
+export function startThrowCharge(
   family: ThrowChargeFamily,
   tuning: ThrowChargeTuning
 ): ThrowChargeState {
   return chargeState(family, 0, 0, tuning);
 }
 
-function advanceCharge(
+export function advanceThrowCharge(
   current: ThrowChargeState,
   fixedStepSeconds: number,
   tuning: ThrowChargeTuning
@@ -155,7 +159,7 @@ function buttonForFamily(
   return family === 'low' ? intent.lowThrow : intent.highThrow;
 }
 
-function rightStickStrength(
+export function throwStrengthForRightStick(
   pulse: RightStickThrowPulse,
   tuning: ThrowChargeTuning
 ): number {
@@ -205,6 +209,22 @@ function decrementLockout(ball: Extract<BallState, { mode: 'loose' }>): void {
   };
 }
 
+/** A release must leave the releasing player's envelope before reacquisition. */
+export function releaseReacquisitionTicks(player: PlayerState, origin: Vec2, velocity: Vec2,
+  tuning: TuningReader, fixedStepSeconds: number): number {
+  const minimum = tuning.getNumber(BALL_POST_RELEASE_LOCKOUT_TICKS_KEY);
+  const speed = Math.hypot(velocity.x, velocity.y);
+  if (speed <= 1e-9) return minimum;
+  const radius = player.definition.role === 'goalkeeper'
+    ? getGoalkeeperSaveEnvelope(player, tuning).radius : tuning.getNumber(PLAYER_RADIUS_KEY);
+  const ballRadius = tuning.getNumber(BALL_RADIUS_KEY);
+  const travel = radius + ballRadius + Math.hypot(origin.x - player.position.x, origin.y - player.position.y);
+  const interval = sweepCircleAgainstCircle(origin, { x: velocity.x / speed * travel,
+    y: velocity.y / speed * travel }, ballRadius, player.position, radius);
+  const escapeDistance = interval ? interval.exitTime * travel : 0;
+  return Math.max(minimum, Math.ceil(escapeDistance / (speed * fixedStepSeconds)) + 1);
+}
+
 function releaseBall(
   state: GameState,
   holder: PlayerState,
@@ -213,15 +233,17 @@ function releaseBall(
   direction: Vec2,
   strength: number,
   tuning: ThrowChargeTuning,
-  physicsTuning: TuningReader
+  physicsTuning: TuningReader,
+  fixedStepSeconds: number
 ): ThrowReleaseObservation {
   const launch = createBallThrowLaunch(
     family,
     direction,
     strength,
-    physicsTuning
+    createPlayerTuning(holder.definition.attributes, physicsTuning)
   );
   const origin = cloneVector(holder.position);
+  const lockoutTicks = releaseReacquisitionTicks(holder, origin, launch.velocity, physicsTuning, fixedStepSeconds);
 
   state.ball = createLooseBallState({
     position: origin,
@@ -230,7 +252,7 @@ function releaseBall(
     verticalVelocity: launch.verticalVelocity,
     release: {
       releasedById: holder.definition.id,
-      reacquisitionLockoutTicksRemaining: tuning.lockoutTicks
+      reacquisitionLockoutTicksRemaining: lockoutTicks
     }
   });
   holder.throwCharge = createEmptyThrowChargeState();
@@ -244,7 +266,7 @@ function releaseBall(
     strength: launch.strength,
     velocity: cloneVector(launch.velocity),
     verticalVelocity: launch.verticalVelocity,
-    reacquisitionLockoutTicks: tuning.lockoutTicks
+    reacquisitionLockoutTicks: lockoutTicks
   };
 }
 
@@ -311,7 +333,7 @@ export function advanceThrowState(
   if (isActiveCharge(activeCharge)) {
     const button = buttonForFamily(intent, activeCharge.family as ThrowChargeFamily);
     if (button.held) {
-      holder.throwCharge = advanceCharge(activeCharge, fixedStepSeconds, chargeTuning);
+      holder.throwCharge = advanceThrowCharge(activeCharge, fixedStepSeconds, chargeTuning);
       return resultFor(state, holder.definition.id, cancelledPlayerIds, undefined);
     }
 
@@ -324,7 +346,8 @@ export function advanceThrowState(
         holder.facing,
         activeCharge.strength,
         chargeTuning,
-        tuning
+        tuning,
+        fixedStepSeconds
       );
       return resultFor(state, holder.definition.id, cancelledPlayerIds, release);
     }
@@ -342,17 +365,18 @@ export function advanceThrowState(
       'low',
       'right-stick',
       intent.rightStickThrow.direction,
-      rightStickStrength(intent.rightStickThrow, chargeTuning),
+      throwStrengthForRightStick(intent.rightStickThrow, chargeTuning),
       chargeTuning,
-      tuning
+      tuning,
+      fixedStepSeconds
     );
     return resultFor(state, holder.definition.id, cancelledPlayerIds, release);
   }
 
   if (intent.lowThrow.held) {
-    holder.throwCharge = startCharge('low', chargeTuning);
+    holder.throwCharge = startThrowCharge('low', chargeTuning);
   } else if (intent.highThrow.held) {
-    holder.throwCharge = startCharge('high', chargeTuning);
+    holder.throwCharge = startThrowCharge('high', chargeTuning);
   }
 
   return resultFor(state, holder.definition.id, cancelledPlayerIds, undefined);

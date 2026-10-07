@@ -1,9 +1,11 @@
-import type { RoutedPlayerIntent } from '../control/types';
+import { matchAction, routedInputs, type SimulationInput } from '../control/types';
 import type { GameState } from './gameState';
 import {
   BALL_DIAGNOSTIC_LAYER,
   ARENA_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+  PLAYER_CONTACT_DIAGNOSTIC_LAYER,
+  RECEIVE_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER,
   THROW_DIAGNOSTIC_LAYER,
   type SimulationStepContext,
@@ -19,19 +21,30 @@ import {
   predictLooseBallTrajectory,
   type LooseBallStepResult
 } from '../physics/ballTrajectory';
-import { BALL_RADIUS_KEY } from '../config/tuning';
+import { BALL_RADIUS_KEY, PLAYER_RADIUS_KEY } from '../config/tuning';
 import {
-  integrateFieldPlayer,
+  integratePlayer,
   type PlayerMovementObservation
 } from './playerMovement';
 import { createThrowDiagnosticRecords } from './throwDiagnostics';
 import { advanceThrowState } from './throwing';
+import {
+  advanceOneTouchState,
+  resolveLooseBallPlayerInteraction,
+  type ReceiveInteractionObservation
+} from './receiving';
+import { createReceivingDiagnosticRecords } from './receivingDiagnostics';
+import { advanceMatchFlow, finishMatchPlayingTick, publishMatchDiagnostics } from './match';
+import { resolvePlayerContacts } from './playerContact';
+import { createContactDiagnosticRecords } from './contactDiagnostics';
+import { advanceCheckState, resolveActiveChecks, publishCheckingDiagnostics } from './checking';
+import { advanceGoalkeeperState, publishKeeperDiagnostics } from './goalkeeping';
 
 export function stepGame(
   state: GameState,
   fixedStepSeconds: number,
   context: SimulationStepContext = {},
-  input?: RoutedPlayerIntent
+  input?: SimulationInput
 ): void {
   if (!Number.isFinite(fixedStepSeconds) || fixedStepSeconds <= 0) {
     throw new RangeError('The simulation step must be a finite positive duration.');
@@ -44,23 +57,38 @@ export function stepGame(
     throw new Error('Simulation requires an arena definition.');
   }
 
+  if (advanceMatchFlow(state, context.arena, context.tuning, fixedStepSeconds, matchAction(input), context.diagnostics)) {
+    state.tick += 1;
+    publishMatchDiagnostics(state, context.diagnostics);
+    return;
+  }
+
+  advanceCheckState(state, context.tuning, input);
+  const inputs = routedInputs(input).filter((entry) =>
+    !state.players.find((player) => player.definition.id === entry.playerId)?.contact.stumbleTicksRemaining
+  );
+  advanceGoalkeeperState(state, context.tuning, inputs);
+  const ball = state.ball;
+  const throwInput = ball.mode === 'possessed'
+    ? inputs.find((entry) => entry.playerId === ball.holderId)
+    : inputs[0];
   const throwStep = advanceThrowState(
     state,
     fixedStepSeconds,
     context.tuning,
-    input
+    throwInput
+  );
+  advanceOneTouchState(state, fixedStepSeconds, context.tuning, inputs);
+  const previousPlayerPositions = new Map(
+    state.players.map((player) => [player.definition.id, player.position])
   );
   const observations: PlayerMovementObservation[] = [];
   if (state.players.length > 0) {
     for (const player of state.players) {
-      if (player.definition.role !== 'field') {
-        continue;
-      }
-
       const playerInput =
-        input?.playerId === player.definition.id ? input.intent : undefined;
+        inputs.find((entry) => entry.playerId === player.definition.id)?.intent;
       observations.push(
-        integrateFieldPlayer(
+        integratePlayer(
           player,
           playerInput,
           fixedStepSeconds,
@@ -71,7 +99,16 @@ export function stepGame(
     }
   }
 
+  const playerContacts = resolvePlayerContacts(
+    state.players,
+    previousPlayerPositions,
+    context.tuning,
+    context.arena
+  );
+  const checkImpacts = resolveActiveChecks(state, playerContacts, context.tuning);
+
   let ballStep: LooseBallStepResult | undefined;
+  let receiveInteraction: ReceiveInteractionObservation | undefined;
   if (state.ball.mode === 'loose') {
     ballStep = advanceLooseBall(
       state.ball,
@@ -83,9 +120,22 @@ export function stepGame(
     state.ball.velocity = ballStep.nextState.velocity;
     state.ball.height = ballStep.nextState.height;
     state.ball.verticalVelocity = ballStep.nextState.verticalVelocity;
+    receiveInteraction = resolveLooseBallPlayerInteraction(
+      state,
+      ballStep,
+      context.tuning,
+      fixedStepSeconds
+    );
   }
 
+  finishMatchPlayingTick(state, !receiveInteraction || receiveInteraction.outcome === 'miss' ? ballStep?.goalAperture : undefined,
+    fixedStepSeconds, context.tuning, context.diagnostics);
   state.tick += 1;
+  publishMatchDiagnostics(state, context.diagnostics);
+  publishCheckingDiagnostics(state, checkImpacts, context.diagnostics);
+  publishKeeperDiagnostics(state, context.tuning, context.arena,
+    receiveInteraction?.outcome === 'keeper-catch' || receiveInteraction?.outcome === 'keeper-parry'
+      ? receiveInteraction : undefined, context.diagnostics);
 
   if (context.diagnostics?.isLayerEnabled(RUNTIME_DIAGNOSTIC_LAYER)) {
     context.diagnostics.publish({
@@ -110,9 +160,25 @@ export function stepGame(
     context.diagnostics?.isLayerEnabled(PLAYER_MOVEMENT_DIAGNOSTIC_LAYER)
   ) {
     for (const observation of observations) {
-      for (const record of createPlayerDiagnosticRecords(state.tick, observation)) {
+      const player = state.players.find((candidate) => candidate.definition.id === observation.playerId)!;
+      for (const record of createPlayerDiagnosticRecords(state.tick, {
+        ...observation,
+        position: player.position,
+        velocity: player.velocity
+      }, context.tuning, player)) {
         context.diagnostics.publish(record);
       }
+    }
+  }
+
+  if (context.diagnostics?.isLayerEnabled(PLAYER_CONTACT_DIAGNOSTIC_LAYER)) {
+    for (const record of createContactDiagnosticRecords(
+      state.tick,
+      state.players,
+      context.tuning.getNumber(PLAYER_RADIUS_KEY),
+      playerContacts
+    )) {
+      context.diagnostics.publish(record);
     }
   }
 
@@ -126,6 +192,17 @@ export function stepGame(
       state.tick,
       throwPlayer,
       throwStep
+    )) {
+      context.diagnostics.publish(record);
+    }
+  }
+
+  if (context.diagnostics?.isLayerEnabled(RECEIVE_DIAGNOSTIC_LAYER)) {
+    for (const record of createReceivingDiagnosticRecords(
+      state.tick,
+      state,
+      context.tuning,
+      receiveInteraction
     )) {
       context.diagnostics.publish(record);
     }

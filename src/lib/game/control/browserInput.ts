@@ -9,6 +9,7 @@ import type { InputSnapshot } from './types';
 const LOW_BUTTON_INDEX = 0;
 const HIGH_BUTTON_INDEX = 1;
 const SWITCH_BUTTON_INDEX = 2;
+const MATCH_BUTTON_INDEX = 9;
 const LEFT_STICK_X_AXIS = 0;
 const LEFT_STICK_Y_AXIS = 1;
 const RIGHT_STICK_X_AXIS = 2;
@@ -21,7 +22,8 @@ export const DEFAULT_KEY_BINDINGS = {
   right: ['KeyD', 'ArrowRight'],
   low: ['KeyJ'],
   high: ['KeyK'],
-  switch: ['KeyL']
+  switch: ['KeyL'],
+  match: ['Enter']
 } as const;
 
 export interface GamepadButtonLike {
@@ -37,7 +39,10 @@ export interface StandardGamepadLike {
 
 export interface BrowserInputSource {
   poll(): void;
+  /** Consumes at most one sampled button transition for the next fixed tick. */
   getSnapshot(): InputSnapshot;
+  /** Start/menu or Enter edge, consumed once outside PlayerIntent. */
+  consumeMatchRequest(): boolean;
   reset(): void;
   dispose(): void;
 }
@@ -136,20 +141,43 @@ export function createBrowserInputSource(
         : (navigator.getGamepads() as readonly (StandardGamepadLike | null)[]));
   const keys = new Set<string>();
   let snapshot = createNeutralInputSnapshot();
+  const pendingButtons: InputSnapshot['buttons'][] = [];
   let hadGamepad = false;
+  let matchHeld = false;
+  let pendingMatchRequest = false;
+
+  const sample = (gamepad: StandardGamepadLike | undefined): void => {
+    const nextMatchHeld = button(gamepad, MATCH_BUTTON_INDEX) || hasKey(keys, DEFAULT_KEY_BINDINGS.match);
+    if (nextMatchHeld && !matchHeld) pendingMatchRequest = true;
+    matchHeld = nextMatchHeld;
+    const next = createInputSnapshotFromDevices(gamepad, keys, tuning);
+    if (next.buttons.low !== snapshot.buttons.low || next.buttons.high !== snapshot.buttons.high || next.buttons.switch !== snapshot.buttons.switch) {
+      pendingButtons.push(next.buttons);
+    }
+    snapshot = next;
+  };
 
   const onKeyDown = (event: KeyboardEvent): void => {
+    const element = event.target as HTMLElement | null;
+    if (element && (['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName) || element.isContentEditable)) return;
+    if (!Object.values(DEFAULT_KEY_BINDINGS).some(bindings => (bindings as readonly string[]).includes(event.code))) return;
+    event.preventDefault();
     keys.add(event.code);
+    sample(firstConnectedGamepad(getGamepads()));
   };
 
   const onKeyUp = (event: KeyboardEvent): void => {
     keys.delete(event.code);
+    sample(firstConnectedGamepad(getGamepads()));
   };
 
   const onReset = (): void => {
     keys.clear();
+    pendingButtons.length = 0;
     snapshot = createNeutralInputSnapshot();
     hadGamepad = false;
+    matchHeld = false;
+    pendingMatchRequest = false;
     options.onReset?.();
   };
 
@@ -172,15 +200,21 @@ export function createBrowserInputSource(
       }
 
       hadGamepad = gamepad !== undefined;
-      snapshot = createInputSnapshotFromDevices(gamepad, keys, tuning);
+      sample(gamepad);
     },
 
     getSnapshot(): InputSnapshot {
       return {
         movement: { ...snapshot.movement },
         rightStick: { ...snapshot.rightStick },
-        buttons: { ...snapshot.buttons }
+        buttons: { ...(pendingButtons.shift() ?? snapshot.buttons) }
       };
+    },
+
+    consumeMatchRequest(): boolean {
+      const requested = pendingMatchRequest;
+      pendingMatchRequest = false;
+      return requested;
     },
 
     reset(): void {

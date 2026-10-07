@@ -7,6 +7,48 @@ import {
 } from './browserInput';
 
 describe('browser input source', () => {
+  it('consumes a quick Enter or held controller Menu request exactly once and clears it on reset', () => {
+    const target = new EventTarget();
+    let menu = false;
+    const source = createBrowserInputSource(createTuningRegistry(), { eventTarget: target as unknown as Window,
+      getGamepads: () => [{ axes: [], buttons: Array.from({ length: 10 }, (_, index) => ({ pressed: index === 9 && menu })) }] });
+    for (const type of ['keydown', 'keyup']) {
+      const event = new Event(type);
+      Object.defineProperty(event, 'code', { value: 'Enter' });
+      target.dispatchEvent(event);
+    }
+    expect(source.consumeMatchRequest()).toBe(true);
+    expect(source.consumeMatchRequest()).toBe(false);
+    menu = true;
+    source.poll();
+    expect(source.consumeMatchRequest()).toBe(true);
+    source.poll();
+    expect(source.consumeMatchRequest()).toBe(false);
+    menu = false;
+    source.poll();
+    menu = true;
+    source.poll();
+    source.reset();
+    expect(source.consumeMatchRequest()).toBe(false);
+    source.dispose();
+  });
+
+  it('preserves a quick switch press/release between render polls and consumes it once', () => {
+    const target = new EventTarget();
+    const tuning = createTuningRegistry();
+    const source = createBrowserInputSource(tuning, { eventTarget: target as unknown as Window, getGamepads: () => [] });
+    const router = createControlRouter({ tuning, initialPlayerId: 'player-1' });
+    for (const type of ['keydown', 'keyup']) {
+      const event = new Event(type);
+      Object.defineProperty(event, 'code', { value: 'KeyL' });
+      target.dispatchEvent(event);
+    }
+    source.poll();
+    expect(router.consumeTick(source.getSnapshot()).input.buttons.switch).toEqual({ held: true, pressed: true, released: false });
+    expect(router.consumeTick(source.getSnapshot()).input.buttons.switch).toEqual({ held: false, pressed: false, released: true });
+    expect(router.consumeTick(source.getSnapshot()).input.buttons.switch.pressed).toBe(false);
+    source.dispose();
+  });
   it('clears sampled input when the active Gamepad disconnects', () => {
     const target = new EventTarget();
     const gamepad: StandardGamepadLike = {

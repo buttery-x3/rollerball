@@ -1,4 +1,5 @@
 import type { PlayerIntent } from '../control/types';
+import { createPlayerTuning, type PlayerAttributes } from '../config/playerAttributes';
 import {
   MOVEMENT_ACCELERATION_KEY,
   MOVEMENT_BRAKING_KEY,
@@ -12,16 +13,19 @@ import {
 import type { ArenaDefinition } from '../physics/arena';
 import {
   constrainCircleToBounds,
+  removeOutwardVelocity,
   type CircleBoundaryContact,
   type Vec2
 } from '../physics/geometry';
 import type { PlayerState } from './gameState';
+import { createGoalkeeperMovementTuning, getPlayerMovementBounds } from './goalkeeping';
 
 const EPSILON = 1e-9;
 const DEFAULT_FACING: Vec2 = { x: 0, y: 1 };
 
 export interface PlayerMovementObservation {
   readonly playerId: string;
+  readonly attributes: PlayerAttributes;
   readonly position: Vec2;
   readonly velocity: Vec2;
   readonly facing: Vec2;
@@ -198,30 +202,7 @@ function selectVelocityResponse(
   return tuning.acceleration;
 }
 
-function removeOutwardVelocity(
-  velocity: Vec2,
-  contacts: readonly CircleBoundaryContact[]
-): Vec2 {
-  let x = velocity.x;
-  let y = velocity.y;
-
-  if (contacts.includes('left') && x < 0) {
-    x = 0;
-  }
-  if (contacts.includes('right') && x > 0) {
-    x = 0;
-  }
-  if (contacts.includes('bottom') && y < 0) {
-    y = 0;
-  }
-  if (contacts.includes('top') && y > 0) {
-    y = 0;
-  }
-
-  return { x, y };
-}
-
-export function integrateFieldPlayer(
+export function integratePlayer(
   player: PlayerState,
   intent: Pick<PlayerIntent, 'movement' | 'desiredFacing'> | undefined,
   fixedStepSeconds: number,
@@ -230,7 +211,9 @@ export function integrateFieldPlayer(
 ): PlayerMovementObservation {
   assertFixedStep(fixedStepSeconds);
 
-  const movementTuning = readMovementTuning(tuning);
+  const movementTuning = readMovementTuning(player.definition.role === 'goalkeeper'
+    ? createGoalkeeperMovementTuning(player, tuning)
+    : createPlayerTuning(player.definition.attributes, tuning));
   const movement = clampUnitVector(intent?.movement ?? { x: 0, y: 0 });
   const movementMagnitude = vectorLength(movement);
   const movementDirection = normalizeOrUndefined(movement);
@@ -273,7 +256,7 @@ export function integrateFieldPlayer(
   const constraint = constrainCircleToBounds(
     unconstrainedPosition,
     movementTuning.radius,
-    arena.bounds
+    getPlayerMovementBounds(player, arena)
   );
   const constrainedVelocity = removeOutwardVelocity(velocity, constraint.contacts);
 
@@ -283,6 +266,7 @@ export function integrateFieldPlayer(
 
   return {
     playerId: player.definition.id,
+    attributes: player.definition.attributes,
     position: cloneVector(player.position),
     velocity: cloneVector(player.velocity),
     facing: cloneVector(player.facing),
@@ -292,3 +276,6 @@ export function integrateFieldPlayer(
     contacts: constraint.contacts.slice()
   };
 }
+
+// Preserve the established field-player entry point while sharing the engine.
+export const integrateFieldPlayer = integratePlayer;

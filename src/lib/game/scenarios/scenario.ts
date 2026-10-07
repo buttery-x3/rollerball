@@ -8,6 +8,7 @@ import {
 import type { DiagnosticLayerDefinition } from '../sim/diagnostics';
 import type { GameState } from '../sim/gameState';
 import type { ArenaDefinition } from '../physics/arena';
+import type { ControlActionContext } from '../control/types';
 import {
   createTuningRegistry,
   type NumericTuningDefinition,
@@ -45,6 +46,8 @@ export interface ScenarioDefinition<
   readonly scriptedInputs?: readonly ScenarioInputFrame<TInput>[];
   readonly tuningOverrides?: readonly ScenarioTuningOverride[];
   readonly diagnosticLayerOverrides?: readonly ScenarioDiagnosticLayerOverride[];
+  /** Development-workbench-only action context for unscripted interactive input. */
+  readonly interactiveActionContext?: ControlActionContext;
   readonly assertions?: readonly ScenarioAssertion<TState>[];
 }
 
@@ -186,9 +189,9 @@ function applyTuningOverrides(
   tuning: TuningRegistry,
   overrides: readonly ScenarioTuningOverride[]
 ): void {
-  for (const override of overrides) {
-    tuning.setOverride(override.key, override.value);
-  }
+  // Later scenario/run overrides replace earlier values for the same key.
+  const effective = new Map(overrides.map(override => [override.key, override.value]));
+  tuning.replaceOverrides([...effective].map(([key, value]) => ({ key, value })));
 }
 
 function applyDiagnosticLayerOverrides(

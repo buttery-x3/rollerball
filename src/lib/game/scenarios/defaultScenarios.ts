@@ -1,10 +1,24 @@
 import { RUNTIME_DIAGNOSTIC_LAYER } from '../sim/diagnostics';
 import { createGameState, type GameState } from '../sim/gameState';
-import type { RoutedPlayerIntent } from '../control/types';
+import type { RoutedPlayerIntent, SimulationInput } from '../control/types';
 import type { ScenarioDefinition } from './scenario';
 import { PLAYER_MOVEMENT_SCENARIOS } from './playerMovementScenario';
 import { BALL_SCENARIOS } from './ballScenario';
 import { THROW_SCENARIOS } from './throwScenario';
+import { RECEIVING_SCENARIOS } from './receivingScenario';
+import { SCORING_SCENARIOS } from './scoringScenario';
+import { PLAYER_ATTRIBUTE_SCENARIOS } from './playerAttributesScenario';
+import { PLAYER_CONTACT_SCENARIOS } from './playerContactScenario';
+import { CHECK_SCENARIOS } from './checkScenario';
+import { CONTROL_RECEIVING_SCENARIOS } from './controlReceivingScenario';
+import { GOALKEEPER_SCENARIOS } from './goalkeeperScenario';
+import { TEAM_CONTROL_SCENARIOS } from './teamControlScenario';
+import { AI_CANDIDATE_SCENARIOS } from './aiCandidateScenario';
+import { TEAM_TACTICS_SCENARIOS } from './teamTacticsScenario';
+import { AI_ACTION_SCENARIOS } from './aiActionsScenario';
+import { MATCH_FLOW_SCENARIOS } from './matchFlowScenario';
+import { INTEGRATED_SCORING_SCENARIOS } from './integratedScoringScenario';
+import { INTEGRATED_AI_SCENARIOS } from './integratedAiScenario';
 
 export const DETERMINISTIC_TICK_SCENARIO_ID = 'deterministic-tick';
 
@@ -28,17 +42,31 @@ export const deterministicTickScenario: ScenarioDefinition<GameState, RoutedPlay
 
 export const DEFAULT_SCENARIOS: readonly ScenarioDefinition<
   GameState,
-  RoutedPlayerIntent
+  SimulationInput
 >[] = [
   deterministicTickScenario,
   ...PLAYER_MOVEMENT_SCENARIOS,
   ...BALL_SCENARIOS,
-  ...THROW_SCENARIOS
+  ...THROW_SCENARIOS,
+  ...RECEIVING_SCENARIOS,
+  ...SCORING_SCENARIOS,
+  ...PLAYER_ATTRIBUTE_SCENARIOS,
+  ...PLAYER_CONTACT_SCENARIOS,
+  ...CHECK_SCENARIOS,
+  ...CONTROL_RECEIVING_SCENARIOS,
+  ...GOALKEEPER_SCENARIOS,
+  ...TEAM_CONTROL_SCENARIOS,
+  ...AI_CANDIDATE_SCENARIOS,
+  ...TEAM_TACTICS_SCENARIOS,
+  ...AI_ACTION_SCENARIOS,
+  ...MATCH_FLOW_SCENARIOS,
+  ...INTEGRATED_SCORING_SCENARIOS,
+  ...INTEGRATED_AI_SCENARIOS
 ];
 
 export function getScenario(
   id: string
-): ScenarioDefinition<GameState, RoutedPlayerIntent> {
+): ScenarioDefinition<GameState, SimulationInput> {
   const scenario = DEFAULT_SCENARIOS.find((candidate) => candidate.id === id);
   if (!scenario) {
     throw new Error(`Unknown scenario '${id}'.`);

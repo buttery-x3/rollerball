@@ -26,7 +26,7 @@
   .charge-hud {
     position: absolute;
     left: 18px;
-    bottom: 18px;
+    bottom: 86px;
     display: grid;
     gap: 6px;
     width: min(260px, calc(100% - 36px));

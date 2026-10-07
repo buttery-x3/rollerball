@@ -28,7 +28,9 @@ import {
   CONTROLS_THROW_MAX_STRENGTH_KEY,
   CONTROLS_THROW_CHARGE_TO_MAX_SECONDS_KEY,
   PLAYER_RADIUS_KEY,
-  RUNTIME_MAX_CATCH_UP_STEPS_KEY
+  RUNTIME_MAX_CATCH_UP_STEPS_KEY,
+  RECEIVE_CATCH_HEIGHT_KEY,
+  RECEIVE_ONE_TOUCH_BUFFER_TICKS_KEY
 } from './tuning';
 
 const THROW_TUNING_RELATIONSHIPS = [
@@ -63,6 +65,28 @@ const THROW_TUNING_RELATIONSHIPS = [
 ] as const;
 
 describe('central tuning registry', () => {
+  it('atomically restores complete override snapshots and resets one category', () => {
+    const tuning = createTuningRegistry();
+    let notifications = 0;
+    tuning.subscribe(() => notifications++);
+    tuning.replaceOverrides([
+      { key: BALL_LOW_THROW_MIN_SPEED_KEY, value: 40 },
+      { key: BALL_LOW_THROW_MAX_SPEED_KEY, value: 50 },
+      { key: MOVEMENT_MAX_SPEED_KEY, value: 9 }
+    ]);
+    expect(notifications).toBe(1);
+    expect(tuning.getNumber(BALL_LOW_THROW_MIN_SPEED_KEY)).toBe(40);
+    const before = tuning.list();
+    expect(() => tuning.replaceOverrides([{ key: BALL_LOW_THROW_MIN_SPEED_KEY, value: 40 }])).toThrow();
+    expect(tuning.list()).toEqual(before);
+    expect(notifications).toBe(1);
+    tuning.resetDomainOverrides('trajectory');
+    expect(tuning.get(BALL_LOW_THROW_MIN_SPEED_KEY).overrideValue).toBeUndefined();
+    expect(tuning.get(BALL_LOW_THROW_MAX_SPEED_KEY).overrideValue).toBeUndefined();
+    expect(tuning.getNumber(MOVEMENT_MAX_SPEED_KEY)).toBe(9);
+    expect(notifications).toBe(2);
+  });
+
   it('exposes defaults as effective values with workbench metadata', () => {
     const registry = createTuningRegistry();
 
@@ -214,6 +238,25 @@ describe('central tuning registry', () => {
       highMinVerticalSpeed: 12,
       highMaxVerticalSpeed: 22,
       lockoutTicks: 6
+    });
+  });
+
+  it('registers receiving height and one-touch buffering centrally', () => {
+    const registry = createTuningRegistry();
+
+    expect(registry.get(RECEIVE_CATCH_HEIGHT_KEY)).toMatchObject({
+      domain: 'receive',
+      defaultValue: 1.5,
+      min: 0,
+      max: 4,
+      step: 0.05
+    });
+    expect(registry.get(RECEIVE_ONE_TOUCH_BUFFER_TICKS_KEY)).toMatchObject({
+      domain: 'receive',
+      defaultValue: 6,
+      min: 1,
+      max: 30,
+      step: 1
     });
   });
 

@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { RoutedPlayerIntent } from '../control/types';
+import type { SimulationInput } from '../control/types';
 import { createTuningRegistry } from '../config/tuning';
 import { createArenaDefinition } from '../physics/arena';
+import { stepControlledGame } from '../runtime/stepControlledGame';
 import { stepGame } from '../sim/stepGame';
 import type { GameState } from '../sim/gameState';
 import { DEFAULT_SCENARIOS } from './defaultScenarios';
 import { runScenario, type ScenarioDefinition } from './scenario';
 
-type DefaultScenario = ScenarioDefinition<GameState, RoutedPlayerIntent>;
+type DefaultScenario = ScenarioDefinition<GameState, SimulationInput>;
 
 function runBoundaryScenarios(
   definition: DefaultScenario,
@@ -22,7 +23,8 @@ function runBoundaryScenarios(
   try {
     runScenario({
       definition,
-      step: stepGame,
+      step: (state, seconds, context, input) =>
+        (state.tactics ? stepControlledGame : stepGame)(state, seconds, context, input),
       getArena: (tuning) => createArenaDefinition(tuning),
       tuningOverrides,
       diagnosticsEnabled: false,
@@ -37,28 +39,24 @@ function runBoundaryScenarios(
 }
 
 describe('Workbench tuning boundaries', () => {
-  it('either rejects each boundary atomically or runs every registered scenario', () => {
-    const tuningDefinitions = createTuningRegistry().list();
+  it.each(createTuningRegistry().list())('$key rejects boundaries atomically or runs every scenario', (definition) => {
+    for (const boundary of ['min', 'max'] as const) {
+      const tuning = createTuningRegistry();
+      const before = tuning.list();
+      const value = definition[boundary];
 
-    for (const definition of tuningDefinitions) {
-      for (const boundary of ['min', 'max'] as const) {
-        const tuning = createTuningRegistry();
-        const before = tuning.list();
-        const value = definition[boundary];
+      try {
+        tuning.setOverride(definition.key, value);
+      } catch {
+        expectUnchanged(tuning.list(), before);
+        continue;
+      }
 
-        try {
-          tuning.setOverride(definition.key, value);
-        } catch {
-          expectUnchanged(tuning.list(), before);
-          continue;
-        }
-
-        for (const scenario of DEFAULT_SCENARIOS) {
-          runBoundaryScenarios(scenario, definition.key, value);
-        }
+      for (const scenario of DEFAULT_SCENARIOS) {
+        runBoundaryScenarios(scenario, definition.key, value);
       }
     }
-  });
+  }, 120_000); // Each parameter still exercises both boundaries against the complete scenario list.
 });
 
 function expectUnchanged<T>(actual: T, expected: T): void {

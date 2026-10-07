@@ -12,6 +12,64 @@ import { createGameState } from '../sim/gameState';
 import { stepGame } from '../sim/stepGame';
 
 describe('structured diagnostic store', () => {
+  it('records tick-indexed transition snapshots and clears the previous match on rematch', () => {
+    const diagnostics = createDiagnosticStore();
+    const primitive = { type: 'label' as const, position: { x: 0, y: 0 }, text: 'playing' };
+    const transition = { eventType: 'MatchTransition', from: 'ready', to: 'playing' };
+    diagnostics.beginTick(1);
+    diagnostics.publish({ layer: 'match', source: 'match', entityId: 'match-state', primitive, data: { runRevision: 0 } });
+    diagnostics.publish({ layer: 'match', source: 'match', primitive, data: transition });
+    diagnostics.endTick();
+    transition.to = 'full-time';
+    diagnostics.beginTick(2);
+    diagnostics.endTick();
+    expect(diagnostics.getEvents()).toMatchObject([{ tick: 1, type: 'MatchTransition', data: { to: 'playing' } }]);
+    diagnostics.beginTick(3);
+    diagnostics.publish({ layer: 'match', source: 'match', entityId: 'match-state', primitive, data: { runRevision: 1 } });
+    diagnostics.publish({ layer: 'match', source: 'match', primitive, data: { eventType: 'MatchTransition', from: 'full-time', to: 'ready' } });
+    diagnostics.endTick();
+    expect(diagnostics.getEvents()).toMatchObject([{ tick: 3, data: { to: 'ready' } }]);
+  });
+
+  it('keeps action explanations between think ticks and removes them when human control takes over', () => {
+    const diagnostics = createDiagnosticStore();
+    diagnostics.setLayerEnabled('ai', true);
+    const record = { layer: 'ai', source: 'actionCandidates', entityId: 'player-2-action-candidates',
+      primitive: { type: 'label' as const, position: { x: 0, y: 0 }, text: 'pass-low' },
+      data: { playerId: 'player-2', tick: 1, selected: 'pass-low' } };
+    diagnostics.beginTick(1);
+    diagnostics.publish(record);
+    diagnostics.publish({ ...record, source: 'actionController' });
+    diagnostics.endTick();
+    diagnostics.beginTick(2);
+    diagnostics.publish({ ...record, source: 'actionController', data: { ...record.data, tick: 2 } });
+    diagnostics.endTick();
+    expect(diagnostics.getFrame().records.find(item => item.source === 'actionCandidates')?.data?.tick).toBe(1);
+    diagnostics.beginTick(3);
+    diagnostics.endTick();
+    expect(diagnostics.getFrame().records.some(item => item.source === 'actionCandidates')).toBe(false);
+  });
+
+  it('retains the latest spatial decision between think ticks and clears it at stoppage', () => {
+    const diagnostics = createDiagnosticStore();
+    diagnostics.setLayerEnabled('ai', true);
+    diagnostics.beginTick(1);
+    diagnostics.publish({ layer: 'ai', source: 'spatialCandidates', entityId: 'ai-candidates',
+      primitive: { type: 'label', position: { x: 0, y: 0 }, text: 'support' },
+      data: { playerId: 'player-2', tick: 1, selected: 'left' } });
+    diagnostics.endTick();
+    diagnostics.beginTick(2);
+    diagnostics.endTick();
+    expect(diagnostics.getFrame().tick).toBe(2);
+    expect(diagnostics.getFrame().records[0].data).toMatchObject({ tick: 1, selected: 'left' });
+    diagnostics.beginTick(3);
+    diagnostics.publish({ layer: 'match', source: 'match', entityId: 'match-state',
+      primitive: { type: 'label', position: { x: 0, y: 0 }, text: 'goal-stoppage' },
+      data: { phase: 'goal-stoppage' } });
+    diagnostics.endTick();
+    expect(diagnostics.getFrame().records.some(record => record.source === 'spatialCandidates')).toBe(false);
+  });
+
   it('collects simulation primitives by fixed tick', () => {
     const diagnostics = createDiagnosticStore();
     diagnostics.setLayerEnabled(BALL_DIAGNOSTIC_LAYER, false);

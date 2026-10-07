@@ -22,13 +22,17 @@ export interface TuningRegistry extends TuningReader {
   get(key: string): NumericTuningEntry;
   list(): readonly NumericTuningEntry[];
   setOverride(key: string, value: number): void;
+  replaceOverrides(values: readonly { readonly key: string; readonly value: number }[]): void;
   resetOverride(key: string): void;
+  resetDomainOverrides(domain: string): void;
   resetAllOverrides(): void;
   subscribe(listener: () => void): () => void;
 }
 
 export const RUNTIME_MAX_CATCH_UP_STEPS_KEY = 'runtime.maxCatchUpSteps';
 export const DEFAULT_RUNTIME_MAX_CATCH_UP_STEPS = 5;
+export const MATCH_DURATION_SECONDS_KEY = 'match.durationSeconds';
+export const DEFAULT_MATCH_DURATION_SECONDS = 300;
 
 export const CONTROLS_LEFT_STICK_DEADZONE_KEY = 'controls.leftStickDeadzone';
 export const CONTROLS_RIGHT_STICK_DEADZONE_KEY = 'controls.rightStickDeadzone';
@@ -56,6 +60,7 @@ export const ARENA_CROSSBAR_HEIGHT_KEY = 'arena.crossbarHeight';
 export const ARENA_CREASE_WIDTH_KEY = 'arena.creaseWidth';
 export const ARENA_CREASE_DEPTH_KEY = 'arena.creaseDepth';
 export const PLAYER_RADIUS_KEY = 'player.radius';
+export const CONTACT_RESTITUTION_KEY = 'contact.restitution';
 
 export const MOVEMENT_MAX_SPEED_KEY = 'movement.maxSpeed';
 export const MOVEMENT_ACCELERATION_KEY = 'movement.acceleration';
@@ -80,6 +85,9 @@ export const BALL_HIGH_THROW_MIN_VERTICAL_SPEED_KEY = 'ball.highThrowMinVertical
 export const BALL_HIGH_THROW_MAX_VERTICAL_SPEED_KEY = 'ball.highThrowMaxVerticalSpeed';
 export const BALL_POST_RELEASE_LOCKOUT_TICKS_KEY =
   'ball.postReleaseReacquisitionLockoutTicks';
+export const RECEIVE_CATCH_HEIGHT_KEY = 'receive.catchHeight';
+export const RECEIVE_ONE_TOUCH_BUFFER_TICKS_KEY =
+  'receive.oneTouchRightStickBufferTicks';
 
 export const DEFAULT_ARENA_WIDTH = 18;
 export const DEFAULT_ARENA_LENGTH = 30;
@@ -88,6 +96,7 @@ export const DEFAULT_ARENA_CROSSBAR_HEIGHT = 3;
 export const DEFAULT_ARENA_CREASE_WIDTH = 10;
 export const DEFAULT_ARENA_CREASE_DEPTH = 4;
 export const DEFAULT_PLAYER_RADIUS = 0.6;
+export const DEFAULT_CONTACT_RESTITUTION = 0;
 
 export const DEFAULT_MOVEMENT_MAX_SPEED = 11;
 export const DEFAULT_MOVEMENT_ACCELERATION = 60;
@@ -95,6 +104,10 @@ export const DEFAULT_MOVEMENT_TURNING_RESPONSE = 8;
 export const DEFAULT_MOVEMENT_BRAKING = 5;
 export const DEFAULT_MOVEMENT_FACING_RESPONSE = 2;
 export const DEFAULT_MOVEMENT_REVERSAL_RESPONSE = 5;
+
+export const ATTRIBUTES_SPEED_SPREAD_KEY = 'attributes.speedSpread';
+export const ATTRIBUTES_AGILITY_SPREAD_KEY = 'attributes.agilitySpread';
+export const ATTRIBUTES_POWER_SPREAD_KEY = 'attributes.powerSpread';
 
 export const DEFAULT_BALL_RADIUS = 0.35;
 export const DEFAULT_BALL_PLANAR_DAMPING = 0.25;
@@ -111,8 +124,148 @@ export const DEFAULT_BALL_HIGH_THROW_MAX_PLANAR_SPEED = 18;
 export const DEFAULT_BALL_HIGH_THROW_MIN_VERTICAL_SPEED = 12;
 export const DEFAULT_BALL_HIGH_THROW_MAX_VERTICAL_SPEED = 22;
 export const DEFAULT_BALL_POST_RELEASE_LOCKOUT_TICKS = 6;
+export const DEFAULT_RECEIVE_CATCH_HEIGHT = 1.5;
+export const DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS = 6;
 
 export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
+  ...[
+    ['teamThinkTicks', 'AI team planning cadence (ticks)', 6, 1, 30, 1],
+    ['actionThinkTicks', 'AI action planning cadence (ticks)', 6, 1, 30, 1],
+    ['actionHysteresisMargin', 'AI action retention score margin', 0.35, 0, 3, 0.05],
+    ['actionCommitTicks', 'AI minimum action commitment (ticks)', 12, 0, 60, 1],
+    ['actionCandidateLimit', 'AI detailed throw candidate budget', 18, 1, 36, 1],
+    ['passRange', 'AI pass candidate range', 20, 2, 35, 1],
+    ['minimumPassDistance', 'AI minimum useful pass distance', 2, 0, 8, 0.1],
+    ['shotRange', 'AI shot candidate range', 15, 2, 30, 1],
+    ['goalAimWidth', 'AI goal aperture aiming width fraction', 0.75, 0, 1, 0.05],
+    ['advanceDistance', 'AI carrier advance distance', 3, 1, 8, 0.5],
+    ['advanceValue', 'AI carrier advance value', 1, 0, 6, 0.1],
+    ['passValue', 'AI pass value', 2.5, 0, 8, 0.1],
+    ['shotValue', 'AI shot value', 7, 0, 15, 0.5],
+    ['actionProgressWeight', 'AI throw progression weight', 0.2, 0, 1, 0.05],
+    ['actionTravelWeight', 'AI throw travel time cost', 0.5, 0, 3, 0.1],
+    ['releaseClearanceSpeed', 'AI low release speed above carrier momentum', 0.5, 0, 3, 0.1],
+    ['shotDistanceWeight', 'AI shot distance cost', 0.2, 0, 1, 0.05],
+    ['interceptionWeight', 'AI interception risk cost', 6, 0, 12, 0.5],
+    ['interceptionTimeMargin', 'AI contested receive arrival margin', 0.2, 0.05, 1, 0.05],
+    ['keeperRiskWeight', 'AI keeper save risk cost', 6, 0, 12, 0.5],
+    ['extendedKeeperRisk', 'AI extended save risk scale', 0.6, 0, 1, 0.1],
+    ['receiveCapacityWeight', 'AI receiver capability margin value', 0.1, 0, 1, 0.05],
+    ['lobCost', 'AI lob preparation cost', 0.4, 0, 3, 0.1],
+    ['throwFacingCosine', 'AI charged throw facing alignment', 0.995, 0.9, 1, 0.005],
+    ['oneTouchLeadSeconds', 'AI incoming one-touch planning horizon', 0.7, 0.1, 1.5, 0.1],
+    ['oneTouchMargin', 'AI one-touch advantage over ordinary receive', 0.5, 0, 3, 0.1],
+    ['receiveValue', 'AI ordinary receive value', 2, 0, 8, 0.1],
+    ['checkRange', 'AI check approach range', 4, 1.5, 8, 0.5],
+    ['checkMinimumImpact', 'AI check minimum predicted impact', 2, 0, 12, 0.5],
+    ['playerThinkTicks', 'AI player target cadence (ticks)', 6, 1, 30, 1],
+    ['roleHysteresisMargin', 'AI role retention reach margin (seconds)', 0.15, 0, 1, 0.05],
+    ['roleGoalSideBonus', 'AI pressure goal-side reach bonus (seconds)', 0.25, 0, 1, 0.05],
+    ['ballVelocityReplanThreshold', 'AI ball velocity event threshold', 4, 0.5, 20, 0.5],
+    ['supportForward', 'AI forward support distance', 3, 0, 8, 0.5],
+    ['supportWidth', 'AI attacking width', 4, 1, 8, 0.5],
+    ['depthOffset', 'AI attacking depth distance', 4, 1, 8, 0.5],
+    ['defenseDepth', 'AI defensive cover depth', 4, 1, 8, 0.5],
+    ['laneCoverWidth', 'AI defensive lane width', 4, 1, 8, 0.5],
+    ['targetSearchRadius', 'AI assigned target search radius', 2, 0, 4, 0.5],
+    ['anchorWeight', 'AI assigned target proximity weight', 3, 0, 6, 0.1],
+    ['goalSideWeight', 'AI defensive goal-side weight', 2, 0, 6, 0.1],
+    ['steeringTime', 'AI field steering time (seconds)', 0.25, 0.05, 1, 0.05],
+    ['inertiaLookahead', 'AI field momentum lookahead (seconds)', 0.1, 0, 0.5, 0.05],
+    ['arrivalRadius', 'AI target arrival radius', 0.25, 0.05, 1, 0.05],
+    ['candidateRadius', 'AI candidate search radius', 6, 0, 10, 0.5],
+    ['candidateSpacing', 'AI candidate grid spacing', 2, 1, 4, 0.5],
+    ['minSpacing', 'AI candidate minimum player spacing', 1.5, 0, 4, 0.1],
+    ['densityRadius', 'AI local density radius', 4, 0, 10, 0.5],
+    ['progressionWeight', 'AI support progression weight', 2, 0, 5, 0.1],
+    ['spacingWeight', 'AI support crowding penalty', 1, 0, 5, 0.1],
+    ['reachWeight', 'AI travel time penalty', 0.5, 0, 5, 0.1],
+    ['laneWeight', 'AI clear passing lane score', 2, 0, 5, 0.1],
+    ['expensiveCandidateLimit', 'AI maximum detailed lane tests', 6, 1, 24, 1],
+    ['hysteresisMargin', 'AI target replacement score margin', 0.25, 0, 3, 0.05],
+    ['predictionSteps', 'AI hypothetical throw horizon', 120, 10, 240, 1]
+  ].map(([key, label, defaultValue, min, max, step]) => ({ key: `ai.${key}`, domain: 'ai', label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  ...[
+    ['receiverClaimLeadSeconds', 'Receiver initial claim lead', 0.12, 0, 1, 0.01],
+    ['receiverReplacementMargin', 'Receiver claim replacement margin', 0.2, 0, 1, 0.01],
+    ['receiverMaxArrivalSeconds', 'Receiver claim maximum arrival time', 2, 0.1, 4, 0.1],
+    ['receiverDifficultyWeight', 'Receiver difficulty score weight', 0.15, 0, 1, 0.05],
+    ['receiverPredictionSteps', 'Receiver trajectory prediction horizon', 120, 10, 240, 1],
+    ['defensiveReachWeight', 'Defensive switch pressure/reach weight', 1, 0, 4, 0.1],
+    ['defensiveGoalSideWeight', 'Defensive switch goal-side weight', 0.6, 0, 4, 0.1]
+  ].map(([key, label, defaultValue, min, max, step]) => ({ key: `controls.${key}`, domain: 'controls', label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  ...[
+    ['maxSpeed', 'Keeper maximum speed', 5, 0, 12, 0.1],
+    ['acceleration', 'Keeper acceleration', 50, 0, 120, 1],
+    ['braking', 'Keeper braking', 60, 0, 120, 1],
+    ['turningResponse', 'Keeper direction response', 70, 0, 120, 1],
+    ['reversalResponse', 'Keeper reversal response', 70, 0, 120, 1],
+    ['facingResponse', 'Keeper facing response', 12, 0, 60, 1],
+    ['ordinaryReach', 'Keeper ordinary reach', 1.05, 0.3, 3, 0.05],
+    ['ordinaryHeight', 'Keeper ordinary save height', 1.3, 0, 3, 0.1],
+    ['committedReach', 'Keeper committed reach', 1.8, 0.5, 4, 0.05],
+    ['committedHeight', 'Keeper committed save height', 2, 0, 4, 0.1],
+    ['commitTicks', 'Keeper save commitment', 12, 1, 60, 1],
+    ['recoveryTicks', 'Keeper save recovery', 36, 1, 120, 1],
+    ['recoveryReachScale', 'Keeper recovery reach scale', 0.6, 0.1, 1, 0.05],
+    ['recoveryMovementScale', 'Keeper recovery movement scale', 0.25, 0, 1, 0.05],
+    ['catchSpeed', 'Keeper controlled catch speed', 12, 1, 40, 1],
+    ['catchCapacity', 'Keeper baseline catch capacity', 1, 0.1, 3, 0.1],
+    ['controlSpread', 'Keeper Control catch spread', 0.4, 0, 0.9, 0.05],
+    ['heightDifficulty', 'Keeper save height difficulty', 0.4, 0, 2, 0.05],
+    ['stretchDifficulty', 'Keeper save stretch difficulty', 0.5, 0, 2, 0.05],
+    ['commitDifficulty', 'Keeper committed catch difficulty', 0.35, 0, 2, 0.05],
+    ['alignmentDifficulty', 'Keeper save alignment difficulty', 0.5, 0, 2, 0.05],
+    ['parryRestitution', 'Keeper parry restitution', 0.65, 0, 1, 0.05],
+    ['parryLift', 'Keeper parry vertical speed', 1.5, 0, 6, 0.1],
+    ['setDepth', 'Keeper set-position depth', 1.6, 0, 5, 0.1],
+    ['stepOutDistance', 'Keeper step-out ball distance', 10, 1, 30, 1],
+    ['trackingWidth', 'Keeper lateral tracking fraction', 0.7, 0, 1, 0.05],
+    ['steeringTime', 'Keeper target steering time', 0.15, 0.05, 1, 0.05],
+    ['commitLeadSeconds', 'Keeper commitment lead time', 0.18, 0.02, 1, 0.01],
+    ['predictionSteps', 'Keeper prediction horizon', 120, 10, 240, 1]
+  ].map(([key, label, defaultValue, min, max, step]) => ({ key: `keeper.${key}`, domain: 'keeper', label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  ...[
+    ['receive', 'easySpeed', 'Dependable receive speed', 16, 0, 40, 1],
+    ['receive', 'easyHeight', 'Dependable receive height', 0.8, 0, 3, 0.1],
+    ['receive', 'bodyHeight', 'Body block height', 1, 0, 3, 0.1],
+    ['receive', 'speedDifficultyScale', 'Receive speed difficulty scale', 14, 1, 50, 1],
+    ['receive', 'heightWeight', 'Receive height difficulty', 0.25, 0, 2, 0.05],
+    ['receive', 'approachWeight', 'Receive approach difficulty', 0.2, 0, 2, 0.05],
+    ['receive', 'contentionRadius', 'Receive contention radius', 2, 0, 5, 0.1],
+    ['receive', 'contentionWeight', 'Receive contention difficulty', 0.25, 0, 2, 0.05],
+    ['receive', 'redirectWeight', 'One-touch direction change difficulty', 0.6, 0, 2, 0.05],
+    ['receive', 'controlCapacity', 'Baseline receive Control capacity', 1.2, 0.1, 5, 0.05],
+    ['receive', 'controlSpread', 'Receive Control capacity spread', 0.65, 0, 2, 0.05],
+    ['receive', 'deflectionRestitution', 'Failed catch body restitution', 0.5, 0, 1, 0.05],
+    ['contact', 'retentionBase', 'Baseline marginal retention threshold', 6, 0, 20, 0.1],
+    ['contact', 'retentionControlSpread', 'Control retention threshold spread', 2, 0, 5, 0.1]
+  ].map(([domain, key, label, defaultValue, min, max, step]) => ({ key: `${domain}.${key}`, domain: String(domain), label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  ...[
+    ['checkWindowTicks', 'Check active window', 12, 1, 60, 1],
+    ['checkRecoveryTicks', 'Check recovery', 24, 0, 120, 1],
+    ['strengthSpread', 'Strength impact spread', 0.4, 0, 0.8, 0.05],
+    ['minimumImpact', 'Minimum authored impact', 2, 0, 10, 0.1],
+    ['stumbleThreshold', 'Stumble impact threshold', 6, 0, 30, 0.1],
+    ['turnoverThreshold', 'Severe turnover threshold', 9, 0, 40, 0.1],
+    ['knockbackScale', 'Check knockback scale', 0.6, 0, 2, 0.05],
+    ['turnoverSpeedScale', 'Turnover ball speed scale', 0.8, 0, 2, 0.05],
+    ['stumbleTicks', 'Stumble duration', 24, 1, 120, 1],
+    ['immunityTicks', 'Post-stumble immunity', 45, 1, 180, 1]
+  ].map(([key, label, defaultValue, min, max, step]) => ({ key: `contact.${key}`, domain: 'contact', label: String(label), defaultValue: Number(defaultValue), min: Number(min), max: Number(max), step: Number(step) })),
+  { key: MATCH_DURATION_SECONDS_KEY, domain: 'match', label: 'Active match duration (seconds)', defaultValue: DEFAULT_MATCH_DURATION_SECONDS, min: 1, max: 1800, step: 1 },
+  { key: 'match.goalStoppageSeconds', domain: 'match', label: 'Goal stoppage duration', defaultValue: 1.5, min: 0, max: 5, step: 0.1 },
+  ...[
+    { key: ATTRIBUTES_SPEED_SPREAD_KEY, label: 'Speed mapping spread', defaultValue: 0.25 },
+    { key: ATTRIBUTES_AGILITY_SPREAD_KEY, label: 'Agility mapping spread', defaultValue: 0.5 },
+    { key: ATTRIBUTES_POWER_SPREAD_KEY, label: 'Power mapping spread', defaultValue: 0.25 }
+  ].map((definition) => ({
+    ...definition,
+    domain: 'attributes',
+    min: 0,
+    max: 0.9,
+    step: 0.05
+  })),
   {
     key: RUNTIME_MAX_CATCH_UP_STEPS_KEY,
     domain: 'runtime',
@@ -246,6 +399,15 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
     defaultValue: DEFAULT_PLAYER_RADIUS,
     min: 0.25,
     max: 2,
+    step: 0.05
+  },
+  {
+    key: CONTACT_RESTITUTION_KEY,
+    domain: 'contact',
+    label: 'Incidental contact restitution',
+    defaultValue: DEFAULT_CONTACT_RESTITUTION,
+    min: 0,
+    max: 0.3,
     step: 0.05
   },
   {
@@ -431,9 +593,27 @@ export const DEFAULT_TUNING_DEFINITIONS: readonly NumericTuningDefinition[] = [
   {
     key: BALL_POST_RELEASE_LOCKOUT_TICKS_KEY,
     domain: 'ball',
-    label: 'Post-release reacquisition lockout',
+    label: 'Minimum release reacquisition lockout',
     defaultValue: DEFAULT_BALL_POST_RELEASE_LOCKOUT_TICKS,
     min: 0,
+    max: 30,
+    step: 1
+  },
+  {
+    key: RECEIVE_CATCH_HEIGHT_KEY,
+    domain: 'receive',
+    label: 'Receive/catch height',
+    defaultValue: DEFAULT_RECEIVE_CATCH_HEIGHT,
+    min: 0,
+    max: 4,
+    step: 0.05
+  },
+  {
+    key: RECEIVE_ONE_TOUCH_BUFFER_TICKS_KEY,
+    domain: 'receive',
+    label: 'One-touch right-stick buffer',
+    defaultValue: DEFAULT_RECEIVE_ONE_TOUCH_BUFFER_TICKS,
+    min: 1,
     max: 30,
     step: 1
   }
@@ -485,6 +665,30 @@ function assertValidValue(definition: NumericTuningDefinition, value: number): v
 function assertValidThrowTuningRelationships(
   getEffectiveValue: (key: string) => number | undefined
 ): void {
+  const diameter = (getEffectiveValue(PLAYER_RADIUS_KEY) ?? 0) * 2;
+  for (const dimension of [ARENA_CREASE_WIDTH_KEY, ARENA_CREASE_DEPTH_KEY]) {
+    const size = getEffectiveValue(dimension);
+    if (size !== undefined && diameter > size) {
+      throw new RangeError(`Tuning relationship invalid: player diameter must fit '${dimension}'.`);
+    }
+  }
+  for (const [lowKey, highKey] of [
+    ['keeper.ordinaryReach', 'keeper.committedReach'],
+    ['keeper.ordinaryHeight', 'keeper.committedHeight'],
+    ['keeper.controlSpread', 'keeper.catchCapacity'],
+    ['contact.minimumImpact', 'contact.stumbleThreshold'],
+    ['contact.stumbleThreshold', 'contact.turnoverThreshold'],
+    ['receive.bodyHeight', 'receive.catchHeight'],
+    ['receive.easyHeight', 'receive.catchHeight'],
+    ['receive.controlSpread', 'receive.controlCapacity'],
+    ['contact.retentionControlSpread', 'contact.retentionBase']
+  ]) {
+    const low = getEffectiveValue(lowKey);
+    const high = getEffectiveValue(highKey);
+    if (low !== undefined && high !== undefined && low > high) {
+      throw new RangeError(`Tuning relationship invalid: '${lowKey}' must not exceed '${highKey}'.`);
+    }
+  }
   const minimumStrength = getEffectiveValue(CONTROLS_THROW_MIN_STRENGTH_KEY);
   const maximumStrength = getEffectiveValue(CONTROLS_THROW_MAX_STRENGTH_KEY);
   if (
@@ -626,6 +830,20 @@ export function createTuningRegistry(
       notify();
     },
 
+    replaceOverrides(values): void {
+      const next = new Map<string, number>();
+      for (const { key, value } of values) {
+        assertValidValue(getDefinition(key), value);
+        if (next.has(key)) throw new RangeError(`Duplicate tuning override '${key}'.`);
+        next.set(key, value);
+      }
+      assertValidThrowTuningRelationships(key => next.get(key) ?? registered.get(key)?.defaultValue);
+      if (next.size === overrides.size && [...next].every(([key, value]) => overrides.get(key) === value)) return;
+      overrides.clear();
+      for (const [key, value] of next) overrides.set(key, value);
+      notify();
+    },
+
     resetOverride(key: string): void {
       const definition = getDefinition(key);
       if (!overrides.has(key)) {
@@ -637,6 +855,14 @@ export function createTuningRegistry(
       );
       overrides.delete(key);
       notify();
+    },
+
+    resetDomainOverrides(domain: string): void {
+      const keys = [...registered.values()].filter(entry => entry.domain === domain).map(entry => entry.key);
+      assertValidThrowTuningRelationships(key => keys.includes(key) ? registered.get(key)?.defaultValue : getEffectiveValue(key));
+      let changed = false;
+      for (const key of keys) changed = overrides.delete(key) || changed;
+      if (changed) notify();
     },
 
     resetAllOverrides(): void {

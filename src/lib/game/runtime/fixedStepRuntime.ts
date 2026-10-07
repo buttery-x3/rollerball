@@ -18,6 +18,8 @@ export interface FixedStepFrame<TState extends GameState> {
 
 export interface FixedStepRuntime<TState extends GameState, TInput = unknown> {
   readonly isPaused: boolean;
+  readonly timeScale: number;
+  setTimeScale(scale: number): void;
   advance(frameDeltaSeconds: number): FixedStepFrame<TState>;
   pause(): void;
   resume(): void;
@@ -57,6 +59,7 @@ export function createFixedStepRuntime<TState extends GameState, TInput = unknow
 
   let accumulator = 0;
   let paused = false;
+  let timeScale = 1;
 
   const resolveMaxCatchUpSteps = (): number => {
     const maxCatchUpSteps =
@@ -97,6 +100,13 @@ export function createFixedStepRuntime<TState extends GameState, TInput = unknow
   });
 
   return {
+    get timeScale(): number { return timeScale; },
+
+    setTimeScale(scale: number): void {
+      if (![0.25, 0.5, 1, 2, 4].includes(scale)) throw new RangeError('Unsupported simulation speed.');
+      timeScale = scale;
+    },
+
     get isPaused(): boolean {
       return paused;
     },
@@ -110,14 +120,15 @@ export function createFixedStepRuntime<TState extends GameState, TInput = unknow
         return createFrame(0);
       }
 
-      const maxCatchUpSteps = resolveMaxCatchUpSteps();
+      const maxCatchUpSteps = Math.ceil(resolveMaxCatchUpSteps() * Math.max(1, timeScale));
       const stepEpsilon = fixedStepSeconds * 1e-9;
       const maxCatchUpSeconds = fixedStepSeconds * maxCatchUpSteps;
 
-      accumulator = Math.min(accumulator + frameDeltaSeconds, maxCatchUpSeconds);
+      accumulator = Math.min(accumulator + frameDeltaSeconds * timeScale, maxCatchUpSeconds);
 
       let simulationSteps = 0;
       while (
+        !paused &&
         accumulator + stepEpsilon >= fixedStepSeconds &&
         simulationSteps < maxCatchUpSteps
       ) {

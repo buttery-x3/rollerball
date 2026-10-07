@@ -1,4 +1,10 @@
 import type { Vec2 } from '../physics/geometry';
+import type { ArenaEnd } from '../physics/arena';
+import type { MatchState } from './match';
+import type { TeamDefinition } from './teams';
+import type { TacticalState } from './tactics';
+import type { AiActionState } from './actionState';
+import { createPlayerAttributes, type PlayerAttributes } from '../config/playerAttributes';
 
 export type PlayerRole = 'field' | 'goalkeeper';
 
@@ -6,6 +12,8 @@ export interface PlayerDefinition {
   readonly id: string;
   readonly teamId: string;
   readonly role: PlayerRole;
+  readonly attributes: PlayerAttributes;
+  readonly defendingEnd?: ArenaEnd;
 }
 
 export type ThrowChargeFamily = 'low' | 'high';
@@ -17,12 +25,48 @@ export interface ThrowChargeState {
   progress: number;
 }
 
+export interface OneTouchBufferState {
+  direction: Vec2;
+  magnitude: number;
+  ticksRemaining: number;
+}
+
+export interface OneTouchState {
+  charge: ThrowChargeState;
+  buffer: OneTouchBufferState | undefined;
+}
+
+export interface PlayerContactState {
+  checkTicksRemaining: number;
+  checkRecoveryTicksRemaining: number;
+  stumbleTicksRemaining: number;
+  immunityTicksRemaining: number;
+  hitPlayerIds: string[];
+}
+
+export function createEmptyContactState(): PlayerContactState {
+  return { checkTicksRemaining: 0, checkRecoveryTicksRemaining: 0, stumbleTicksRemaining: 0, immunityTicksRemaining: 0, hitPlayerIds: [] };
+}
+
+export interface GoalkeeperState {
+  commitTicksRemaining: number;
+  recoveryTicksRemaining: number;
+  saveDirection: Vec2;
+}
+
+export function createEmptyGoalkeeperState(): GoalkeeperState {
+  return { commitTicksRemaining: 0, recoveryTicksRemaining: 0, saveDirection: { x: 0, y: 0 } };
+}
+
 export interface PlayerState {
   readonly definition: PlayerDefinition;
   position: Vec2;
   velocity: Vec2;
   facing: Vec2;
   throwCharge: ThrowChargeState;
+  oneTouch: OneTouchState;
+  contact: PlayerContactState;
+  goalkeeper?: GoalkeeperState;
 }
 
 export interface BallReleaseMetadata {
@@ -54,6 +98,12 @@ export interface GameState {
   tick: number;
   players: PlayerState[];
   ball: BallState;
+  /** Isolated subsystem scenarios may deliberately omit match rules. */
+  match?: MatchState;
+  readonly teams?: readonly TeamDefinition[];
+  /** Absent in isolated subsystem scenes that deliberately use neutral teammates. */
+  tactics?: TacticalState;
+  aiActions?: AiActionState;
 }
 
 export interface CreateFieldPlayerOptions {
@@ -63,6 +113,7 @@ export interface CreateFieldPlayerOptions {
   readonly velocity?: Vec2;
   readonly facing?: Vec2;
   readonly throwCharge?: Partial<ThrowChargeState>;
+  readonly attributes?: Partial<PlayerAttributes>;
 }
 
 export interface CreateLooseBallOptions {
@@ -103,22 +154,48 @@ export function cloneThrowChargeState(state: ThrowChargeState): ThrowChargeState
   };
 }
 
+export function createEmptyOneTouchState(): OneTouchState {
+  return {
+    charge: createEmptyThrowChargeState(),
+    buffer: undefined
+  };
+}
+
 export function createFieldPlayerState(
   options: CreateFieldPlayerOptions = {}
 ): PlayerState {
   return {
-    definition: {
+    definition: Object.freeze({
       id: options.id ?? DEFAULT_PLAYER_ID,
       teamId: options.teamId ?? DEFAULT_TEAM_ID,
-      role: 'field'
-    },
+      role: 'field',
+      attributes: createPlayerAttributes(options.attributes)
+    }),
+    contact: createEmptyContactState(),
     position: cloneVector(options.position ?? DEFAULT_POSITION),
     velocity: cloneVector(options.velocity ?? DEFAULT_VELOCITY),
     facing: cloneVector(options.facing ?? DEFAULT_FACING),
     throwCharge: {
       ...createEmptyThrowChargeState(),
       ...options.throwCharge
-    }
+    },
+    oneTouch: createEmptyOneTouchState()
+  };
+}
+
+export interface CreateGoalkeeperOptions extends CreateFieldPlayerOptions {
+  readonly defendingEnd: ArenaEnd;
+}
+
+export function createGoalkeeperState(options: CreateGoalkeeperOptions): PlayerState {
+  const player = createFieldPlayerState({
+    ...options,
+    facing: options.facing ?? { x: 0, y: options.defendingEnd === 'negativeY' ? 1 : -1 }
+  });
+  return {
+    ...player,
+    definition: Object.freeze({ ...player.definition, role: 'goalkeeper', defendingEnd: options.defendingEnd }),
+    goalkeeper: createEmptyGoalkeeperState()
   };
 }
 

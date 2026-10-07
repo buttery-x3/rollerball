@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import type { PlayerDerivedValue } from '$lib/game/config/playerAttributes';
   import type {
     NumericTuningEntry,
     TuningRegistry
@@ -13,29 +14,44 @@
     BALL_DIAGNOSTIC_LAYER,
     CONTROL_DIAGNOSTIC_LAYER,
     PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+    PLAYER_CONTACT_DIAGNOSTIC_LAYER,
+    RECEIVE_DIAGNOSTIC_LAYER,
     THROW_DIAGNOSTIC_LAYER
   } from '$lib/game/sim/diagnostics';
-  import type { RoutedPlayerIntent } from '$lib/game/control/types';
+  import type { SimulationInput } from '$lib/game/control/types';
   import type { GameState } from '$lib/game/sim/gameState';
   import type { ScenarioDefinition } from '$lib/game/scenarios/scenario';
-  import type { DiagnosticStore } from './diagnosticStore';
+  import type { DiagnosticStore, DiagnosticEvent } from './diagnosticStore';
 
   export let diagnostics: DiagnosticStore;
   export let onPause: () => void;
   export let onResume: () => void;
   export let onStepOnce: () => void;
+  export let onStepMany: (count: number) => void;
+  export let onTimeScale: (scale: number) => void;
+  export let timeScale: number;
   export let onLoadScenario: (id: string) => void;
   export let onResetScenario: () => void;
   export let paused: boolean;
   export let activeScenarioId: string;
   export let scenarioError: string | undefined;
-  export let scenarios: readonly ScenarioDefinition<GameState, RoutedPlayerIntent>[];
+  export let scenarios: readonly ScenarioDefinition<GameState, SimulationInput>[];
   export let tick: number;
   export let tuning: TuningRegistry;
+  export let focusedPlayerId = '';
+  export let playerIds: readonly string[] = [];
+  export let replayFinished = false;
+  export let readonlyTuning = false;
 
   let tuningEntries: readonly NumericTuningEntry[] = tuning.list();
   let layerEntries: readonly DiagnosticLayerState[] = diagnostics.listLayers();
   let diagnosticFrame: DiagnosticFrame = diagnostics.getFrame();
+  let events: readonly DiagnosticEvent[] = diagnostics.getEvents();
+  let eventFilter = '';
+  let stepCount = 60;
+  let tuningDomain = '';
+  let tuningExport = '';
+  let tuningError = '';
   let unsubscribeTuning: (() => void) | undefined;
   let unsubscribeDiagnostics: (() => void) | undefined;
   let subscribedTuning: TuningRegistry | undefined;
@@ -49,6 +65,7 @@
   const refreshLayers = (): void => {
     layerEntries = diagnostics.listLayers();
     diagnosticFrame = diagnostics.getFrame();
+    events = diagnostics.getEvents();
   };
 
   function bindStores(): void {
@@ -99,13 +116,26 @@
 
     try {
       tuning.setOverride(key, value);
-    } catch {
+      tuningError = '';
+    } catch (error) {
+      tuningError = error instanceof Error ? error.message : String(error);
       input.value = String(tuning.getNumber(key));
     }
   }
 
   function resetTuning(key: string): void {
-    tuning.resetOverride(key);
+    try { tuning.resetOverride(key); tuningError = ''; }
+    catch (error) { tuningError = error instanceof Error ? error.message : String(error); }
+  }
+
+  function resetCategory(): void {
+    try { tuning.resetDomainOverrides(tuningDomain); tuningError = ''; }
+    catch (error) { tuningError = error instanceof Error ? error.message : String(error); }
+  }
+
+  function exportTuning(): void {
+    tuningExport = JSON.stringify(tuning.list().filter(entry => entry.overrideValue !== undefined)
+      .map(entry => ({ key: entry.key, value: entry.overrideValue })), null, 2);
   }
 
   function updateLayer(key: string, event: Event): void {
@@ -127,13 +157,14 @@
       );
   }
 
-  function latestPlayerRecord(frame: DiagnosticFrame): DiagnosticRecord | undefined {
+  function latestPlayerRecord(frame: DiagnosticFrame, playerId: string): DiagnosticRecord | undefined {
     return [...frame.records]
       .reverse()
       .find(
         (record) =>
           record.layer === PLAYER_MOVEMENT_DIAGNOSTIC_LAYER &&
-          record.entityId?.endsWith('-state')
+          record.entityId?.endsWith('-state') &&
+          (!playerId || record.data?.playerId === playerId)
       );
   }
 
@@ -152,14 +183,36 @@
       .find((record) => record.layer === THROW_DIAGNOSTIC_LAYER);
   }
 
+  function latestReceiveRecord(frame: DiagnosticFrame): DiagnosticRecord | undefined {
+    return [...frame.records]
+      .reverse()
+      .find(
+        (record) =>
+          record.layer === RECEIVE_DIAGNOSTIC_LAYER &&
+          record.entityId === 'receive-state'
+      );
+  }
+
   function formatDiagnosticData(record: DiagnosticRecord | undefined): string {
     return record?.data ? JSON.stringify(record.data, null, 2) : 'No diagnostic data sampled yet.';
   }
 
   $: controlRecord = latestControlRecord(diagnosticFrame);
-  $: playerRecord = latestPlayerRecord(diagnosticFrame);
+  $: playerRecords = diagnosticFrame.records.filter((record) =>
+    record.layer === PLAYER_MOVEMENT_DIAGNOSTIC_LAYER && record.entityId?.endsWith('-state'));
+  $: playerRecord = latestPlayerRecord(diagnosticFrame, focusedPlayerId);
+  $: playerDerivedValues = (playerRecord?.data?.derivedValues ?? []) as readonly PlayerDerivedValue[];
+  $: derivedRows = playerDerivedValues.map((value) => ({
+    ...value,
+    entry: tuningEntries.find((entry) => entry.key === value.key)
+  }));
   $: ballRecord = latestBallRecord(diagnosticFrame);
   $: throwRecord = latestThrowRecord(diagnosticFrame);
+  $: receiveRecord = latestReceiveRecord(diagnosticFrame);
+  $: matchRecord = diagnosticFrame.records.find(record => record.entityId === 'match-state');
+  $: contactRecord = diagnosticFrame.records.find(
+    (record) => record.layer === PLAYER_CONTACT_DIAGNOSTIC_LAYER && record.entityId === 'contact-state'
+  );
 </script>
 
 <aside class="workbench" aria-label="Development workbench">
@@ -173,11 +226,18 @@
 
   <div class="controls" aria-label="Simulation controls">
     {#if paused}
-      <button type="button" onclick={onResume}>Resume</button>
+      <button type="button" onclick={onResume} disabled={replayFinished}>Resume</button>
     {:else}
       <button type="button" onclick={onPause}>Pause</button>
     {/if}
-    <button type="button" onclick={onStepOnce} disabled={!paused}>Step one tick</button>
+    <button type="button" onclick={onStepOnce} disabled={!paused || replayFinished}>Step one tick</button>
+    <label for="step-count">Ticks</label>
+    <input id="step-count" class="small-input" type="number" min="1" max="600" step="1" bind:value={stepCount} />
+    <button type="button" onclick={() => onStepMany(stepCount)} disabled={!paused || replayFinished || !Number.isInteger(stepCount) || stepCount < 1 || stepCount > 600}>Step N ticks</button>
+    <label for="time-scale">Speed</label>
+    <select id="time-scale" value={timeScale} onchange={event => onTimeScale(Number(event.currentTarget.value))}>
+      {#each [0.25, 0.5, 1, 2, 4] as scale}<option value={scale}>{scale}×</option>{/each}
+    </select>
     <span class="tick">Tick {tick}</span>
   </div>
 
@@ -199,15 +259,44 @@
     {/if}
   </section>
 
+  <slot />
+
+  <section class="workbench-section" aria-label="AI decisions">
+    <h2>AI candidates and decisions</h2>
+    <label for="player-focus">Inspect entity</label>
+    <select id="player-focus" bind:value={focusedPlayerId}>
+      <option value="">Latest player</option>
+      <option value="ball">Ball</option>
+      {#each playerIds as playerId (playerId)}
+        <option value={playerId}>{playerId}</option>
+      {/each}
+    </select>
+    <p class="attribute-note">Enable AI layers to inspect candidate scores and rejection reasons. The inspected player selects the preview and overlays; green score cells are stronger than red.</p>
+    {#each diagnosticFrame.records.filter(record => record.layer === 'ai' && record.data && (record.source !== 'spatialCandidates' || record.entityId === 'ai-candidates') && (!focusedPlayerId || record.data.playerId === focusedPlayerId || (Array.isArray(record.data.assignments) && record.data.assignments.some(assignment => assignment.playerId === focusedPlayerId)))) as decision}
+      <pre class="diagnostic-output">{formatDiagnosticData(decision)}</pre>
+    {/each}
+  </section>
+
   <section class="workbench-section" aria-labelledby="tuning-heading">
     <div class="section-heading">
       <h2 id="tuning-heading">Tuning</h2>
-      <button type="button" class="subtle-button" onclick={() => tuning.resetAllOverrides()}>
+      <button type="button" class="subtle-button" disabled={readonlyTuning} onclick={() => tuning.resetAllOverrides()}>
         Reset all
       </button>
     </div>
 
-    {#each tuningEntries as entry (entry.key)}
+    <label for="tuning-category">Tuning category</label>
+    <select id="tuning-category" bind:value={tuningDomain}>
+      <option value="">All categories</option>
+      {#each [...new Set(tuningEntries.map(entry => entry.domain))] as domain}<option value={domain}>{domain}</option>{/each}
+    </select>
+    <div class="controls">
+      <button type="button" onclick={resetCategory} disabled={readonlyTuning || !tuningDomain}>Reset category</button>
+      <button type="button" onclick={exportTuning}>Export overrides</button>
+    </div>
+    {#if tuningError}<p class="scenario-error" role="alert">{tuningError}</p>{/if}
+    {#if tuningExport}<textarea aria-label="Exported tuning overrides" readonly rows="8" value={tuningExport}></textarea>{/if}
+    {#each tuningEntries.filter(entry => !tuningDomain || entry.domain === tuningDomain) as entry (entry.key)}
       <div class="tuning-entry">
         <div class="tuning-label">
           <label for={entry.key}>{entry.label}</label>
@@ -216,6 +305,7 @@
         <div class="tuning-controls">
           <input
             id={entry.key}
+            disabled={readonlyTuning}
             type="range"
             min={entry.min}
             max={entry.max}
@@ -225,6 +315,7 @@
           />
           <input
             aria-label={`${entry.label} value`}
+            disabled={readonlyTuning}
             type="number"
             min={entry.min}
             max={entry.max}
@@ -236,14 +327,14 @@
             type="button"
             class="subtle-button"
             onclick={() => resetTuning(entry.key)}
-            disabled={entry.overrideValue === undefined}
+            disabled={readonlyTuning || entry.overrideValue === undefined}
           >
             Reset
           </button>
         </div>
         <small>
-          Effective: {entry.effectiveValue}
-          {entry.overrideValue === undefined ? ' · default' : ' · override'}
+          Default: {entry.defaultValue} · Override: {entry.overrideValue ?? 'none'}
+          · Base: {entry.effectiveValue}
         </small>
       </div>
     {/each}
@@ -278,7 +369,36 @@
       <h2 id="player-heading">Player movement</h2>
       <span class="tick">Tick {diagnosticFrame.tick}</span>
     </div>
+    <p class="attribute-note">Attributes: 0–100; baseline 50. Contact and receiving panels explain Strength and Control outcomes.
+      Effective values use the sampled player's attributes and the base tuning at that tick.</p>
+    {#if derivedRows.length}
+      <div class="derived-values">
+        <table>
+          <thead><tr><th>Value / attribute</th><th>Default</th><th>Override</th><th>Base</th><th>Multiplier</th><th>Effective</th></tr></thead>
+          <tbody>
+            {#each derivedRows as row (row.key)}
+              <tr>
+                <th>{row.entry?.label ?? row.key}<small>{row.attribute}: {row.attributeValue}</small></th>
+                <td>{row.entry?.defaultValue ?? '—'}</td>
+                <td>{row.entry?.overrideValue ?? 'none'}</td>
+                <td>{row.baseValue.toFixed(2)}</td>
+                <td>{row.multiplier.toFixed(2)}</td>
+                <td>{row.effectiveValue.toFixed(2)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
     <pre class="diagnostic-output">{formatDiagnosticData(playerRecord)}</pre>
+  </section>
+
+  <section class="workbench-section" aria-labelledby="contact-heading">
+    <div class="section-heading">
+      <h2 id="contact-heading">Player contacts</h2>
+      <span class="tick">Tick {diagnosticFrame.tick}</span>
+    </div>
+    <pre class="diagnostic-output">{formatDiagnosticData(contactRecord)}</pre>
   </section>
 
   <section class="workbench-section" aria-labelledby="ball-heading">
@@ -296,9 +416,43 @@
     </div>
     <pre class="diagnostic-output">{formatDiagnosticData(throwRecord)}</pre>
   </section>
+
+  <section class="workbench-section" aria-labelledby="receive-heading">
+    <div class="section-heading">
+      <h2 id="receive-heading">Receiving and one-touch</h2>
+      <span class="tick">Tick {diagnosticFrame.tick}</span>
+    </div>
+    <pre class="diagnostic-output">{formatDiagnosticData(receiveRecord)}</pre>
+  </section>
+  <section class="workbench-section" aria-label="Match flow">
+    <h2>Match flow</h2>
+    <pre class="diagnostic-output">{formatDiagnosticData(matchRecord)}</pre>
+  </section>
+  <section class="workbench-section" aria-label="Event log">
+    <h2>Event log</h2>
+    <label for="event-filter">Filter system, entity or event type</label>
+    <input id="event-filter" type="search" bind:value={eventFilter} />
+    <pre class="diagnostic-output">{events.filter(event => `${event.system} ${event.type} ${event.entityId ?? ''}`.toLowerCase().includes(eventFilter.toLowerCase())).slice().reverse().map(event => `${event.tick} · ${event.system} · ${event.type}\n${JSON.stringify(event.data)}`).join('\n\n') || 'No events recorded in this run.'}</pre>
+  </section>
+  <section class="workbench-section" aria-label="Checking">
+    <h2>Checking</h2>
+    <pre class="diagnostic-output">{formatDiagnosticData(diagnosticFrame.records.find(record => record.entityId === 'checking-state'))}</pre>
+  </section>
+  <section class="workbench-section" aria-label="Goalkeeper">
+    <h2>Goalkeeper</h2>
+    <pre class="diagnostic-output">{formatDiagnosticData(diagnosticFrame.records.find(record => record.entityId === 'keeper-state'))}</pre>
+    {#each diagnosticFrame.records.filter(record => record.layer === 'keeper' && record.entityId?.endsWith('-decision')) as decision}
+      <pre class="diagnostic-output">{formatDiagnosticData(decision)}</pre>
+    {/each}
+  </section>
 </aside>
 
 <style>
+  .attribute-note { margin: 0; font-size: 0.75rem; color: #c8d3f5; }
+  .derived-values { overflow-x: auto; font-size: 0.68rem; }
+  .derived-values table { width: 100%; border-collapse: collapse; }
+  .derived-values th, .derived-values td { text-align: left; padding: 5px; border-bottom: 1px solid #263b66; }
+  .derived-values small { display: block; font-weight: normal; }
   .workbench {
     box-sizing: border-box;
     display: grid;
@@ -380,6 +534,8 @@
     flex-wrap: wrap;
     gap: 8px;
   }
+  .small-input { width: 58px; }
+  select, textarea, input[type='search'], .small-input { box-sizing: border-box; max-width: 100%; color: #e7ecff; background: #0b1020; border: 1px solid #394e7a; border-radius: 5px; padding: 5px; }
 
   button {
     border: 1px solid #5573ad;

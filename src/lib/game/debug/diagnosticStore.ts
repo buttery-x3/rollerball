@@ -10,6 +10,8 @@ import {
   BALL_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+  PLAYER_CONTACT_DIAGNOSTIC_LAYER,
+  RECEIVE_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER,
   THROW_DIAGNOSTIC_LAYER
 } from '../sim/diagnostics';
@@ -19,19 +21,35 @@ export {
   BALL_DIAGNOSTIC_LAYER,
   CONTROL_DIAGNOSTIC_LAYER,
   PLAYER_MOVEMENT_DIAGNOSTIC_LAYER,
+  PLAYER_CONTACT_DIAGNOSTIC_LAYER,
+  RECEIVE_DIAGNOSTIC_LAYER,
   RUNTIME_DIAGNOSTIC_LAYER,
   THROW_DIAGNOSTIC_LAYER
 } from '../sim/diagnostics';
 
 export interface DiagnosticStore extends DiagnosticSink {
   getFrame(): DiagnosticFrame;
+  getEvents(): readonly DiagnosticEvent[];
   listLayers(): readonly DiagnosticLayerState[];
   registerLayer(definition: DiagnosticLayerDefinition): void;
   setLayerEnabled(layer: string, enabled: boolean): void;
   subscribe(listener: () => void): () => void;
 }
 
+export interface DiagnosticEvent {
+  readonly tick: number;
+  readonly system: string;
+  readonly type: string;
+  readonly entityId?: string;
+  readonly data: Readonly<Record<string, unknown>>;
+}
+
 export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
+  { key: 'ai', label: 'AI candidates and decisions', enabledByDefault: false },
+  { key: 'aiScores', label: 'AI spatial score field', enabledByDefault: false },
+  { key: 'keeper', label: 'Goalkeeper saves and targets', enabledByDefault: false },
+  { key: 'checking', label: 'Checks, stumble and turnovers', enabledByDefault: false },
+  { key: 'match', label: 'Goals and match flow', enabledByDefault: true },
   {
     key: RUNTIME_DIAGNOSTIC_LAYER,
     label: 'Runtime',
@@ -53,6 +71,11 @@ export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
     enabledByDefault: true
   },
   {
+    key: PLAYER_CONTACT_DIAGNOSTIC_LAYER,
+    label: 'Player contact and separation',
+    enabledByDefault: false
+  },
+  {
     key: BALL_DIAGNOSTIC_LAYER,
     label: 'Ball trajectory',
     enabledByDefault: true
@@ -61,6 +84,11 @@ export const DEFAULT_DIAGNOSTIC_LAYERS: readonly DiagnosticLayerDefinition[] = [
     key: THROW_DIAGNOSTIC_LAYER,
     label: 'Throw charging and releases',
     enabledByDefault: true
+  },
+  {
+    key: RECEIVE_DIAGNOSTIC_LAYER,
+    label: 'Receiving and one-touch',
+    enabledByDefault: false
   }
 ];
 
@@ -73,6 +101,14 @@ export function createDiagnosticStore(
   let visibleFrame: DiagnosticFrame = currentFrame;
   let pendingTick: number | undefined;
   let pendingRecords: DiagnosticRecord[] = [];
+  let events: DiagnosticEvent[] = [];
+  let matchRunRevision: unknown;
+  // Tactical decisions run more slowly than physics. Preserve their last
+  // sampled explanation between updates without recalculating gameplay queries.
+  const spatialDecisions = new Map<string, readonly DiagnosticRecord[]>();
+  const isDecision = (record: DiagnosticRecord) =>
+    record.source === 'spatialCandidates' || record.source === 'teamRoleSelection' || record.source === 'actionCandidates';
+  const decisionKey = (record: DiagnosticRecord) => `${record.source}:${record.data?.playerId}`;
 
   const notify = (): void => {
     for (const listener of listeners) {
@@ -145,9 +181,39 @@ export function createDiagnosticStore(
         return;
       }
 
+      const match = pendingRecords.find(record => record.entityId === 'match-state');
+      if (match?.data?.runRevision !== undefined && match.data.runRevision !== matchRunRevision) {
+        events = [];
+        spatialDecisions.clear();
+        matchRunRevision = match.data.runRevision;
+      }
+      for (const record of pendingRecords) {
+        if (typeof record.data?.eventType !== 'string') continue;
+        events.push({ tick: pendingTick, system: record.layer, type: record.data.eventType,
+          entityId: String(record.data.playerId ?? record.data.targetId ?? record.entityId ?? ''), data: structuredClone(record.data) });
+      }
+      events = events.slice(-300);
+      const nonPlaying = (match?.data?.phase && match.data.phase !== 'playing') ||
+        pendingRecords.some(record => record.layer === 'ai' && record.data?.context === 'non-playing');
+      if (nonPlaying) spatialDecisions.clear();
+      const activeActions = new Set(pendingRecords.filter(record => record.source === 'actionController')
+        .map(record => decisionKey({ ...record, source: 'actionCandidates' })));
+      for (const key of spatialDecisions.keys()) {
+        if (key.startsWith('actionCandidates:') && !activeActions.has(key)) spatialDecisions.delete(key);
+      }
+      for (const record of pendingRecords.filter(record => record.entityId?.endsWith('-current-role'))) {
+        const key = `teamRoleSelection:${record.data?.playerId}`;
+        if (spatialDecisions.get(key)?.[0].data?.role !== record.data?.role) spatialDecisions.delete(key);
+      }
+      const updatedDecisions = new Set(pendingRecords.filter(record => !nonPlaying && isDecision(record))
+        .map(decisionKey));
+      for (const key of updatedDecisions) {
+        spatialDecisions.set(key, pendingRecords.filter(record => isDecision(record) && decisionKey(record) === key));
+      }
       currentFrame = {
         tick: pendingTick,
-        records: pendingRecords.slice()
+        records: [...pendingRecords.filter(record => !isDecision(record)),
+          ...Array.from(spatialDecisions.values()).flat()]
       };
       rebuildVisibleFrame();
       pendingTick = undefined;
@@ -157,6 +223,10 @@ export function createDiagnosticStore(
 
     getFrame(): DiagnosticFrame {
       return visibleFrame;
+    },
+
+    getEvents(): readonly DiagnosticEvent[] {
+      return events;
     },
 
     listLayers(): readonly DiagnosticLayerState[] {

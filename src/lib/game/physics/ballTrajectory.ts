@@ -527,7 +527,7 @@ function evaluateGoalAperture(
   };
 }
 
-function reflectVelocity(
+export function reflectVelocity(
   velocity: Vec2,
   normal: Vec2,
   restitution: number

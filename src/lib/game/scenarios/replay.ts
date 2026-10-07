@@ -17,13 +17,21 @@ export interface ReplayCheckpoint {
   readonly stateHash: string;
 }
 
+export interface ReplayTuningChange {
+  /** Complete override snapshot applied before this simulation tick. */
+  readonly tick: number;
+  readonly overrides: readonly ScenarioTuningOverride[];
+}
+
 export interface ReplayRecord<TInput> {
   readonly formatVersion: typeof REPLAY_FORMAT_VERSION;
   readonly scenarioId: string;
   readonly initialTick: number;
   readonly initialStateHash: string;
+  readonly initialState?: GameState;
   readonly tuningIdentity: string;
   readonly tuningOverrides: readonly ScenarioTuningOverride[];
+  readonly tuningChanges?: readonly ReplayTuningChange[];
   readonly inputs: readonly ScenarioInputFrame<TInput>[];
   readonly checkpoints: readonly ReplayCheckpoint[];
   readonly finalTick: number;
@@ -34,6 +42,7 @@ export type StateHasher<TState extends GameState> = (state: TState) => string;
 
 export interface ReplayRecorder<TState extends GameState, TInput> {
   recordStep(tick: number, input: TInput | undefined, state: TState): void;
+  recordTuningChange(tick: number, overrides: readonly ScenarioTuningOverride[]): void;
   finish(state: TState): ReplayRecord<TInput>;
 }
 
@@ -43,6 +52,7 @@ export interface CreateReplayRecorderOptions<TState extends GameState> {
   readonly tuning: TuningRegistry;
   readonly hashState?: StateHasher<TState>;
   readonly checkpointIntervalTicks?: number;
+  readonly includeInitialState?: boolean;
 }
 
 export class ReplayConfigurationError extends Error {
@@ -181,6 +191,135 @@ function snapshotInput<TInput>(input: TInput): TInput {
   return structuredClone(input);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validateOverrides(value: unknown, scenarioId: string): asserts value is readonly ScenarioTuningOverride[] {
+  if (!Array.isArray(value)) {
+    throw new ReplayConfigurationError(scenarioId, 'tuning overrides must be an array');
+  }
+  const keys = new Set<string>();
+  for (const entry of value) {
+    if (!isRecord(entry) || typeof entry.key !== 'string' || !entry.key.trim() ||
+        typeof entry.value !== 'number' || !Number.isFinite(entry.value) || keys.has(entry.key)) {
+      throw new ReplayConfigurationError(scenarioId, 'tuning overrides must have unique keys and finite values');
+    }
+    keys.add(entry.key);
+  }
+}
+
+function validateReplay<TInput>(value: unknown): asserts value is ReplayRecord<TInput> {
+  const scenarioId = isRecord(value) && typeof value.scenarioId === 'string' ? value.scenarioId : 'unknown';
+  const fail = (reason: string): never => { throw new ReplayConfigurationError(scenarioId, reason); };
+  if (!isRecord(value)) fail('the record must be an object');
+  const replay = value as Record<string, unknown>;
+  if (replay.formatVersion !== REPLAY_FORMAT_VERSION) fail(`unsupported format version ${replay.formatVersion}`);
+  for (const key of ['scenarioId', 'initialStateHash', 'finalStateHash', 'tuningIdentity']) {
+    if (typeof replay[key] !== 'string' || !replay[key].trim()) fail(`${key} must be a non-empty string`);
+  }
+  if (!Number.isSafeInteger(replay.initialTick) || (replay.initialTick as number) < 0 ||
+      !Number.isSafeInteger(replay.finalTick) || (replay.finalTick as number) < (replay.initialTick as number)) {
+    fail('initial and final ticks must be ordered non-negative integers');
+  }
+  const initialTick = replay.initialTick as number;
+  const finalTick = replay.finalTick as number;
+  validateOverrides(replay.tuningOverrides, scenarioId);
+  for (const key of ['inputs', 'checkpoints', 'tuningChanges']) {
+    const frames = replay[key];
+    if (key === 'tuningChanges' && frames === undefined) continue;
+    if (!Array.isArray(frames)) fail(`${key} must be an array`);
+    let previousTick = initialTick;
+    for (const frame of frames as unknown[]) {
+      if (!isRecord(frame) || !Number.isSafeInteger(frame.tick) ||
+          (frame.tick as number) <= previousTick || (frame.tick as number) > finalTick) {
+        fail(`${key} must be strictly ordered between ticks ${initialTick} and ${finalTick}`);
+      }
+      const entry = frame as Record<string, unknown>;
+      previousTick = entry.tick as number;
+      if (key === 'inputs' && !Object.hasOwn(entry, 'input')) fail('each input frame must contain input');
+      if (key === 'checkpoints' && (typeof entry.stateHash !== 'string' || !entry.stateHash.trim())) {
+        fail('each checkpoint must contain a state hash');
+      }
+      if (key === 'tuningChanges') validateOverrides(entry.overrides, scenarioId);
+    }
+  }
+  if (replay.initialState !== undefined && (!isRecord(replay.initialState) ||
+      replay.initialState.tick !== initialTick || !Array.isArray(replay.initialState.players) ||
+      !isRecord(replay.initialState.ball))) {
+    fail('the initial state snapshot must match the initial tick and contain players and ball');
+  }
+  // Validate imported data without changing the established v1 hash representation.
+  stableValueString(replay);
+}
+
+const REPLAY_JSON_ENCODING = 'rollerball-replay-lossless-v1';
+const JSON_VALUE_TAG = '$rollerballReplay';
+
+function encodeJsonValue(value: unknown, ancestors = new Set<object>()): unknown {
+  if (value === undefined) return { [JSON_VALUE_TAG]: 'undefined' };
+  if (typeof value === 'number' && Object.is(value, -0)) return { [JSON_VALUE_TAG]: 'negative-zero' };
+  if (typeof value === 'bigint') return { [JSON_VALUE_TAG]: 'bigint', value: String(value) };
+  if (value === null || typeof value !== 'object') {
+    if (typeof value === 'function' || typeof value === 'symbol' ||
+        (typeof value === 'number' && !Number.isFinite(value))) {
+      throw new TypeError('Replay JSON only supports finite data values.');
+    }
+    return value;
+  }
+  if (ancestors.has(value)) throw new TypeError('Replay JSON does not support cyclic values.');
+  const nextAncestors = new Set(ancestors).add(value);
+  if (Array.isArray(value)) {
+    if (Object.keys(value).length !== value.length) throw new TypeError('Replay JSON requires dense arrays.');
+    return value.map((entry) => encodeJsonValue(entry, nextAncestors));
+  }
+  const entries = Object.entries(value).map(([key, entry]) => [key, encodeJsonValue(entry, nextAncestors)]);
+  // Escape real user data with the reserved key, so it cannot be mistaken for a tag.
+  return Object.hasOwn(value, JSON_VALUE_TAG)
+    ? { [JSON_VALUE_TAG]: 'object', entries }
+    : Object.fromEntries(entries);
+}
+
+function decodeJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(decodeJsonValue);
+  if (!isRecord(value)) return value;
+  if (!Object.hasOwn(value, JSON_VALUE_TAG)) {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, decodeJsonValue(entry)]));
+  }
+  const tag = value[JSON_VALUE_TAG];
+  if (tag === 'undefined' && Object.keys(value).length === 1) return undefined;
+  if (tag === 'negative-zero' && Object.keys(value).length === 1) return -0;
+  if (tag === 'bigint' && Object.keys(value).length === 2 &&
+      typeof value.value === 'string' && /^-?\d+$/.test(value.value)) return BigInt(value.value);
+  if (tag === 'object' && Object.keys(value).length === 2 && Array.isArray(value.entries)) {
+    const keys = new Set<string>();
+    const entries = value.entries.map((entry: unknown) => {
+      if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string' || keys.has(entry[0])) {
+        throw new TypeError('Malformed escaped replay object.');
+      }
+      keys.add(entry[0]);
+      return [entry[0], decodeJsonValue(entry[1])];
+    });
+    return Object.fromEntries(entries);
+  }
+  throw new TypeError('Unknown or malformed replay JSON value tag.');
+}
+
+/** JSON transport preserves undefined properties and negative zero used by v1 state hashes. */
+export function serializeReplay<TInput>(replay: ReplayRecord<TInput>): string {
+  validateReplay<TInput>(replay);
+  return JSON.stringify({ encoding: REPLAY_JSON_ENCODING, replay: encodeJsonValue(replay) });
+}
+
+/** Plain v1 records remain accepted; new exports use an explicit lossless transport wrapper. */
+export function parseReplay<TInput = unknown>(json: string): ReplayRecord<TInput> {
+  const parsed: unknown = JSON.parse(json);
+  const replay = isRecord(parsed) && parsed.encoding === REPLAY_JSON_ENCODING
+    ? decodeJsonValue(parsed.replay) : parsed;
+  validateReplay<TInput>(replay);
+  return replay;
+}
+
 export function createReplayRecorder<TState extends GameState, TInput>(
   options: CreateReplayRecorderOptions<TState>
 ): ReplayRecorder<TState, TInput> {
@@ -206,8 +345,10 @@ export function createReplayRecorder<TState extends GameState, TInput>(
   }
 
   const initialStateHash = hashState(options.initialState);
+  const initialState = options.includeInitialState ? structuredClone(options.initialState) : undefined;
   const inputs: ScenarioInputFrame<TInput>[] = [];
   const checkpoints: ReplayCheckpoint[] = [];
+  const tuningChanges: ReplayTuningChange[] = [];
   let previousTick = initialTick;
   let finished = false;
 
@@ -218,6 +359,18 @@ export function createReplayRecorder<TState extends GameState, TInput>(
   };
 
   return {
+    recordTuningChange(tick, overrides): void {
+      ensureActive();
+      if (!Number.isInteger(tick) || tick <= previousTick ||
+          (tuningChanges.length > 0 && tick < tuningChanges[tuningChanges.length - 1].tick)) {
+        throw new RangeError('Tuning changes must target an ordered future simulation tick.');
+      }
+      validateOverrides(overrides, options.scenarioId);
+      const change = { tick, overrides: overrides.map((entry) => ({ ...entry })) };
+      if (tuningChanges.at(-1)?.tick === tick) tuningChanges[tuningChanges.length - 1] = change;
+      else tuningChanges.push(change);
+    },
+
     recordStep(tick, input, state): void {
       ensureActive();
 
@@ -250,8 +403,10 @@ export function createReplayRecorder<TState extends GameState, TInput>(
         scenarioId: options.scenarioId,
         initialTick,
         initialStateHash,
+        ...(initialState ? { initialState } : {}),
         tuningIdentity: tuning.identity,
         tuningOverrides: tuning.overrides,
+        ...(tuningChanges.length ? { tuningChanges: tuningChanges.filter((change) => change.tick <= state.tick) } : {}),
         inputs,
         checkpoints,
         finalTick: state.tick,
@@ -277,6 +432,12 @@ export interface ReplayScenarioResult<TState extends GameState, TInput> {
   readonly finalStateHash: string;
 }
 
+export interface PreparedReplayRun<TState extends GameState, TInput> {
+  readonly run: ScenarioRun<TState, TInput>;
+  readonly complete: boolean;
+  verifyFinal(): string;
+}
+
 function compareHash<TState extends GameState>(
   scenarioId: string,
   tick: number,
@@ -290,18 +451,13 @@ function compareHash<TState extends GameState>(
   }
 }
 
-export function replayScenario<TState extends GameState, TInput>(
+/** Prepare a paused replay for the regular frame loop, slow motion, or manual stepping. */
+export function prepareReplayRun<TState extends GameState, TInput>(
   options: ReplayScenarioOptions<TState, TInput>
-): ReplayScenarioResult<TState, TInput> {
+): PreparedReplayRun<TState, TInput> {
   const { replay, scenario } = options;
   const hashState = options.hashState ?? stableStateHash;
-
-  if (replay.formatVersion !== REPLAY_FORMAT_VERSION) {
-    throw new ReplayConfigurationError(
-      scenario.id,
-      `unsupported format version ${replay.formatVersion}`
-    );
-  }
+  validateReplay<TInput>(replay);
 
   if (replay.scenarioId !== scenario.id) {
     throw new ReplayConfigurationError(
@@ -310,46 +466,49 @@ export function replayScenario<TState extends GameState, TInput>(
     );
   }
 
-  if (!Number.isInteger(replay.finalTick) || replay.finalTick < replay.initialTick) {
-    throw new ReplayConfigurationError(
-      scenario.id,
-      `final tick ${replay.finalTick} is not after initial tick ${replay.initialTick}`
-    );
-  }
-
-  let previousCheckpointTick = replay.initialTick;
-  for (const checkpoint of replay.checkpoints) {
-    if (
-      !Number.isInteger(checkpoint.tick) ||
-      checkpoint.tick <= previousCheckpointTick ||
-      checkpoint.tick > replay.finalTick
-    ) {
-      throw new ReplayConfigurationError(
-        scenario.id,
-        `checkpoint at tick ${checkpoint.tick} is not ordered between ` +
-          `${replay.initialTick} and ${replay.finalTick}`
-      );
-    }
-
-    previousCheckpointTick = checkpoint.tick;
-  }
-
   const expectedCheckpoints = new Map(
     replay.checkpoints.map((checkpoint) => [checkpoint.tick, checkpoint.stateHash])
   );
+  const tuningChanges = new Map((replay.tuningChanges ?? []).map((change) => [change.tick, change.overrides]));
   const onStep = options.onStep;
-  const run = createScenarioRun({
+  let complete = false;
+  let run: ScenarioRun<TState, TInput>;
+  const verifyFinal = (): string => {
+    if (run.state.tick !== replay.finalTick) {
+      throw new ReplayConfigurationError(scenario.id, `final verification requires tick ${replay.finalTick}`);
+    }
+    compareHash(scenario.id, replay.finalTick, replay.finalStateHash, run.state, hashState);
+    return hashState(run.state);
+  };
+  const snapshot = replay.initialState;
+  run = createScenarioRun({
     ...options,
-    definition: scenario,
+    definition: snapshot ? { ...scenario, createInitialState: () => structuredClone(snapshot) as TState } : scenario,
     inputFrames: replay.inputs,
     tuningOverrides: replay.tuningOverrides,
+    step: (state, seconds, context, input) => {
+      if (complete) throw new ReplayConfigurationError(scenario.id, 'playback has already finished');
+      const overrides = tuningChanges.get(state.tick + 1);
+      if (overrides) run.tuning.replaceOverrides(overrides);
+      // Runtime builds the context before invoking the step. An arena tuning edit must
+      // also update derived geometry on this very tick, not one tick later.
+      const replayContext = overrides && run.getArena ? { ...context, arena: run.getArena() } : context;
+      options.step(state, seconds, replayContext, input);
+    },
     onStep: (state, tick, input) => {
-      void input;
-      const expectedHash = expectedCheckpoints.get(tick);
-      if (expectedHash !== undefined) {
-        compareHash(scenario.id, tick, expectedHash, state, hashState);
+      try {
+        const expectedHash = expectedCheckpoints.get(tick);
+        if (expectedHash !== undefined) compareHash(scenario.id, tick, expectedHash, state, hashState);
+        if (tick === replay.finalTick) {
+          verifyFinal();
+          complete = true;
+          run.runtime.pause();
+        }
+        onStep?.(state, tick, input);
+      } catch (error) {
+        run.runtime.pause();
+        throw error;
       }
-      onStep?.(state, tick, input);
     }
   });
 
@@ -362,22 +521,6 @@ export function replayScenario<TState extends GameState, TInput>(
 
   compareHash(scenario.id, replay.initialTick, replay.initialStateHash, run.state, hashState);
 
-  if (replay.finalTick < run.state.tick) {
-    throw new ReplayConfigurationError(
-      scenario.id,
-      `final tick ${replay.finalTick} precedes initial tick ${run.state.tick}`
-    );
-  }
-
-  for (const input of replay.inputs) {
-    if (input.tick > replay.finalTick) {
-      throw new ReplayConfigurationError(
-        scenario.id,
-        `input at tick ${input.tick} is after final tick ${replay.finalTick}`
-      );
-    }
-  }
-
   const actualTuning = tuningSnapshot(run.tuning);
   if (actualTuning.identity !== replay.tuningIdentity) {
     throw new ReplayConfigurationError(
@@ -387,11 +530,17 @@ export function replayScenario<TState extends GameState, TInput>(
   }
 
   run.runtime.pause();
-  for (let tick = run.state.tick; tick < replay.finalTick; tick += 1) {
-    run.runtime.stepOnce();
+  if (run.state.tick === replay.finalTick) {
+    verifyFinal();
+    complete = true;
   }
+  return { run, get complete(): boolean { return complete; }, verifyFinal };
+}
 
-  compareHash(scenario.id, replay.finalTick, replay.finalStateHash, run.state, hashState);
-
-  return { run, finalStateHash: hashState(run.state) };
+export function replayScenario<TState extends GameState, TInput>(
+  options: ReplayScenarioOptions<TState, TInput>
+): ReplayScenarioResult<TState, TInput> {
+  const playback = prepareReplayRun(options);
+  while (!playback.complete) playback.run.runtime.stepOnce();
+  return { run: playback.run, finalStateHash: playback.verifyFinal() };
 }
