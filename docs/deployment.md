@@ -38,15 +38,18 @@ Production runs as `flamehorn` with `PM2_HOME=/home/flamehorn/.pm2`, binds only 
 is cloned over HTTPS; no private key or credentials belong in this repository.
 
 Deployment refuses a dirty/diverged checkout or a branch other than `main`.
-It installs dependencies and runs `check:production` (types, headless tests,
-HTTP/deployment checks, and the prefixed production build) in a temporary checkout.
-The browser-inclusive local quality gate remains required before publication.
+It installs dependencies and runs only the prefixed production build in a temporary
+checkout. Type checks, simulation/tuning tests, server tests and browser validation
+belong in local development or CI before merging, not on the serving VPS.
 It backs up source and the previous build outside Git at
 `/home/flamehorn/rollerball-backups/`, then fast-forwards, publishes assets,
 atomically replaces HTML, reloads only this PM2 process and verifies its HTML.
 A failure attempts to restore the previous source/build. Older hashed assets
 remain available for visitors with open tabs. Inspect the printed backup if recovery fails.
 Normal rollback is a Git revert on `main`, followed by another deployment.
+
+The npm deployment command invokes `bash scripts/deploy.sh`, so the script does
+not need execute permission. Avoid changing its Git-tracked file mode to deploy.
 
 ## One-time server setup
 

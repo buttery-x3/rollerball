@@ -17,8 +17,8 @@ staging=$(mktemp -d)
 trap 'rm -rf -- "$staging"' EXIT
 git archive "$target" | tar -x -C "$staging"
 bash -n "$staging/scripts/deploy.sh"
-# Validate/build outside the live tree. Browser tests run locally before pushing.
-(cd "$staging" && npm ci --include=dev && VITE_BASE_PATH=/rollerball npm run check:production)
+# Build outside the live tree. Run validation locally or in CI before merging.
+(cd "$staging" && npm ci --include=dev && VITE_BASE_PATH=/rollerball npm run build)
 test -s "$staging/build/index.html"
 [[ -z $(git status --porcelain) && $(git rev-parse HEAD) == "$previous" ]] || {
   echo 'Server checkout changed during validation; stopping.' >&2; exit 1;
